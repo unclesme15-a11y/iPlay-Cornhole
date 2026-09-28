@@ -18,6 +18,8 @@ Every setup is a **locked Kling plate**: one approved still frame that every cli
 
 Every plate has a matching **invisible Unity board**, meaning a collider plus a hole trigger, placed so it sits exactly on the video board. Bags hit the invisible board, but it looks like they hit the real one in the video.
 
+**The boards are the custom iPlay LED boards** (see `led-board-and-bags.md`). A video can't flash its lights on cue, so the plates show the boards with their LED strips **switched off** (dark, clear strips along the sides). Unity draws the light itself on top of the video board: the cyan running lights at idle and the burst when a bag drops in the hole. That's why the board overlay is aligned to the plate as carefully as the collider.
+
 ## Hand-Off Moment (Most Important Timing)
 
 Every opponent throw clip has a **release frame**. That's the moment the bag leaves their hand.

@@ -68,7 +68,15 @@ After setup, each player picks a video character, then each team picks a bag col
 - **[Reg]** The bag touches the ground before landing on the board (bouncing off the grass onto the board doesn't count).
 - **[Reg]** The bag hits a tree, an overhead object, a person, or anything else before landing.
 - **[Reg]** Taking longer than the throw timer. **[iPlay]** The timer is 20 seconds. When it runs out the bag counts as a foul, and the bag icon shows it.
-- **[iPlay]** Players can't physically step over a line in a phone game, so foot fouls only apply as an optional "Pro Footwork" mode where the swipe has to start inside a marked zone. Off by default.
+- **[iPlay]** Players can't physically step over a line in a phone game, so foot-fault fouls do not exist in this version. The fouls that do exist are: the bag misses the board or touches the grass, the throw timer runs out, and a bag knocked off the board by a later throw.
+
+## The Board Reacts **[iPlay]**
+
+- The custom iPlay board has LED lights running down both sides. At idle they chase down the rails in cyan.
+- **When a bag drops into the hole** (thrown straight in, slid in, or knocked in later by another bag) the game-show ring-in sound plays and the board's lights burst at that exact moment, in white and the scoring team's bag color.
+- A bag that stays on the board only makes a soft thud. A bag that hits the grass makes a duller one. Neither flashes the lights.
+- The burst never flashes faster than 3 times a second, and players who turn on "reduce motion" get a soft glow instead of a strobe.
+- Every bag has the iPlay mark printed on it.
 
 ## Singles vs Doubles
 

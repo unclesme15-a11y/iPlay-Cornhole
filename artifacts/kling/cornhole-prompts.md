@@ -13,7 +13,7 @@ If Kling softens or refuses a prompt, keep the descriptions of the women's bodie
 Your own board has to be visible right in front of you in the lower part of the frame. Far-end players throw at it, and there's no camera cut for that board.
 
 ```text
-First-person point of view standing in a cornhole pitcher's box on flat trimmed grass, eye level about 5 feet, a regulation wooden cornhole board with a round hole on the ground directly in front of the viewer filling the lower left part of the frame, looking straight down a clear 27 foot lane at a matching far cornhole board, wide open green city park at a summertime hood BBQ cookout, bright afternoon sun, grills smoking, pop-up tents, folding tables and coolers in the background, a big relaxed crowd in the distance behind and to the sides of the lane, mostly curvy thick-figured adult Black women, with Latina and white women and some men mixed in, in summer cookout outfits, people talking in small groups and eating, a few little kids playing far off in the background, candid and natural, nobody posing, background slightly soft focus, no people between the boards, no logos, no text, realistic photo, natural lighting, 9:16 vertical
+First-person point of view standing in a cornhole pitcher's box on flat trimmed grass, eye level about 5 feet, a custom glossy black cornhole board with a round hole and dark unlit LED light strips along both long sides, on the ground directly in front of the viewer filling the lower left part of the frame, looking straight down a clear 27 foot lane at a matching custom glossy black cornhole board, wide open green city park at a summertime hood BBQ cookout, bright afternoon sun, grills smoking, pop-up tents, folding tables and coolers in the background, a big relaxed crowd in the distance behind and to the sides of the lane, mostly curvy thick-figured adult Black women, with Latina and white women and some men mixed in, in summer cookout outfits, people talking in small groups and eating, a few little kids playing far off in the background, candid and natural, nobody posing, background slightly soft focus, no people between the boards, no logos, no text, realistic photo, natural lighting, 9:16 vertical
 ```
 
 ### Far Board Cam (Plate 2)
@@ -21,14 +21,22 @@ First-person point of view standing in a cornhole pitcher's box on flat trimmed 
 Used only for bags thrown at the far board.
 
 ```text
-Low close-up camera angle beside a regulation wooden cornhole board with a round hole, same summertime park BBQ cookout on trimmed grass, board fills the lower half of the frame, clean empty board surface, cookout tents and a crowd of mostly curvy adult Black and Latina women soft and blurred in the background, people chatting in small groups, kids playing far off, no bags, no people on the board, no logos, no text, realistic photo, 9:16 vertical
+Low close-up camera angle beside a custom glossy black cornhole board with a round hole and dark unlit LED strips along its long sides, same summertime park BBQ cookout on trimmed grass, board fills the lower half of the frame, clean empty board surface, cookout tents and a crowd of mostly curvy adult Black and Latina women soft and blurred in the background, people chatting in small groups, kids playing far off, no bags, no people on the board, no logos, no text, realistic photo, 9:16 vertical
 ```
 
 ### Neighbor Cut (Plate 3)
 
 ```text
-Side angle from a cornhole pitcher's box looking across the near cornhole board at the opposite pitcher's box on the other side of it, empty box, flat trimmed grass, same summertime park BBQ cookout behind, crowd of mostly curvy adult women chatting in the soft background, no logos, no text, realistic photo, 9:16 vertical
+Side angle from a cornhole pitcher's box looking across the near custom glossy black cornhole board at the opposite pitcher's box on the other side of it, empty box, flat trimmed grass, same summertime park BBQ cookout behind, crowd of mostly curvy adult women chatting in the soft background, no logos, no text, realistic photo, 9:16 vertical
 ```
+
+### Board Reference (Text-To-Image, For Modeling The Overlay)
+
+```text
+Product photo of a custom regulation cornhole board, glossy black deck with a brushed dark metal frame, a round 6 inch hole, thin clear LED light strips set into both long sides and along the front edge, all LEDs switched off, plain deck with no graphics, sitting on trimmed grass in soft afternoon light, shot from above at a slight angle, no people, no logos, no text, realistic photo, 9:16 vertical
+```
+
+The LEDs stay **off** in every plate and clip. Unity draws all of the light so it can flash exactly when a bag drops in.
 
 ## 1b. Background Life Takes (Image-To-Video From Plate 1)
 

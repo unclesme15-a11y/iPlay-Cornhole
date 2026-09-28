@@ -1,0 +1,36 @@
+name: server
+
+on:
+  push:
+    branches: [main]
+    paths: ['server/**', 'assets/**', 'docs/api-contract.md', '.github/workflows/server.yml']
+  pull_request:
+    paths: ['server/**', 'assets/**', 'docs/api-contract.md', '.github/workflows/server.yml']
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      # Generated assets must be committed and current (the tests also check this)
+      - run: npm run assets
+      - run: git diff --exit-code -- ../assets
+  docker:
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t iplay-cornhole-server server

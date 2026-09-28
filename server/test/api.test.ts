@@ -228,6 +228,26 @@ describe('a whole match over HTTP', () => {
   });
 });
 
+describe('client compatibility', () => {
+  it('accepts a JSON content-type on POSTs that have no body (what Unity sends for start and leave)', async () => {
+    const { app } = await boot();
+    const { json } = await createMatch(app);
+    const headers = { ...auth(json.bearer), 'content-type': 'application/json', 'content-length': '0' };
+    const start = await app.inject({ method: 'POST', url: `/api/matches/${json.matchId}/start`, headers });
+    expect(start.statusCode).toBe(200);
+    expect(start.json().phase).toBe('characters');
+    const leave = await app.inject({ method: 'POST', url: `/api/matches/${json.matchId}/leave`, headers });
+    expect(leave.statusCode).toBe(200);
+  });
+
+  it('still rejects genuinely broken JSON', async () => {
+    const { app } = await boot();
+    const { json } = await createMatch(app);
+    const res = await app.inject({ method: 'POST', url: `/api/matches/${json.matchId}/color`, headers: { ...auth(json.bearer), 'content-type': 'application/json' }, payload: '{not json' });
+    expect(res.statusCode).toBe(400);
+  });
+});
+
 describe('rate limiting', () => {
   it('limits match creation per IP', async () => {
     const { app } = await boot();

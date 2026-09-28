@@ -8,13 +8,15 @@
 - Side-by-side test: the same Plate 1 plus one background prompt in Kling, Veo 3.1 and Seedance 2.0. Pick per clip type.
 - Generate 3-4 random background life takes plus the cornhole nearby-reaction take, and an ambient audio bed with random one-shots.
 
-## Phase 2: Scoring Backend
+## Phase 2: Scoring Backend (DONE, see `server/`)
 
-- Cornhole rules engine: innings, alternating throws, cancellation scoring, target score from Match Setup (default 21), bust/skunk toggles.
-- Unit tests for each scoring example in `game-rules.md`.
-- Seeded bag physics on the server, plus a frame-path transport (copy the Street Dice pattern).
+- [x] Cornhole rules engine: innings, alternating throws, cancellation scoring, target score from Match Setup (default 21), bust/skunk toggles.
+- [x] Unit tests for each scoring example in `game-rules.md`.
+- [x] Seeded bag physics on the server, with flight and slide frames sent to every phone.
+- [x] Lobby, character pick, first-come bag colors, bots, disconnect takeover, REST + WebSocket API.
+- [x] LED board config, the ring-in sound, and the iPlay logo for the bags.
 
-## Phase 3: Unity Greybox
+## Phase 3: Unity Greybox (next: build against `docs/api-contract.md`)
 
 - Invisible boards lined up on the locked plates.
 - First-person hand + swipe throw + bag flight.

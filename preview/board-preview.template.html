@@ -1,0 +1,440 @@
+<title>iPlay LED Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Permanent+Marker&display=swap">
+<style>
+/* Layout: one phone-width column. Board stage on top, throw controls, then sound and bag colour pickers. */
+:root {
+  --bg: #070b10;
+  --panel: #0d141b;
+  --metal: #18212b;
+  --line: #243241;
+  --fg: #e8f2f8;
+  --muted: #8fa3b3;
+  --cyan: #00e5ff;
+  --gold: #ffc400;
+  --display: 'Permanent Marker', 'Marker Felt', 'Comic Sans MS', cursive;
+  --body: 'Barlow Semi Condensed', 'Arial Narrow', system-ui, sans-serif;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.4; }
+.wrap { max-width: 560px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 36px; display: flex; flex-direction: column; gap: 18px; }
+h1 { font-family: var(--display); font-weight: 400; font-size: 34px; line-height: 1; margin: 0; letter-spacing: .01em; text-wrap: balance; }
+h1 span { color: var(--cyan); }
+.lede { margin: 6px 0 0; color: var(--muted); max-width: 46ch; }
+h2 { font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin: 0 0 8px; }
+.stage { background: radial-gradient(120% 90% at 50% 0%, #101a24 0%, var(--panel) 60%); border: 1px solid var(--line); border-radius: 14px; padding: 10px; }
+canvas { display: block; width: 100%; height: auto; border-radius: 8px; }
+.spec { margin: 8px 2px 0; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.readout { min-height: 2.8em; margin: 0; padding: 10px 12px; border-left: 3px solid var(--cyan); background: var(--panel); color: var(--fg); font-variant-numeric: tabular-nums; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; }
+button { font: inherit; color: var(--fg); background: var(--metal); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; min-height: 48px; cursor: pointer; touch-action: manipulation; }
+button:hover { border-color: #3a4d61; }
+button:focus-visible, input:focus-visible + label { outline: 2px solid var(--cyan); outline-offset: 2px; }
+button.primary { flex: 1 1 100%; background: #062a33; border-color: var(--cyan); color: #eaffff; font-weight: 700; font-size: 18px; box-shadow: 0 0 22px rgba(0,229,255,.22); }
+button.primary:active { background: #0a4452; }
+button.secondary { flex: 1 1 calc(50% - 5px); }
+.pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.pills input { position: absolute; opacity: 0; pointer-events: none; }
+.pills label { border: 1px solid var(--line); background: var(--metal); border-radius: 999px; padding: 9px 14px; min-height: 44px; display: inline-flex; align-items: center; cursor: pointer; }
+.pills input:checked + label { border-color: var(--cyan); color: #eaffff; background: #062a33; }
+.swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.swatch { position: relative; aspect-ratio: 1; min-height: 44px; padding: 0; border-radius: 10px; border: 2px solid transparent; }
+.swatch[aria-checked="true"] { border-color: var(--fg); box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--cyan); }
+.swatch[disabled] { cursor: not-allowed; opacity: .28; }
+.swatch[disabled]::after { content: attr(data-taken); position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px #000; }
+.teamline { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.teamline b { font-weight: 700; }
+.check { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.check input { width: 22px; height: 22px; accent-color: var(--cyan); }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+@media (prefers-reduced-motion: reduce) { button { transition: none; } }
+</style>
+
+<main class="wrap">
+  <header>
+    <h1>iPlay <span>LED</span> Board</h1>
+    <p class="lede">Throw a bag. When it drops in the hole, the ring-in sound and the light burst fire at the same instant.</p>
+  </header>
+
+  <section class="stage" aria-label="Cornhole board preview">
+    <canvas id="stage" role="img" aria-label="Top-down view of a black cornhole board with cyan LED lights running down both sides"></canvas>
+    <p class="spec" id="spec"></p>
+  </section>
+
+  <p class="readout" id="readout" aria-live="polite">Tap “Drop it in the hole” to hear it.</p>
+
+  <section>
+    <h2>Throw</h2>
+    <div class="row">
+      <button class="primary" id="btn-hole" type="button">Drop it in the hole · +3</button>
+      <button class="secondary" id="btn-woody" type="button">Land on the board · +1</button>
+      <button class="secondary" id="btn-miss" type="button">Miss the board</button>
+      <button class="secondary" id="btn-sweep" type="button">Sweep the board</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Hole sound</h2>
+    <div class="pills" role="radiogroup" aria-label="Hole sound">
+      <input type="radio" name="snd" id="snd-hit" value="hit" checked><label for="snd-hit">Ring-in (buzzer + bell)</label>
+      <input type="radio" name="snd" id="snd-ding" value="ding"><label for="snd-ding">Bell only</label>
+      <input type="radio" name="snd" id="snd-buzz" value="buzz"><label for="snd-buzz">Buzzer + bell</label>
+    </div>
+    <div class="row" style="margin-top:10px"><button id="btn-play" type="button">Play the sound only</button></div>
+  </section>
+
+  <section>
+    <h2>Bags</h2>
+    <div class="pills" role="radiogroup" aria-label="Throwing team" style="margin-bottom:12px">
+      <input type="radio" name="team" id="team-A" value="A" checked><label for="team-A">Team A throws</label>
+      <input type="radio" name="team" id="team-B" value="B"><label for="team-B">Team B throws</label>
+    </div>
+    <div class="teamline"><b>Team A bag color</b><span class="note" id="nameA"></span></div>
+    <div class="swatches" id="swA" role="radiogroup" aria-label="Team A bag color"></div>
+    <div class="teamline" style="margin-top:14px"><b>Team B bag color</b><span class="note" id="nameB"></span></div>
+    <div class="swatches" id="swB" role="radiogroup" aria-label="Team B bag color"></div>
+    <p class="note" style="margin-top:10px">First come, first served. A color one team takes is locked for the other. The iPlay mark is printed on every bag.</p>
+  </section>
+
+  <section>
+    <label class="check"><input type="checkbox" id="reduce"> Reduce flashing (soft glow instead of a strobe)</label>
+  </section>
+</main>
+
+<script>
+/*ASSETS*/
+const ASSETS = window.__ASSETS__;
+const COLORS = ASSETS.colors;
+const LED = ASSETS.led;
+
+const $ = (id) => document.getElementById(id);
+const state = {
+  team: 'A',
+  colors: { A: 'royal-blue', B: 'hot-pink' },
+  sound: 'hit',
+  reduce: false,
+  bags: [],            // resting bags on the board: { x, y, rot, team }
+  flying: null,        // { t0, ms, from, to, outcome, team, rot }
+  flash: null,         // { t0, colors: [a, b] }
+  pops: [],            // floating score labels
+};
+try { state.reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { /* keep default */ }
+$('reduce').checked = state.reduce;
+
+const hexOf = (id) => COLORS.find((c) => c.id === id).hex;
+const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+const lum = (hex) => { const [r, g, b] = rgb(hex).map((v) => v / 255); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+
+/* ---------- images ---------- */
+const imgs = {};
+for (const [k, src] of Object.entries(ASSETS.logo)) { const im = new Image(); im.src = src; imgs[k] = im; }
+
+/* ---------- audio (decoded from the embedded WAV files on the first tap) ---------- */
+let actx = null;
+const buffers = {};
+let audioReady = null;
+function b64ToBuf(dataUrl) {
+  const bin = atob(dataUrl.split(',')[1]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+function ensureAudio() {
+  if (audioReady) return audioReady;
+  const Ctor = window.AudioContext || window.webkitAudioContext;
+  if (!Ctor) { audioReady = Promise.resolve(); return audioReady; }
+  actx = new Ctor();
+  audioReady = Promise.all(Object.entries(ASSETS.sounds).map(([k, url]) =>
+    new Promise((resolve) => actx.decodeAudioData(b64ToBuf(url), (b) => { buffers[k] = b; resolve(); }, () => resolve())),
+  )).then(() => actx.resume && actx.resume());
+  return audioReady;
+}
+function play(name) {
+  if (!actx || !buffers[name]) return;
+  if (actx.state === 'suspended') actx.resume();
+  const src = actx.createBufferSource();
+  src.buffer = buffers[name];
+  src.connect(actx.destination);
+  src.start();
+}
+
+/* ---------- geometry: board inches -> canvas pixels (front edge at the bottom) ---------- */
+const canvas = $('stage');
+const g = canvas.getContext('2d');
+let W = 360, H = 520, k = 8, cx = 180, bottom = 440, dpr = 1;
+function layout() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  W = Math.max(280, Math.floor(rect.width - 20));
+  H = Math.round(W * 1.45);
+  dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  canvas.style.height = H + 'px';
+  k = (W * 0.56) / 24;
+  cx = W / 2;
+  bottom = H - 84;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+const px = (x) => cx + x * k;
+const py = (y) => bottom - y * k;
+
+/* ---------- LED sprites and colours ---------- */
+const sprites = {};
+function sprite(hex) {
+  if (sprites[hex]) return sprites[hex];
+  const c = document.createElement('canvas'); c.width = c.height = 48;
+  const s = c.getContext('2d'); const [r, gg, b] = rgb(hex);
+  const grad = s.createRadialGradient(24, 24, 0, 24, 24, 24);
+  grad.addColorStop(0, `rgba(${r},${gg},${b},1)`);
+  grad.addColorStop(0.25, `rgba(${r},${gg},${b},.75)`);
+  grad.addColorStop(1, `rgba(${r},${gg},${b},0)`);
+  s.fillStyle = grad; s.fillRect(0, 0, 48, 48);
+  return (sprites[hex] = c);
+}
+const RAIL = LED.strips.find((s) => s.id === 'rail-left').leds;
+const EDGE = LED.strips.find((s) => s.id === 'front-edge').leds;
+const RING = LED.strips.find((s) => s.id === 'hole-ring').leds;
+const HOLE = { x: 0, y: 39, r: 3 };
+
+function led(hex, x, y, intensity, size) {
+  if (intensity <= 0.01) return;
+  g.globalAlpha = Math.min(1, intensity);
+  const s = size * k;
+  g.drawImage(sprite(hex), px(x) - s / 2, py(y) - s / 2, s, s);
+}
+
+/* ---------- drawing ---------- */
+function roundRect(x, y, w, h, r) {
+  g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+
+function drawBoard() {
+  // frame
+  const fg = g.createLinearGradient(px(-14), 0, px(14), 0);
+  fg.addColorStop(0, '#1a232d'); fg.addColorStop(0.5, '#3a4856'); fg.addColorStop(1, '#1a232d');
+  g.fillStyle = fg; roundRect(px(-14), py(49.6), 28 * k, 51.2 * k, 1.2 * k); g.fill();
+  // deck
+  const dg = g.createLinearGradient(px(-12), py(48), px(12), py(0));
+  dg.addColorStop(0, '#0a0f15'); dg.addColorStop(0.5, '#1a2531'); dg.addColorStop(1, '#0b1118');
+  g.fillStyle = dg; g.fillRect(px(-12), py(48), 24 * k, 48 * k);
+  // gloss sheen
+  const sg = g.createLinearGradient(px(-12), py(48), px(-2), py(30));
+  sg.addColorStop(0, 'rgba(255,255,255,.11)'); sg.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = sg; g.fillRect(px(-12), py(48), 24 * k, 48 * k);
+  // printed iPlay mark
+  const logo = imgs.cyan;
+  if (logo.complete && logo.naturalWidth) { g.globalAlpha = 0.85; const s = 11 * k; g.drawImage(logo, px(0) - s / 2, py(17) - s / 2, s, s); g.globalAlpha = 1; }
+  // hole
+  const hg = g.createRadialGradient(px(0), py(HOLE.y), 0, px(0), py(HOLE.y), HOLE.r * k);
+  hg.addColorStop(0, '#000'); hg.addColorStop(0.75, '#020304'); hg.addColorStop(1, '#0d131a');
+  g.fillStyle = hg; g.beginPath(); g.arc(px(0), py(HOLE.y), HOLE.r * k, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = '#26323f'; g.lineWidth = 1.5; g.stroke();
+}
+
+function flashInfo(now) {
+  if (!state.flash) return null;
+  const f = now - state.flash.t0;
+  if (f > LED.cornhole.durationMs) { state.flash = null; return null; }
+  const fade = Math.min(1, (LED.cornhole.durationMs - f) / 300);
+  return { f, fade };
+}
+
+function drawLeds(now) {
+  const t = now / 1000;
+  g.globalCompositeOperation = 'lighter';
+  const fl = flashInfo(now);
+  const idleColor = LED.idle.color;
+  const speed = LED.idle.speedLedsPerSec * (state.reduce ? 0.45 : 1);
+  const tail = LED.idle.tailLength;
+  const head = (t * speed) % (RAIL + tail + 10);
+  const team = state.flash ? state.flash.colors[1] : null;
+
+  for (let i = 0; i < RAIL; i++) {
+    const y = 0.6 + (i / (RAIL - 1)) * 46.8;
+    let color = idleColor, a;
+    const d = head - i;
+    const chase = d >= 0 && d < tail ? Math.pow(1 - d / tail, 1.5) * LED.idle.brightness : 0;
+    a = 0.1 + chase;
+    if (fl) {
+      if (state.reduce) { color = team; a = (0.5 + 0.35 * Math.sin(2 * Math.PI * LED.cornhole.reducedMotion.pulseHz * (fl.f / 1000) - Math.PI / 2)) * fl.fade + a * (1 - fl.fade); }
+      else { const phase = Math.floor((fl.f / 1000) * LED.cornhole.flashRateHz * 2) % 2; color = state.flash.colors[phase]; a = 1 * fl.fade + a * (1 - fl.fade); }
+    }
+    led(color, -12.9, y, a, 2.4); led(color, 12.9, y, a, 2.4);
+  }
+  for (let i = 0; i < EDGE; i++) {
+    const x = -11.2 + (i / (EDGE - 1)) * 22.4;
+    let color = idleColor, a = 0.14 + 0.1 * Math.sin(t * 2 + i * 0.35);
+    if (fl) {
+      if (state.reduce) { color = team; a = 0.6 * fl.fade + a * (1 - fl.fade); }
+      else { const phase = Math.floor((fl.f / 1000) * LED.cornhole.flashRateHz * 2) % 2; color = state.flash.colors[phase]; a = fl.fade + a * (1 - fl.fade); }
+    }
+    led(color, x, -0.9, a, 2.2);
+  }
+  for (let i = 0; i < RING; i++) {
+    const ang = (i / RING) * Math.PI * 2;
+    let color = idleColor, a = 0.1;
+    const spin = (t * 9) % RING; const dd = (spin - i + RING) % RING;
+    if (dd < 5) a += (1 - dd / 5) * 0.5;
+    if (fl) { color = LED.cornhole.holeRing.color; a = (0.55 + 0.45 * Math.sin(2 * Math.PI * LED.cornhole.holeRing.rateHz * (fl.f / 1000))) * fl.fade + a * (1 - fl.fade); }
+    led(color, Math.cos(ang) * (HOLE.r + 0.7), HOLE.y + Math.sin(ang) * (HOLE.r + 0.7), a, 1.9);
+  }
+  if (fl) {
+    // soft bloom around the whole board while the burst plays
+    const phase = state.reduce ? 1 : Math.floor((fl.f / 1000) * LED.cornhole.flashRateHz * 2) % 2;
+    g.globalAlpha = 0.16 * fl.fade;
+    const s = 70 * k;
+    g.drawImage(sprite(state.flash.colors[phase]), px(0) - s / 2, py(24) - s / 2, s, s * 1.15);
+  }
+  g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+}
+
+function drawBag(x, y, rot, scale, team, alpha = 1) {
+  const hex = hexOf(state.colors[team]);
+  const size = 6 * k * scale;
+  g.save(); g.globalAlpha = alpha; g.translate(px(x), py(y)); g.rotate(rot);
+  // shadow
+  g.fillStyle = 'rgba(0,0,0,.45)'; roundRect(-size / 2 + 2, -size / 2 + 3, size, size, size * 0.14); g.fill();
+  // cloth
+  g.fillStyle = hex; roundRect(-size / 2, -size / 2, size, size, size * 0.14); g.fill();
+  const shade = g.createLinearGradient(-size / 2, -size / 2, size / 2, size / 2);
+  shade.addColorStop(0, 'rgba(255,255,255,.22)'); shade.addColorStop(1, 'rgba(0,0,0,.28)');
+  g.fillStyle = shade; roundRect(-size / 2, -size / 2, size, size, size * 0.14); g.fill();
+  // stitching: team B gets the stitched X so colour is never the only cue
+  g.strokeStyle = lum(hex) > 0.5 ? 'rgba(0,0,0,.45)' : 'rgba(255,255,255,.45)'; g.lineWidth = 1; g.setLineDash([3, 3]);
+  roundRect(-size * 0.42, -size * 0.42, size * 0.84, size * 0.84, size * 0.08); g.stroke();
+  if (team === 'B') { g.beginPath(); g.moveTo(-size * 0.42, -size * 0.42); g.lineTo(size * 0.42, size * 0.42); g.moveTo(size * 0.42, -size * 0.42); g.lineTo(-size * 0.42, size * 0.42); g.stroke(); }
+  g.setLineDash([]);
+  // iPlay mark
+  const mark = lum(hex) > 0.5 ? imgs.black : imgs.white;
+  if (mark.complete && mark.naturalWidth) { const s = size * 0.56; g.drawImage(mark, -s / 2, -s / 2, s, s); }
+  g.restore();
+}
+
+function drawFlying(now) {
+  const a = state.flying; if (!a) return;
+  const u = Math.min(1, (now - a.t0) / a.ms);
+  const e = u;
+  const x = a.from.x + (a.to.x - a.from.x) * e;
+  const y = a.from.y + (a.to.y - a.from.y) * e;
+  const scale = 1 + 0.9 * Math.sin(Math.PI * u) * a.arc;
+  drawBag(x, y, a.rot + u * 2.2, scale, a.team);
+  if (u >= 1) land(a, now);
+}
+
+function land(a, now) {
+  state.flying = null;
+  const team = a.team;
+  if (a.outcome === 'hole') {
+    state.dropping = { t0: now, team, rot: a.rot };
+    cue(now);
+  } else if (a.outcome === 'woody') {
+    play('thud');
+    state.bags.push({ x: a.to.x, y: a.to.y, rot: a.rot, team });
+    if (state.bags.length > 4) state.bags.shift();
+    state.pops.push({ t0: now, text: '+1', x: a.to.x, y: a.to.y + 5, color: hexOf(state.colors[team]), small: true });
+    say(`Bag landed on the board (+1). Soft thud, lights stay calm. Sound played at +${Math.round(now - a.releaseAt)} ms.`);
+  } else {
+    play('ground');
+    state.missed = { t0: now, x: a.to.x, y: a.to.y, rot: a.rot, team };
+    say('Missed the board: it hit the grass, so it is a foul and the bag is removed. Duller thud, no lights.');
+  }
+  a.releaseAt = 0;
+}
+
+let lastRelease = 0;
+function cue(now) {
+  play(state.sound);
+  const team = state.team;
+  state.flash = { t0: now, colors: ['#FFFFFF', hexOf(state.colors[team])] };
+  state.pops.push({ t0: now, text: '+3', x: 0, y: HOLE.y + 7, color: '#ffffff', small: false });
+  const ms = Math.round(now - lastRelease);
+  say(`Cornhole. The bag dropped in at +${ms} ms after release and the sound and the LED burst fired at that same moment (${state.reduce ? 'soft glow' : LED.cornhole.flashRateHz + ' flashes a second'}).`);
+}
+
+function drawExtras(now) {
+  if (state.dropping) {
+    const f = (now - state.dropping.t0) / 320;
+    if (f >= 1) state.dropping = null;
+    else drawBag(0, HOLE.y, state.dropping.rot, 1 - f, state.dropping.team, 1 - f * 0.4);
+  }
+  if (state.missed) {
+    const f = (now - state.missed.t0) / 1100;
+    if (f >= 1) state.missed = null;
+    else drawBag(state.missed.x, state.missed.y, state.missed.rot, 1, state.missed.team, 1 - Math.max(0, f - 0.5) * 2);
+  }
+  state.pops = state.pops.filter((p) => now - p.t0 < 1300);
+  for (const p of state.pops) {
+    const f = (now - p.t0) / 1300;
+    g.save(); g.globalAlpha = 1 - f * f; g.textAlign = 'center';
+    g.font = `${p.small ? 22 : 40}px ${getComputedStyle(document.body).getPropertyValue('--display') || 'cursive'}`;
+    g.lineWidth = 4; g.strokeStyle = 'rgba(0,0,0,.7)'; g.strokeText(p.text, px(p.x), py(p.y) - f * 26);
+    g.fillStyle = p.color; g.fillText(p.text, px(p.x), py(p.y) - f * 26); g.restore();
+  }
+}
+
+function frame(now) {
+  g.clearRect(0, 0, W, H);
+  drawBoard();
+  for (const b of state.bags) drawBag(b.x, b.y, b.rot, 1, b.team);
+  drawFlying(now);
+  drawLeds(now);
+  drawExtras(now);
+  requestAnimationFrame(frame);
+}
+
+/* ---------- controls ---------- */
+function say(text) { $('readout').textContent = text; }
+const rnd = (a, b) => a + Math.random() * (b - a);
+
+function throwBag(outcome) {
+  ensureAudio();
+  if (state.flying) return;
+  const now = performance.now();
+  lastRelease = now;
+  let to, arc = 1, ms = 1000;
+  if (outcome === 'hole') to = { x: 0, y: HOLE.y };
+  else if (outcome === 'woody') {
+    for (let tries = 0; tries < 20; tries++) {
+      to = { x: rnd(-7, 7), y: rnd(9, 30) };
+      if (state.bags.every((b) => Math.hypot(b.x - to.x, b.y - to.y) > 7)) break;
+    }
+  } else to = { x: (Math.random() < 0.5 ? -1 : 1) * rnd(16.5, 18.5), y: rnd(18, 34) };
+  state.flying = { t0: now, ms, from: { x: 24, y: -13 }, to, outcome, team: state.team, rot: rnd(-0.5, 0.5), arc, releaseAt: now };
+  say('In the air…');
+}
+
+$('btn-hole').addEventListener('click', () => throwBag('hole'));
+$('btn-woody').addEventListener('click', () => throwBag('woody'));
+$('btn-miss').addEventListener('click', () => throwBag('miss'));
+$('btn-sweep').addEventListener('click', () => { state.bags = []; say('Board swept. Bags are cleared at the end of every inning.'); });
+$('btn-play').addEventListener('click', async () => { await ensureAudio(); play(state.sound); say('Playing the hole sound by itself.'); });
+document.querySelectorAll('input[name="snd"]').forEach((el) => el.addEventListener('change', () => { state.sound = el.value; ensureAudio().then(() => play(state.sound)); }));
+document.querySelectorAll('input[name="team"]').forEach((el) => el.addEventListener('change', () => { state.team = el.value; }));
+$('reduce').addEventListener('change', (e) => { state.reduce = e.target.checked; });
+
+function renderSwatches() {
+  for (const team of ['A', 'B']) {
+    const other = team === 'A' ? 'B' : 'A';
+    const box = $('sw' + team); box.textContent = '';
+    for (const c of COLORS) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'swatch'; b.style.background = c.hex; b.setAttribute('role', 'radio');
+      b.setAttribute('aria-label', c.name);
+      b.setAttribute('aria-checked', String(state.colors[team] === c.id));
+      const taken = state.colors[other] === c.id;
+      if (taken) { b.disabled = true; b.dataset.taken = other; b.title = `Taken by Team ${other}`; b.setAttribute('aria-label', `${c.name}, taken by Team ${other}`); }
+      b.addEventListener('click', () => { state.colors[team] = c.id; renderSwatches(); });
+      box.appendChild(b);
+    }
+    $('name' + team).textContent = COLORS.find((c) => c.id === state.colors[team]).name;
+  }
+}
+
+$('spec').textContent = `Board 24 × 48 in · ${RAIL} LEDs on each side rail · ${EDGE} on the front edge · ${RING} around the hole`;
+renderSwatches();
+layout();
+new ResizeObserver(() => layout()).observe(canvas.parentElement);
+if (document.fonts && document.fonts.load) document.fonts.load('40px "Permanent Marker"');
+requestAnimationFrame(frame);
+</script>

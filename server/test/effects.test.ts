@@ -94,8 +94,14 @@ describe('LED board layout', () => {
     expect(LED_BOARD.idle.color).toBe('#00E5FF');
     expect(LED_BOARD.strips.find((s) => s.id === 'rail-left')!.leds).toBe(LED_BOARD.strips.find((s) => s.id === 'rail-right')!.leds);
   });
-  it('the cornhole flash is a fast strobe long enough to notice', () => {
-    expect(LED_BOARD.cornhole.flashRateHz).toBeGreaterThanOrEqual(6);
+  it('the cornhole flash is lively but never faster than 3 flashes a second (photosensitivity safety)', () => {
+    expect(LED_BOARD.cornhole.flashRateHz).toBeGreaterThanOrEqual(2);
+    expect(LED_BOARD.cornhole.flashRateHz).toBeLessThanOrEqual(3);
+    expect(LED_BOARD.cornhole.holeRing.rateHz).toBeLessThanOrEqual(3);
     expect(LED_BOARD.cornhole.durationMs).toBeGreaterThanOrEqual(1200);
+  });
+  it('offers a no-strobe alternative for reduced-motion players', () => {
+    expect(LED_BOARD.cornhole.reducedMotion.pattern).toBe('steady_glow');
+    expect(LED_BOARD.cornhole.reducedMotion.pulseHz).toBeLessThanOrEqual(1);
   });
 });

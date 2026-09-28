@@ -40,11 +40,17 @@ export const LED_BOARD = {
   cornhole: {
     pattern: 'flash_burst',
     durationMs: 1800,
-    flashRateHz: 8,
+    /**
+     * Full on/off cycles per second. Kept at 3 or below: strobing faster than three flashes a second
+     * can trigger seizures in people with photosensitive epilepsy (WCAG 2.3.1).
+     */
+    flashRateHz: 3,
     /** Alternates between these; 'team' is replaced with the scoring team's bag colour. */
     colors: ['#FFFFFF', 'team'],
-    holeRing: { pattern: 'pulse', color: '#FFC400', rateHz: 4 },
+    holeRing: { pattern: 'pulse', color: '#FFC400', rateHz: 1 },
     brightness: 1,
+    /** For players who turn on "reduce motion" or "reduce flashing": one soft glow, no strobe. */
+    reducedMotion: { pattern: 'steady_glow', durationMs: 1800, pulseHz: 0.5, color: 'team' },
   },
   scorePulse: { pattern: 'pulse', durationMs: 1200, colors: ['team'], brightness: 0.9 },
   victory: { pattern: 'chase_burst', durationMs: 4000, colors: ['team', '#FFFFFF'], speedLedsPerSec: 140 },

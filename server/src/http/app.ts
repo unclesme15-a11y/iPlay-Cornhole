@@ -72,6 +72,14 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     bodyLimit: 16 * 1024,
   });
 
+  // Clients like Unity send `Content-Type: application/json` on every POST, even the ones with no
+  // body (start, leave). Fastify rejects that by default, so drop the header when the body is empty.
+  app.addHook('onRequest', async (req) => {
+    if (req.headers['content-length'] === '0' && req.headers['content-type']?.startsWith('application/json')) {
+      delete req.headers['content-type'];
+    }
+  });
+
   await app.register(rateLimit, { global: true, max: opts.config.RATE_LIMIT_PER_MIN, timeWindow: '1 minute' });
   await app.register(websocket, { options: { maxPayload: 4096 } });
 

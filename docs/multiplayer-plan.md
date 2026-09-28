@@ -42,15 +42,19 @@ The phone can't claim "I scored 3." It only sends the swipe.
 
 ## Video Bot Skill
 
-| Level | In hole | On board | Off / foul |
-|-------|---------|----------|------------|
-| Rookie | 10% | 45% | 45% |
-| Regular | 25% | 50% | 25% |
-| Pro | 45% | 45% | 10% |
+Measured by throwing thousands of bags through the real server physics on an empty board (a test in `server/test/bots.test.ts` keeps these in range):
 
-The server picks the bot's outcome from its level, then finds a throw that produces it. The flight always looks physically real because it comes from the same physics as a human throw.
+| Level | In the hole | On the board | Miss / foul |
+|-------|-------------|--------------|-------------|
+| Rookie | ~9% | ~59% | ~32% |
+| Regular | ~23% | ~66% | ~11% |
+| Pro | ~46% | ~52% | ~2% |
 
-Bots also use simple strategy: block the hole with a bag when they're ahead, and try to knock an opponent's woody off when they're behind.
+A bot throws exactly like a human does: it sends a swipe (power, aim, arc), with an aiming error that depends on its level and an occasional wild throw. The server then runs the same physics for it, so a bot can never "cheat" a result and every bot bag looks physically real.
+
+In whole 1v1 matches to 21, a Pro beat a Rookie 120 times out of 120, and two Regular bots split about 55/45, so there is no built-in advantage for either side. An average match runs about 10 innings.
+
+Bots use simple strategy: when their team is ahead with two or fewer bags left, a Regular or Pro bot will sometimes throw a blocker just in front of the hole instead of going for it. Rookies never do.
 
 ## Voice
 
@@ -59,4 +63,4 @@ Bots also use simple strategy: block the hole with a bag when they're ahead, and
 
 ## Disconnects
 
-- A human who drops gets 30 s to come back. Their seat is then taken over by a Video Bot at the same skill level until the game ends. Nothing is forfeited. There are no wagers in this game.
+- A human who drops gets 30 s to come back. Their seat is then taken over by a Video Bot at the same skill level until the game ends. Nothing is forfeited. There are no wagers in this game. An explicit Leave hands the seat to a bot immediately. If every human has left, the match is abandoned.

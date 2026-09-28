@@ -11,6 +11,12 @@
 - **Wagers:** none, ever.
 - **Repo:** its own repo (`iPlay-Cornhole`). Done.
 
+- **Bag logo:** the iPlay "i▶" mark, extracted from the app icon (`assets/logo/`).
+- **Hole sound:** an original game-show ring-in (not the TV show's audio), with two alternates to pick from.
+- **Flash speed:** capped at 3 flashes a second, with a reduced-motion version.
+
 ## Still Open
 
+- **Sound choice:** audition the three hole sounds in the preview page and pick one.
+- **Vector logo:** get an SVG/vector version of the iPlay mark for the final bag print.
 - **Video AI:** Kling as the main tool, with a quick side-by-side test against Veo 3.1 and Seedance 2.0 using the same Plate 1 before generating the full clip set.
