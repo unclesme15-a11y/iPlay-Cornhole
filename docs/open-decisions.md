@@ -9,7 +9,7 @@
 - **Bag colors:** teams pick from a 12-color palette, first come first served, and no two teams can share a color.
 - **Characters:** at least 4 men and 4 women for the first build, ages 30-50, summer outfits (see `characters.md`).
 - **Wagers:** none, ever.
-- **Repo:** its own repo (`iPlay-Cornhole`). Waiting for the empty repo to be created on GitHub.
+- **Repo:** its own repo (`iPlay-Cornhole`). Done.
 
 ## Still Open
 
