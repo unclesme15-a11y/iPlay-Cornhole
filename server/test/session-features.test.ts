@@ -421,7 +421,7 @@ describe('snapshot and restore', () => {
     sched2.advance(29_000);
     expect(restored.view().seats.find((s) => s.id === 'A1')!.controlledByBot).toBe(false);
     restored.setConnected(host.playerId, true);
-    sched2.advance(60_000);
+    sched2.advance(15_000); // past the original 30 s grace; a full minute of doing nothing would trip the idle rule instead
     expect(restored.view().seats.find((s) => s.id === 'A1')!.controlledByBot).toBe(false);
   });
 

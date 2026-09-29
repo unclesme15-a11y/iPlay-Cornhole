@@ -14,6 +14,10 @@
 - **Hole sound:** an original game-show ring-in (not the TV show's audio), with two alternates to pick from.
 - **Flash speed:** capped at 3 flashes a second, with a reduced-motion version.
 
+### Idle players (built)
+
+- Three throws in a row that run out the 20 s clock count as walking away: a bot plays for them in casual matches, and in ranked they forfeit (with the 10-minute wait). This stops anyone holding a match hostage by staying connected and doing nothing.
+
 ### Adults, ranked, voice and ads (built)
 
 - **Adults only (18+):** every iPlay game is for adults because voice chat isn't filtered. Sign-up needs an "I am 18 or older" confirmation; ranked and voice also need the current terms accepted.

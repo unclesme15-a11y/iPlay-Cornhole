@@ -473,8 +473,9 @@ describe('disconnects and leaving', () => {
     ctx.session.setConnected(ctx.host.playerId, false);
     ctx.sched.advance(20_000);
     ctx.session.setConnected(ctx.host.playerId, true);
-    ctx.sched.advance(60_000);
-    expect(ctx.events.some((e) => e.type === 'seat_takeover')).toBe(false);
+    ctx.sched.advance(15_000); // well past the 30 s mark of the original disconnect
+    // (a player who then sits idle for a full minute is a different matter: that is the idle rule, tested separately)
+    expect(ctx.events.some((e) => e.type === 'seat_takeover' && e.data.reason === 'disconnect')).toBe(false);
   });
 
   it('reconnecting after a takeover gets the seat back for the next turn', () => {

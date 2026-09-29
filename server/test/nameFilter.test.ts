@@ -21,6 +21,14 @@ describe('display names that are fine', () => {
     for (const name of ['Scunthorpe', 'Assassin', 'Cocktail', 'Grasshopper', 'Classic', 'Passion', 'Analyst', 'Hancock Fan', 'Bassist']) ok(name);
   });
 
+  it('allows real surnames that contain a rude word, but not the rude word itself', () => {
+    for (const name of ['Dickson', 'Mr Dickinson', 'Peniston', 'Pussycat Dolls', 'Cornhole King', 'Cornhole Kid 21']) ok(name);
+    bad('Dick', 'name_profane');
+    bad('Big Dick', 'name_profane');
+    bad('Dickhead', 'name_profane');
+    bad('Dickson Dick', 'name_profane');
+  });
+
   it('cleans whitespace and full-width letters', () => {
     expect(ok('  Big   Mike  ')).toBe('Big Mike');
     expect(ok('ＫＥＩＳＨＡ')).toBe('KEISHA');

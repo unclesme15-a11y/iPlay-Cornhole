@@ -7,6 +7,7 @@ import type { KeySource } from './accounts/jwt.js';
 import type { AppConfig } from './config.js';
 import type { Db } from './db/types.js';
 import { LiveMatchStore } from './lobby/persistence.js';
+import { Janitor } from './maintenance.js';
 import { RankedService, type RankedOptions } from './ranking/ranked.js';
 import { RatingsReader } from './ranking/reader.js';
 import { VoiceService } from './voice/service.js';
@@ -28,6 +29,7 @@ export interface Services {
   ratings: RatingsReader;
   ranked: RankedService;
   voice: VoiceService;
+  janitor: Janitor;
   log: LogFn;
 }
 
@@ -90,6 +92,7 @@ export function createServices(db: Db, scheduler: Scheduler, config: AppConfig, 
     ratings,
     ranked,
     voice: new VoiceService(config, moderation, now),
+    janitor: new Janitor(db, scheduler, log),
     log,
   };
 }

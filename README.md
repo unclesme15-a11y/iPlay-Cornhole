@@ -42,7 +42,7 @@ Separate repo for the iPlay cornhole game. It shares the broader iPlay identity 
 | **Ad pacing** settings for the app (AppLovin MAX) | Done (the ad SDK itself is a phone-side job) |
 | **Wind** (off/light/breezy/gusty, gusts, swaps with ends) and **flick accuracy** (push/pull, short-arm, shaky arm, spin) | Done, tested. Controls design in `docs/throwing-controls.md` |
 | **Hetzner deploy pack** (docker-compose, Caddy/nginx, deploy/backup/restore) | Written and validated, **not yet run on a real box** |
-| Unity client | Not started (build against `docs/api-contract.md`) |
+| **Unity client** (`unity/CornholeGreybox`): all the logic (server client, sign-in, 18+ gate, ranked, parties, leaderboards, voice, ads, throwing) + plain menus and a top-down board | Logic tested (57 offline + 10 against a real server). The Unity screens have never been opened in Unity. See `docs/unity-client.md` |
 | Kling video plates and character clips | Not started (`artifacts/kling/cornhole-prompts.md`) |
 
 ## Repo Map
@@ -52,6 +52,8 @@ Separate repo for the iPlay cornhole game. It shares the broader iPlay identity 
 - `assets/`: sound effects (`audio/`), the iPlay mark for the bags (`logo/`), and the LED board spec (`board/`). Generated files are checked by tests.
 - `preview/`: template for the interactive board preview page.
 - `docs/api-contract.md`: **what the Unity client sends and receives.** `docs/operations.md`: **running, deploying and moderating the server.** `docs/data-and-privacy.md`: what is stored about people. `docs/game-rules.md`: rules contract. `docs/throwing-controls.md`: **how aiming, power, the flick and wind work.** `docs/ratings-explained.md`: the ranked numbers in plain words. `docs/led-board-and-bags.md`: the board, sound and bags. `docs/visual-camera-plan.md`, `docs/multiplayer-plan.md`, `docs/characters.md`, `docs/roadmap.md`, `docs/open-decisions.md`.
+- `docs/production-checklist.md`: **everything left that needs you** (accounts, keys, real-device tests, legal, stores). `docs/unity-client.md`: the phone app and how the art plugs in. `docs/visuals-todo.md`: the visuals still to make. `docs/store-listing.md`, `docs/legal/`: store answers and draft privacy policy and terms. `docs/hetzner-deploy.md`, `docs/ratings-explained.md`.
+- `unity/CornholeGreybox/`: the Unity client (logic tested; plain menus; art plugs in via `MatchPresenter`).
 - `artifacts/kling/cornhole-prompts.md`: Kling plate and clip shot list with prompts.
 
 ## Server
@@ -103,7 +105,7 @@ Every change to a running match is saved to the database within a quarter of a s
 
 ### Things to know
 
-- **One server instance runs all live matches.** A restart is safe but you can't run two at once. It has **not been load-tested**. Growing past one machine means sharing match state (for example Redis) and is not built.
+- **One server instance runs all live matches.** A restart is safe but you can't run two at once. A load test (`npm run loadtest`) held **1,500 live matches at about 35% of one core and 250 MB** on a 4-core machine (`docs/operations.md`). Growing past one machine means sharing match state (for example Redis) and is not built.
 - Sign in with Apple and Google are tested with locally made keys. They have **never been run against the real Apple and Google servers** (unreachable from where this was built), so test a real sign-in on a device before launch.
 - Voice chat: the server hands out Vivox tokens; the Unity side (joining the channels, muting the blocked) is not built. Needs the four `VIVOX_*` settings and a real-device test.
 - The deploy pack has only been validated (`docker compose config`, `bash -n`), not run: the machine it was written on had no Docker daemon. Try it on the box and expect small fixes.

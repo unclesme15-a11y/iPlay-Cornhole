@@ -25,7 +25,8 @@ public sealed partial class CornholeApp
     private string pendingInviteCode;
     private bool deleteConfirm, signOutConfirm;
 
-    private double NowMs { get { return DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(); } }
+    /// <summary>The server's clock in epoch milliseconds (the phone's own clock is often wrong).</summary>
+    private double NowMs { get { return DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + account.ServerClockOffsetMs; } }
 
     // ---------------------------------------------------------------- main menu
     private void DrawMenu()

@@ -64,6 +64,8 @@ namespace IPlay.Cornhole
         NeedTerms,
         /// <summary>They were in a match when the app closed: offer to rejoin.</summary>
         RejoinMatch,
+        /// <summary>The player had an Apple/Google account and their login expired: ask them to sign in again (do not quietly make a new guest).</summary>
+        SignInRequired,
         /// <summary>This version of the app is too old.</summary>
         UpdateRequired,
         /// <summary>The server is being updated.</summary>
@@ -83,6 +85,8 @@ namespace IPlay.Cornhole
         public const string AdultKey = "iPlay.Cornhole.AdultConfirmed";
         public const string TokenKey = "iPlay.Cornhole.Session";
         public const string NameKey = "iPlay.Cornhole.DisplayName";
+        /// <summary>Set once the player has an Apple/Google sign-in, so an expired login asks them to sign in again instead of making a new guest.</summary>
+        public const string LinkedKey = "iPlay.Cornhole.LinkedAccount";
 
         private readonly ApiClient api;
         private readonly IKeyValueStore store;
@@ -97,6 +101,8 @@ namespace IPlay.Cornhole
         public Dictionary<string, object> Meta { get; private set; }
         public ThrowGuide Guide { get; private set; }
         public ApiException LastError { get; private set; }
+        /// <summary>Add this to the phone's clock to get the server's clock (phones are often wrong by minutes). Used for the throw clock.</summary>
+        public double ServerClockOffsetMs { get; private set; }
 
         public bool AdultConfirmedLocally { get { return store.Get(AdultKey) == "1"; } }
         public bool AdultDeniedLocally { get { return store.Get(AdultKey) == "0"; } }
@@ -115,6 +121,9 @@ namespace IPlay.Cornhole
             try
             {
                 var version = await api.Version().ConfigureAwait(false);
+                DateTimeOffset serverNow;
+                if (DateTimeOffset.TryParse(J.Str(version, "serverTime", ""), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out serverNow))
+                    ServerClockOffsetMs = serverNow.ToUnixTimeMilliseconds() - DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 if (J.Bool(version, "maintenance")) { /* still allowed to look around; new matches will say so */ }
                 Meta = await api.Meta().ConfigureAwait(false);
                 Guide = ThrowGuide.FromMeta(Meta);
@@ -122,6 +131,7 @@ namespace IPlay.Cornhole
                 api.Token = store.Get(TokenKey);
                 if (string.IsNullOrEmpty(api.Token) || !await TryLoadMe().ConfigureAwait(false))
                 {
+                    if (store.Get(LinkedKey) == "1") return StartupOutcome.SignInRequired;
                     var r = await api.GuestSignIn(SavedName, true).ConfigureAwait(false);
                     store.Set(TokenKey, api.Token);
                     var a = J.Obj(r, "account");
@@ -150,6 +160,7 @@ namespace IPlay.Cornhole
             try
             {
                 Account = AccountState.FromMe(await api.Me().ConfigureAwait(false));
+                TrackLinked();
                 return true;
             }
             catch (ApiException e) when (e.IsAuth)
@@ -163,6 +174,19 @@ namespace IPlay.Cornhole
         public async Task RefreshAsync()
         {
             Account = AccountState.FromMe(await api.Me().ConfigureAwait(false));
+            TrackLinked();
+        }
+
+        private void TrackLinked()
+        {
+            if (Account != null && !Account.IsGuest) store.Set(LinkedKey, "1");
+        }
+
+        /// <summary>After "SignInRequired": the player chose to carry on as a brand new guest (their old account stays with their Apple/Google sign-in).</summary>
+        public void ForgetLinkedAccount()
+        {
+            store.Delete(LinkedKey);
+            store.Delete(TokenKey);
         }
 
         /// <summary>Accept the current terms (after the app showed them).</summary>
@@ -208,6 +232,7 @@ namespace IPlay.Cornhole
             await api.DeleteAccount().ConfigureAwait(false);
             store.Delete(TokenKey);
             store.Delete(NameKey);
+            store.Delete(LinkedKey);
             api.Token = null;
             Account = null;
         }

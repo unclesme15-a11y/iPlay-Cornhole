@@ -81,8 +81,41 @@ public sealed partial class CornholeApp
     }
 
     // ---------------------------------------------------------------- things that stop the game
+    /// <summary>The player's Apple/Google login expired. Ask them to sign in again, so they get their rating back and we never silently make a new guest.</summary>
+    private void DrawSignInAgain()
+    {
+        var panel = UiKit.Center(Mathf.Min(UiKit.W - 40f, 720f), 440f);
+        UiKit.Panel(panel, true);
+        UiKit.Text(new Rect(panel.x, panel.y + 18f, panel.width, 60f), "Sign in again", Theme.TitleSize, TextAnchor.MiddleCenter, Theme.GoldLight);
+        UiKit.Text(new Rect(panel.x + 30f, panel.y + 84f, panel.width - 60f, 90f), "Your sign-in has expired. Sign in to get your rating and stats back.", Theme.BodySize);
+        var y = panel.y + 190f;
+        foreach (var provider in IdentityProviders)
+        {
+            var name = provider.Name;
+            if (!J.Bool(J.Obj(account.Meta, "signIn"), name)) continue;
+            var p = provider;
+            if (UiKit.Button(new Rect(panel.x + 40f, y, panel.width - 80f, 60f), "Sign in with " + (name == "apple" ? "Apple" : "Google"), !busy, true, Theme.BodySize))
+                _ = Do(async () =>
+                {
+                    var res = await p.SignInAsync();
+                    if (res == null) return;
+                    if (name == "apple") await account.LinkAppleAsync(res.Token, res.Nonce); else await account.LinkGoogleAsync(res.Token, res.Nonce);
+                    introStarted = Time.unscaledTime - IntroSeconds;
+                    screen = Page.Intro;
+                });
+            y += 70f;
+        }
+        if (UiKit.Link(new Rect(panel.x, panel.yMax - 62f, panel.width, 48f), "Play as a new guest instead", Theme.BodySize, Theme.TextDim))
+        {
+            account.ForgetLinkedAccount();
+            introStarted = Time.unscaledTime - IntroSeconds;
+            screen = Page.Intro;
+        }
+    }
+
     private void DrawOutage()
     {
+        if (outage == StartupOutcome.SignInRequired) { DrawSignInAgain(); return; }
         var panel = UiKit.Center(Mathf.Min(UiKit.W - 40f, 760f), 340f);
         UiKit.Panel(panel);
         string title, body, action = null;

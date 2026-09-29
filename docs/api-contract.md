@@ -229,6 +229,7 @@ Ranked matches are always **21 points, regulation distance, no bust or skunk, 20
 
 - **No rematch** (`view.rematch` is null).
 - **Leaving, or being disconnected for 30 seconds, forfeits.** No bot takes the seat. The leaver's whole team loses (`winReason: "forfeit"`), and the leaver can't queue for 10 minutes. The other players are never punished.
+- **Stopping is leaving.** Three throws in a row that run out the 20 s clock count as walking away (`reason: "idle"`), so nobody can hold a match hostage by staying connected and doing nothing. In casual matches a bot plays for an idle player instead (they get the seat back when they act again).
 - If it is abandoned or forfeited **before anyone has thrown**, the match is **void**: no rating changes, and it is not counted as a win or loss.
 - **Playing the same people over and over does not farm points:** after 3 ranked matches with the same opponent(s) in 24 hours, gains and losses are halved; from the 6th they are zero.
 - People who blocked each other are never matched. A player who is banned leaves the queue at once.
@@ -252,27 +253,30 @@ Who is listed: at least **10 rated games**, a ranked game in the **last 90 days*
 
 ## Voice chat
 
-Voice runs through Unity Vivox; this server only hands out short-lived tokens. `GET /api/meta` → `voice.enabled` says whether to show it.
+Voice runs through Unity Vivox. This server decides who may talk to whom and signs the Vivox tokens; the audio never touches it. `GET /api/meta` → `voice.enabled` says whether to show voice at all.
 
-`POST /api/matches/:id/voice` (only for someone seated in that match: adult, current terms) returns:
+**The Vivox Unity SDK picks the player's Vivox identity itself** (from their Unity player id) and asks the app for a token for that identity whenever it needs one. So the app asks this server in two steps. Both are only for someone seated in that match, who is an adult on the current terms.
+
+**1. `POST /api/matches/:id/voice`** says which channels this player may use:
 
 ```json
 {
-  "identity": { "username": "<account id>", "uri": "sip:.…@…" },
-  "loginToken": "…",
-  "table": { "name": "cornhole-ABCD2345", "uri": "sip:confctl-g-…", "joinToken": "…" },
-  "team": { "name": "cornhole-ABCD2345-team-A", "uri": "…", "joinToken": "…" },
+  "displayName": "<account id>",
+  "table": { "name": "cornhole-ABCD2345", "uri": "sip:confctl-g-…" },
+  "team":  { "name": "cornhole-ABCD2345-team-A", "uri": "sip:confctl-g-…" },
   "roster": [ { "seat": "A1", "team": "A", "username": "<account id>", "displayName": "Uncle Me" } ],
-  "mute": [ "<account id of someone I blocked>" ],
-  "expiresAt": "2026-09-29T…Z"
+  "mute": [ "<account id of someone I blocked>" ]
 }
 ```
 
-- Log in to Vivox with `identity` + `loginToken`, then join the **table** channel (everyone at the match). In **2v2** also join the **team** channel (`team` is null in 1v1) for private talk with your partner.
-- Tokens last **5 minutes** (enough to log in and join). Ask again to rejoin, for example after a reconnect.
-- **You must mute everyone in `mute` on the phone** (the people the player blocked who are at this match). Vivox does the muting locally; the server cannot. Show a report button next to each player (`POST /api/reports`).
-- `roster` maps Vivox usernames (account ids) to seats and names, so you can light up whoever is talking.
-- Errors: `501 voice_unavailable` (not configured), `403 not_in_match`, `403 adult_confirmation_required` / `terms_update_required`, `409 match_over`.
+- Log in to Vivox with `displayName` as the display name. It is the account id, so other phones can tell who is speaking and who to mute, without seeing a real name or the Vivox identity.
+- Join the **table** channel (everyone at the match). In **2v2** also join the **team** channel (`team` is null in 1v1) for private talk with your partner. You hear both; you choose which one your microphone goes to.
+- **You must mute everyone in `mute` on the phone** (the people the player blocked who are at this match; Vivox mutes locally and the server cannot). Show a report button next to each player (`POST /api/reports`).
+
+**2. `POST /api/matches/:id/voice/token`** `{ "action": "login" | "join" | "join_muted", "channelUri": "…", "fromUserUri": "…" }` returns `{ "accessToken": "…", "expiresAt": "…" }`. Call it from the Vivox SDK's token provider: pass through the `action`, `channelUri` and `fromUserUri` the SDK gives you. Tokens last **5 minutes**, and the SDK asks again when it needs one.
+
+- A `join` is only signed for **your own** channels: the match's table channel and your own team's channel. Asking for anything else is `403 voice_channel_forbidden`. The identity must belong to this game's Vivox project (`400 voice_identity_invalid`).
+- Other errors (both calls): `501 voice_unavailable` (not configured), `403 not_in_match`, `403 adult_confirmation_required` / `terms_update_required`, `409 match_over`.
 - Voice is **not filtered**. That is why the game is 18+.
 
 ## Ads
@@ -324,8 +328,8 @@ Your seat counts as **connected** while at least one of your sockets is open. If
 | `rematch_update` | `{ deadlineAt, votes }` | The play-again window opened or someone voted |
 | `rematch_ready` | `{ matchId }` | **Switch to this match** |
 | `rematch_cancelled` | `{ reason }` | No rematch: `nobody_accepted`, `unavailable`, `maintenance`, `already_in_match`, `server_busy` |
-| `seat_takeover` | `{ seat, reason: "disconnect"\|"left" }` | A bot took a human's seat (casual matches) |
-| `seat_forfeit` | `{ seat, reason: "disconnect"\|"left" }` | Ranked: that player walked out, their team forfeits |
+| `seat_takeover` | `{ seat, reason: "disconnect"\|"left"\|"idle" }` | A bot took a human's seat (casual matches). `idle` means three throws in a row ran out the clock |
+| `seat_forfeit` | `{ seat, reason: "disconnect"\|"left"\|"idle" }` | Ranked: that player walked out (or stopped throwing), their team forfeits |
 | `ratings_updated` | `{ voided, updates }` | Ranked: the result was saved and ratings moved |
 | `seat_reclaimed` | `{ seat }` | The human is back |
 | `resumed` | `{ phase }` | The server restarted and picked this match back up |
@@ -395,7 +399,7 @@ Some errors carry extra fields (`matchId`, `retryAt`, `minVersion`, `reason`, `b
 
 | Status | Codes |
 |--------|-------|
-| 400 | `adult_confirmation_required` (sign-up), `bad_request` (with `issues`), `bad_config`, `bad_seat`, `bad_character`, `bad_color`, `bad_gesture`, `bad_client_version`, `nonce_required`, `name_length`, `name_chars`, `name_profane`, `name_reserved` |
+| 400 | `voice_identity_invalid`, `adult_confirmation_required` (sign-up), `bad_request` (with `issues`), `bad_config`, `bad_seat`, `bad_character`, `bad_color`, `bad_gesture`, `bad_client_version`, `nonce_required`, `name_length`, `name_chars`, `name_profane`, `name_reserved` |
 | 401 | `unauthorized`, `invalid_identity_token` |
 | 403 | `not_host`, `account_banned` (with `reason`, `bannedUntil`), `guests_disabled`, `adult_confirmation_required`, `terms_update_required`, `ranked_cooldown` (with `until`), `not_in_match`, `party_not_available` |
 | 404 | `match_not_found`, `unknown_player`, `unknown_account`, `invite_expired`, `party_not_found`, `not_found` |

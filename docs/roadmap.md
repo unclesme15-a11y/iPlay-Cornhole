@@ -50,14 +50,17 @@
 - Privacy policy, terms, and a process for reviewing reports (`docs/data-and-privacy.md`).
 - Push notifications for invites (optional).
 
-## Phase 3: Unity Greybox (next: build against `docs/api-contract.md`)
+## Phase 3: Unity Greybox (logic DONE; needs its first open in Unity, see `docs/unity-client.md`)
 
-- Sign-in flow: guest first, then "add Apple/Google". Call `GET /api/me` at launch to rejoin a match.
-- Invisible boards lined up on the locked plates.
-- First-person hand + swipe throw + bag flight.
-- Board-cam cut after release.
-- Match Setup screen, HUD, bag counters, inning summary, rematch screen.
-- Reconnect handling: on close code 1012, reconnect and resume (`resync` rule in the contract).
+- [x] Sign-in flow: guest first, then "add Apple/Google". `GET /api/me` at launch to rejoin a match. (Apple/Google need their phone plugins.)
+- [x] Swipe throw: drag to aim, pull back, flick; wind badge; shot picker; aim helper (casual only); throw clock.
+- [x] Match Setup screen, HUD, results with the rating change, rematch, report and block.
+- [x] Reconnect handling: on close code 1012, reconnect and resume (`resync` rule in the contract).
+- [x] The art hook (`MatchPresenter`) and the replay maths (`ThrowReplay`) for the visuals.
+- [ ] Open the project in Unity for the first time and fix what shows up.
+- [ ] Invisible boards lined up on the locked plates.
+- [ ] First-person hand + bag flight (art, see `docs/visuals-todo.md`).
+- [ ] Board-cam cut after release.
 
 ## Phase 4: Video Opponents
 

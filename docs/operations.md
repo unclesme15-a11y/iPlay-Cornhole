@@ -156,7 +156,7 @@ The database is the only thing worth backing up. Turn on **daily backups and poi
 
 **One server instance owns all live matches, in memory, and saves them to the database.** That is deliberate and it is simple, but it means:
 
-- You can't run two copies at once (the second waits for the first to stop). One decent server handles many concurrent matches: the whole physics for a throw is a few milliseconds, and the soak test plays about 24,000 throws in a few seconds on a single core. It has **not been load-tested**, so measure before you promise a number.
+- You can't run two copies at once (the second waits for the first to stop). **Measured** with `npm run loadtest` (`server/tools/loadtest.ts`) on a 4-core test machine with real Postgres: **1,500 matches at once (each a real match against a bot with a WebSocket, throwing about 110 times a second overall) used about 35% of one CPU core and 250 MB of memory, and 99% of requests were answered in under 0.1 seconds.** Memory grows by roughly 170 KB per live match. That is a good sign, not a promise: your Hetzner box, real networks and real players will differ, and a real player throws far less often than the test. Run it against your own box (`npm run build`, start the server with `TRUST_PROXY=true` and a high `RATE_LIMIT_PER_MIN`, then `npx tsx tools/loadtest.ts --url http://127.0.0.1:3000 --matches 500 --seconds 90`) before launch.
 - To go beyond one machine you'd split matches across servers by match code and share connection state (Redis or similar). That is not built.
 - Restarts are safe (see above) but not instant: players see "reconnecting" for a few seconds.
 
@@ -167,6 +167,7 @@ Logs are JSON, one line per event (request ids included, the `Authorization` hea
 - the server process restarting more than a couple of times an hour
 - `/ready` failing for more than a minute
 - log lines at `error` level: `could not save match history`, `could not restore a live match`, `lost ownership`
+- `clean-up failed` warnings (the hourly job that deletes expired login sessions and finished cooldowns; the privacy policy promises sessions are gone 90 days after last use)
 - database connection count near its limit (the server uses at most 10)
 
 ## Sign-in setup (when the apps exist)

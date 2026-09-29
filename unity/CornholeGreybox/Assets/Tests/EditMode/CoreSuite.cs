@@ -511,6 +511,46 @@ namespace IPlay.Cornhole.Tests
                 st.Set(AccountSession.AdultKey, "1");
                 Ck.Eq(StartupOutcome.Offline, Ck.Run(new AccountSession(new ApiClient(off, "http://x", null), st).StartAsync()));
             });
+            add("start: a linked (Apple/Google) account whose login expired asks to sign in again, and never quietly makes a new guest", () =>
+            {
+                var t = okServer();
+                t.On("GET /api/me", 401, @"{""error"":{""code"":""unauthorized"",""message"":""expired""}}");
+                var store = new MemoryStore();
+                store.Set(AccountSession.AdultKey, "1");
+                store.Set(AccountSession.TokenKey, "OLD");
+                store.Set(AccountSession.LinkedKey, "1");
+                var s = new AccountSession(new ApiClient(t, "http://x", null), store);
+                Ck.Eq(StartupOutcome.SignInRequired, Ck.Run(s.StartAsync()));
+                Ck.False(t.Log.Contains("POST /api/auth/guest"), "no new guest was made");
+                // choosing to carry on as a new guest is an explicit step
+                s.ForgetLinkedAccount();
+                t.On("GET /api/me", 200, Canned.Me);
+                Ck.Eq(StartupOutcome.Ready, Ck.Run(s.StartAsync()));
+                Ck.True(t.Log.Contains("POST /api/auth/guest"));
+            });
+            add("start: becoming a linked account is remembered; guests are not marked", () =>
+            {
+                var t = okServer();
+                var store = new MemoryStore();
+                var s = new AccountSession(new ApiClient(t, "http://x", null), store);
+                s.AnswerAdultGate(true);
+                Ck.Run(s.StartAsync());
+                Ck.Null(store.Get(AccountSession.LinkedKey));
+                t.On("GET /api/me", 200, Canned.Me.Replace("\"isGuest\":true", "\"isGuest\":false"));
+                Ck.Run(s.RefreshAsync());
+                Ck.Eq("1", store.Get(AccountSession.LinkedKey));
+            });
+            add("start: the throw clock follows the server's clock, not the phone's", () =>
+            {
+                var t = okServer();
+                var serverNow = DateTimeOffset.UtcNow.AddMinutes(7);
+                t.On("GET /api/version", 200, "{\"maintenance\":false,\"serverTime\":\"" + serverNow.ToString("o") + "\"}");
+                var store = new MemoryStore();
+                var s = new AccountSession(new ApiClient(t, "http://x", null), store);
+                s.AnswerAdultGate(true);
+                Ck.Run(s.StartAsync());
+                Ck.Near(7 * 60 * 1000, s.ServerClockOffsetMs, 2000, "phone is 7 minutes behind");
+            });
             add("account: deleting clears the token, the name and the account on the phone", () =>
             {
                 var t = okServer();

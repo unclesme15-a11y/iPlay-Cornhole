@@ -1,0 +1,70 @@
+name: unity-core
+
+# The Unity client's brain (plain C#) is tested here without Unity, including against a real running server built from
+# this same commit, so a server change that breaks the phone (or the other way round) is caught.
+
+on:
+  push:
+    branches: [main]
+    paths: ['unity/**', 'server/**', 'docs/api-contract.md', '.github/workflows/unity-core.yml']
+  pull_request:
+    paths: ['unity/**', 'server/**', 'docs/api-contract.md', '.github/workflows/unity-core.yml']
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cornhole_live
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: install mono (C# compiler and runtime)
+        run: sudo apt-get update && sudo apt-get install -y mono-mcs mono-runtime mono-devel
+      - name: build the server
+        working-directory: server
+        run: npm ci && npm run build
+      - name: offline core tests
+        working-directory: unity/CornholeGreybox/Tools/CoreTests
+        run: ./run-core-tests.sh
+      - name: the Unity layer still compiles (against stand-in APIs)
+        working-directory: unity/CornholeGreybox/Tools/UnityStubs
+        run: ./check-unity-layer.sh && ./check-unity-layer.sh ads
+      - name: start the real server
+        working-directory: server
+        env:
+          NODE_ENV: production
+          PORT: '3333'
+          HOST: 127.0.0.1
+          TRUST_PROXY: 'true'
+          RATE_LIMIT_PER_MIN: '1000000'
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/cornhole_live
+          LOG_LEVEL: warn
+          ADS_ENABLED: 'true'
+          VIVOX_ISSUER: iss
+          VIVOX_DOMAIN: vdx.example
+          VIVOX_SIGNING_KEY: supersecretkey1
+          VIVOX_UNITY_ENVIRONMENT_ID: env1
+          ADMIN_TOKEN: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        run: |
+          node dist/index.js > "$RUNNER_TEMP/server.log" 2>&1 &
+          for i in $(seq 1 30); do curl -fs localhost:3333/ready && break; sleep 1; done
+      - name: core tests against the real server
+        working-directory: unity/CornholeGreybox/Tools/CoreTests
+        run: ./run-core-tests.sh --live http://127.0.0.1:3333
+      - name: server log if it failed
+        if: failure()
+        run: cat "$RUNNER_TEMP/server.log" || true

@@ -38,7 +38,11 @@ public sealed partial class CornholeApp
         model.Scored += (team, pts) => { if (presenter != null) presenter.OnScore(team, pts); };
         model.WindChanged += w => { if (presenter != null) presenter.OnWind(w); };
         model.MatchEnded += (winner, reason) => { ads.MatchFinished(); if (presenter != null) presenter.OnMatchEnded(winner, reason); };
-        model.SeatForfeited += (seat, reason) => Say(seat == model.YouSeat ? "You left the match." : "Your opponent left the match. You win!", 5f);
+        model.SeatForfeited += (seat, reason) => Say(
+            reason == "idle"
+                ? (seat == model.YouSeat ? "You were away too long, so you forfeited." : "Your opponent stopped playing. You win!")
+                : (seat == model.YouSeat ? "You left the match." : "Your opponent left the match. You win!"), 5f);
+        model.SeatTakenOver += (seat, reason) => { if (seat == model.YouSeat && reason == "idle") Say("You were away, so a bot is playing for you. Tap to take over again.", 6f); };
         match.Fatal += OnMatchFatal;
         voiceStarted = false;
         replayResult = null;

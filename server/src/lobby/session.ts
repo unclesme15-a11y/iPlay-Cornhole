@@ -121,6 +121,7 @@ export interface SessionSnapshot {
   ranked?: RankedMode | null;
   wind?: Wind;
   windInning?: number;
+  idleStreak?: Record<SeatId, number>;
 }
 
 export interface SessionEvent {
@@ -181,6 +182,8 @@ const DEFAULT_TIMING: Timing = {
 const SEAT_TEAM: Record<SeatId, TeamId> = { A1: 'A', B1: 'B', A2: 'A', B2: 'B' };
 const SEAT_END: Record<SeatId, 0 | 1> = { A1: 0, B1: 0, A2: 1, B2: 1 };
 const EVENT_LOG_LIMIT = 500;
+/** This many throws in a row that time out means the player has stopped playing. */
+export const IDLE_TIMEOUTS_LIMIT = 3;
 
 export interface Turn {
   seat: SeatId;
@@ -273,6 +276,8 @@ export class MatchSession {
   private rematch: RematchState | null = null;
   private ended = false;
   private wind: Wind = { ...CALM };
+  /** Throws in a row that ran out the clock, per seat. Three means the player has walked away from the game. */
+  private idleStreak: Record<SeatId, number> = { A1: 0, B1: 0, A2: 0, B2: 0 };
   /** The inning the current wind was set for (0 = not yet). */
   private windInning = 0;
 
@@ -647,6 +652,7 @@ export class MatchSession {
     }
     if (!isValidGesture(gesture)) throw new DomainError('bad_gesture', 'Throw values are out of range');
     this.touch();
+    this.idleStreak[turn.seat] = 0;
     if (!release) {
       this.performThrow(turn, gesture);
       return;
@@ -667,6 +673,14 @@ export class MatchSession {
     this.seatStats[turn.seat].fouls++;
     this.emit('throw_timeout', { seat: turn.seat, bagId: turn.bagId });
     this.afterEngineEvents(targetEnd, events, 1200);
+    // A player who lets the clock run out again and again has walked away from the game. They must not hold
+    // everyone else up: a bot plays for them, or (ranked) they forfeit.
+    const streak = ++this.idleStreak[turn.seat];
+    if (streak >= IDLE_TIMEOUTS_LIMIT) {
+      const seat = this.seat(turn.seat);
+      const player = seat.kind === 'human' && seat.playerId ? this.players.get(seat.playerId) : undefined;
+      if (player && !player.left && !seat.controlledByBot) this.takeOver(player, 'idle');
+    }
   }
 
   private performThrow(turn: Turn, gesture: ThrowGesture, release?: { wobble: number; effect: ReleaseEffect; aimed: ThrowGesture }): void {
@@ -789,6 +803,7 @@ export class MatchSession {
       const seat = this.seat(player.seat);
       if (seat.controlledByBot) {
         seat.controlledByBot = false;
+        this.idleStreak[seat.id] = 0;
         this.emit('seat_reclaimed', { seat: seat.id });
       }
     } else if (this.phase !== 'finished' && this.phase !== 'abandoned' && this.phase !== 'lobby') {
@@ -829,7 +844,7 @@ export class MatchSession {
     this.setTimer(`grace:${player.id}`, this.timing.reconnectGraceMs, () => this.takeOver(player, 'disconnect'));
   }
 
-  private takeOver(player: Player, reason: 'left' | 'disconnect'): void {
+  private takeOver(player: Player, reason: 'left' | 'disconnect' | 'idle'): void {
     if (this.phase === 'finished' || this.phase === 'abandoned') return;
     const seat = this.seat(player.seat);
     if (seat.controlledByBot) return;
@@ -858,7 +873,7 @@ export class MatchSession {
    * Ranked: nobody plays a walked-out seat for them. Their whole team loses. If the match had not
    * really started, it is cancelled instead (the results screen shows it as voided).
    */
-  private forfeitBy(player: Player, reason: 'left' | 'disconnect'): void {
+  private forfeitBy(player: Player, reason: 'left' | 'disconnect' | 'idle'): void {
     const seat = this.seat(player.seat);
     seat.controlledByBot = true; // marks them as gone for good in the history
     this.forfeitedBy = player.id;
@@ -1157,6 +1172,7 @@ export class MatchSession {
       ranked: this.ranked,
       wind: this.wind,
       windInning: this.windInning,
+      idleStreak: this.idleStreak,
     });
   }
 
@@ -1179,6 +1195,7 @@ export class MatchSession {
     session.lastActivity = data.lastActivity;
     session.wind = data.wind ?? { ...CALM };
     session.windInning = data.windInning ?? 0;
+    session.idleStreak = data.idleStreak ?? { A1: 0, B1: 0, A2: 0, B2: 0 };
     for (const p of data.players) session.players.set(p.id, { ...p, connected: false });
     return session;
   }

@@ -7,7 +7,10 @@ export type NameCheck = { ok: true; name: string } | { ok: false; code: NameProb
 export const NAME_MIN = 3;
 export const NAME_MAX = 20;
 
-const matcher = new RegExpMatcher({ ...englishDataset.build(), ...englishRecommendedTransformers });
+const built = englishDataset.build();
+/** Real surnames and everyday words that contain a rude one. Whitelisted terms are only excused as whole words. */
+const INNOCENT = ['dickson', 'dickinson', 'dickerson', 'dickens', 'peniston', 'pussycat'];
+const matcher = new RegExpMatcher({ ...built, whitelistedTerms: [...(built.whitelistedTerms ?? []), ...INNOCENT], ...englishRecommendedTransformers });
 
 /** Letters people swap for look-alikes when impersonating: compare names after folding these together. */
 const LOOKALIKE: Record<string, string> = { i: 'l', '1': 'l', '|': 'l', '!': 'l', '0': 'o', '3': 'e', '5': 's', $: 's', '4': 'a', '@': 'a', '7': 't' };

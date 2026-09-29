@@ -283,6 +283,53 @@ describe('ranked singles', () => {
     t.scheduler.advance(FORFEIT_COOLDOWN_MS + 1);
   });
 
+  it('a connected player who stops throwing forfeits after three timed-out throws in a row (no holding a match hostage)', async () => {
+    const t = await env.boot();
+    const [a, b] = await signUp(t, 2);
+    const id = await pairUp(t, a!, b!);
+    connect(t, id, [a!, b!]);
+    for (let i = 0; i < 4000 && t.services.registry.get(id)!.view().phase !== 'finished'; i++) t.scheduler.advance(500); // nobody throws
+    const view = t.services.registry.get(id)!.view();
+    expect(view.phase).toBe('finished');
+    expect(view.winReason).toBe('forfeit');
+    const events = t.services.registry.get(id)!.eventsSince(0);
+    const forfeit = events.find((e) => e.type === 'seat_forfeit')!;
+    expect(forfeit.data.reason).toBe('idle');
+    // whoever was due to throw first ran out of clock first, so they are the one who walked away
+    const loserSeat = view.seats.find((s) => s.id === forfeit.data.seat)!;
+    const loser = loserSeat.accountId === a!.id ? a! : b!;
+    const winner = loser === a! ? b! : a!;
+    expect(view.winner).not.toBe(loserSeat.team);
+    await settle(t);
+    expect((await status(t, loser)).status).toBe('cooldown');
+    expect((await status(t, winner)).status).toBe('idle');
+    expect((await singlesRating(t, winner))!.rating).toBeGreaterThan(1200);
+    expect((await singlesRating(t, loser))!.rating).toBeLessThan(1200);
+  });
+
+  it('one timed-out throw is forgiven: throwing again clears the count', async () => {
+    const t = await env.boot();
+    const [a, b] = await signUp(t, 2);
+    const id = await pairUp(t, a!, b!);
+    connect(t, id, [a!, b!]);
+    let timeouts = 0;
+    const session = t.services.registry.get(id)!;
+    for (let i = 0; i < 6000; i++) {
+      const view = session.view();
+      if (view.phase === 'finished') break;
+      if (view.turn?.controlledBy === 'human') {
+        const seat = view.seats.find((s) => s.id === view.turn!.seat)!;
+        const p = seat.accountId === a!.id ? a! : b!;
+        // every player lets every third throw run out, and throws the others: nobody ever times out three in a row
+        if (session.eventsSince(0).filter((e) => e.type === 'turn_start').length % 3 !== 0) await t.call(p.token, 'POST', `/api/matches/${id}/throw`, PERFECT);
+        else timeouts++;
+      }
+      t.scheduler.advance(500);
+    }
+    expect(timeouts).toBeGreaterThan(2);
+    expect(session.eventsSince(0).some((e) => e.type === 'seat_forfeit')).toBe(false);
+  });
+
   it('leaving before anyone has thrown voids the match: nobody gains or loses', async () => {
     const t = await env.boot();
     const [a, b] = await signUp(t, 2);
@@ -324,6 +371,27 @@ describe('ranked singles', () => {
     const t = await env.boot({ env: { MAINTENANCE: 'true' } });
     const [a] = await signUp(t, 1);
     expect((await queue(t, a!)).json().error.code).toBe('maintenance');
+  });
+});
+
+describe('idle players in casual matches', () => {
+  it('after three timed-out throws in a row a bot plays for them, and they get the seat back when they act again', async () => {
+    const t = await env.boot();
+    const me = await t.guest('Idle Ian');
+    const created = (await t.call(me.token, 'POST', '/api/matches', { config: { mode: '1v1', playTo: 21 } })).json();
+    const id = created.matchId as string;
+    await t.call(me.token, 'POST', `/api/matches/${id}/start`, {});
+    const session = t.services.registry.get(id)!;
+    session.setConnected(me.id, true);
+    for (let i = 0; i < 4000 && !session.eventsSince(0).some((e) => e.type === 'seat_takeover'); i++) t.scheduler.advance(500); // never throws
+    const takeover = session.eventsSince(0).find((e) => e.type === 'seat_takeover')!;
+    expect(takeover.data).toMatchObject({ seat: 'A1', reason: 'idle' });
+    expect(session.view(me.id).seats.find((s) => s.id === 'A1')!.controlledByBot).toBe(true);
+    expect(session.view().phase).toBe('playing'); // the match carried on
+    // coming back (a new connection) hands the seat back and clears the count
+    session.setConnected(me.id, false);
+    session.setConnected(me.id, true);
+    expect(session.view(me.id).seats.find((s) => s.id === 'A1')!.controlledByBot).toBe(false);
   });
 });
 
@@ -571,6 +639,25 @@ describe('leaderboards', () => {
     await t.call(b!.token, 'PATCH', '/api/me', { showOnLeaderboards: false });
     t.services.ratings.invalidate();
     expect((await board(t, d!, 'teams')).total).toBe(1);
+  });
+
+  it('the data export includes ratings, the partner of each duo, and the leaderboard choice', async () => {
+    const t = await env.boot();
+    const [a, b] = await signUp(t, 2);
+    await rate(t, a!, 1420, 14);
+    const [m1, m2] = a!.id < b!.id ? [a!, b!] : [b!, a!];
+    await t.db.query(`INSERT INTO duo_ratings (duo_key, member_a, member_b, rating, peak, games, wins, last_played_at) VALUES ($1, $2, $3, 1310, 1330, 11, 6, now())`, [`${m1.id}:${m2.id}`, m1.id, m2.id]);
+    await t.call(a!.token, 'PATCH', '/api/me', { showOnLeaderboards: false });
+    const data = (await t.call(a!.token, 'GET', '/api/me/export')).json();
+    expect(data.ratings.singles).toMatchObject({ rating: 1420, games: 14 });
+    expect(data.ratings.teams).toHaveLength(1);
+    expect(data.ratings.teams[0]).toMatchObject({ partner_id: b!.id, rating: 1310 });
+    expect(data.account).toMatchObject({ showOnLeaderboards: false });
+    expect(data).toHaveProperty('rankedCooldown');
+    // the partner sees the same duo from their side, with a as the partner
+    const theirs = (await t.call(b!.token, 'GET', '/api/me/export')).json();
+    expect(theirs.ratings.singles).toBeNull();
+    expect(theirs.ratings.teams[0]).toMatchObject({ partner_id: a!.id });
   });
 
   it('erasing an account removes its ratings and its duos', async () => {

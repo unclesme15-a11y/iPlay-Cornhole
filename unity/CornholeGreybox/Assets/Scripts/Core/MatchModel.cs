@@ -121,6 +121,7 @@ namespace IPlay.Cornhole
         public event Action<WindInfo> WindChanged;
         public event Action<TurnInfo> TurnStarted;
         public event Action<string, string> SeatForfeited; // seat, reason
+        public event Action<string, string> SeatTakenOver; // seat, reason (a bot now plays it)
         public event Action RatingsUpdated;
         public event Action Changed;
         public event Action<string> RematchReady; // new match id
@@ -296,10 +297,12 @@ namespace IPlay.Cornhole
                     if (Rematch == null) Rematch = new Dictionary<string, object>();
                     Rematch["cancelled"] = true;
                     break;
+                case "seat_takeover":
+                    if (SeatTakenOver != null) SeatTakenOver(J.Str(data, "seat"), J.Str(data, "reason"));
+                    break;
                 case "resumed":
                 case "kicked":
                 case "character_picked":
-                case "seat_takeover":
                 case "seat_reclaimed":
                     break;
             }
