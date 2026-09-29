@@ -95,6 +95,19 @@ After setup, each player picks a video character, then each team picks a bag col
 - **Play again:** after a match, every human gets 60 seconds to say yes or no. Everyone who says yes keeps their seat, character and bag color and skips the picks; anyone who says no (or nothing) is replaced by a bot.
 - **Stats** (games, wins, losses, leaves, throws, holes, woodies, fouls) are kept per account. Abandoned matches count for nobody.
 
+## Ranked Play **[iPlay]**
+
+Ranked is regulation cornhole with one fixed rule set, so a rating means the same thing for everyone.
+
+- **Rules:** play to 21, regulation distance, no bust, no skunk, 20-second throw clock. Every seat is a real person. No bots, no rematch button.
+- **Singles (1v1)** and **Teams (2v2 duos).** A duo is two people who chose each other with a party code. Duos have their own rating; a new duo starts at the average of its two members' singles ratings.
+- **Rating:** everyone starts at 1200. Beating a stronger opponent earns more than beating a weaker one. New players move fast (first 10 games are "placement"), then more slowly.
+- **Finding a match:** the search starts within ±100 rating points and widens the longer you wait, so you always get a game but close matches come first. People who blocked each other are never matched.
+- **Walking out:** leaving or dropping for 30 seconds is a forfeit, and no bot takes the seat. The leaver's team loses, and the leaver waits 10 minutes before queueing again. If it happens before anyone has thrown, the match is void and nobody's rating changes.
+- **No farming:** after 3 ranked matches against the same opponent(s) in 24 hours the points are halved, and from the 6th they stop.
+- **Leaderboards:** global singles and teams. You appear after 10 ranked games and while you keep playing (a game in the last 90 days). Banned players are removed, and anyone can hide their name from the boards.
+- **Adults only:** ranked (like voice) needs the 18+ confirmation and the current terms.
+
 ## No Wagers
 
-- **[iPlay]** Cornhole has no wagers, no wallet, and no money of any kind. Matches are played for wins, stats, and bragging rights only.
+- **[iPlay]** Cornhole has no wagers, no wallet, and no money of any kind. Matches are played for wins, stats, ratings and bragging rights only. Nothing is for sale; the only income is ads, which never appear during a match.

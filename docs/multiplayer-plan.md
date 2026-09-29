@@ -58,7 +58,9 @@ Bots use simple strategy: when their team is ahead with two or fewer bags left, 
 
 ## Voice
 
-- Team voice channel plus table voice channel (Vivox, reusing the Street Dice token signer).
+- **Built (server side):** the Street Dice Vivox token signer is ported to the server (`server/src/voice`). `POST /api/matches/:id/voice` gives a seated player a login token, a **table** channel (everyone at the match) and, in 2v2, a **team** channel (just partners), all short-lived (5 minutes). It also says which people the player blocked so the phone can mute them.
+- Voice is **not filtered**, so the game is 18+ and needs a report button next to each player.
+- **Not built:** the Unity client that logs in to Vivox and joins the channels (reuse `StreetDiceVivoxVoiceClient.cs` from Street Dice as the starting point). Needs the four `VIVOX_*` settings and a real-device test.
 - Video bots get short "table talk" reaction clips instead of voice.
 
 ## Disconnects

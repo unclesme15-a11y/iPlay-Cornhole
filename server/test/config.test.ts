@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config.js';
 import { resolveConfig } from '../src/core/config.js';
@@ -27,5 +28,27 @@ describe('server config', () => {
     expect(loadConfig({ PORT: '8080', TRUST_PROXY: 'true', LOG_LEVEL: 'warn' })).toMatchObject({ PORT: 8080, TRUST_PROXY: true, LOG_LEVEL: 'warn' });
     expect(() => loadConfig({ PORT: 'abc' })).toThrow(/Invalid configuration/);
     expect(() => loadConfig({ LOG_LEVEL: 'shout' })).toThrow(/LOG_LEVEL/);
+  });
+});
+
+describe('empty values', () => {
+  it('count as not set, so a filled-in env file with blank lines still loads', () => {
+    const config = loadConfig({ NODE_ENV: 'test', ADMIN_TOKEN: '', VIVOX_ISSUER: '', APPLE_CLIENT_IDS: '', LATEST_CLIENT_VERSION: '', TERMS_VERSION: '' });
+    expect(config.ADMIN_TOKEN).toBeUndefined();
+    expect(config.VIVOX_ISSUER).toBeUndefined();
+    expect(config.TERMS_VERSION).toBe(1);
+  });
+  it('the deploy example env file loads as-is once the two required secrets are filled in', () => {
+    const text = readFileSync(new URL('../../deploy/.env.example', import.meta.url), 'utf8');
+    const env: Record<string, string> = { NODE_ENV: 'test' };
+    for (const line of text.split('\n')) {
+      const m = /^([A-Z0-9_]+)=(.*)$/.exec(line);
+      if (m) env[m[1]!] = m[2]!;
+    }
+    env.ADMIN_TOKEN = 'a'.repeat(40);
+    const config = loadConfig(env);
+    expect(config.REQUIRE_ADULT_CONFIRMATION).toBe(true);
+    expect(config.ADS_ENABLED).toBe(false);
+    expect(config.MAX_MATCHES).toBe(2000);
   });
 });

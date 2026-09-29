@@ -39,6 +39,15 @@ Everything has a safe default except the database in production.
 | `OWNERSHIP_WAIT_SEC` | 90 | How long a new server waits for the old one during a deploy. |
 | `RESTORE_MAX_AGE_MIN` | 120 | Saved matches older than this are dropped at startup instead of restored. |
 | `LOG_LEVEL` | info | `debug` for more, `warn` for less. |
+| `REQUIRE_ADULT_CONFIRMATION` | true | New accounts must confirm they are 18+. Turn off only for a private test server. |
+| `TERMS_VERSION` | 1 | Raise it when the terms change: the app then asks everyone to accept again before ranked or voice. |
+| `VIVOX_ISSUER`, `VIVOX_DOMAIN`, `VIVOX_SIGNING_KEY`, `VIVOX_UNITY_ENVIRONMENT_ID` | none (voice off) | Unity Vivox voice chat. **All four or none.** The `IPLAY_VIVOX_*` / `IPLAY_UNITY_ENVIRONMENT_ID` names the other iPlay games use are accepted too. |
+| `ADS_ENABLED` | false | Tells the app it may show ads. |
+| `ADS_INTERSTITIAL_EVERY_N_MATCHES` | 3 | One interstitial per this many finished matches. |
+| `ADS_MIN_SECONDS_BETWEEN_INTERSTITIALS` | 180 | And never closer together than this (30 to 3600). |
+| `ADS_MENU_BANNER` | true | A banner on menu screens (never while playing). |
+
+An empty value (`FOO=` in an env file) counts as not set.
 
 Copy `server/.env.example` as a starting point.
 
@@ -126,6 +135,18 @@ curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: applicati
 A banned person gets a clear "banned" message with the reason and end date on every call, and cannot sign in again. Temporary bans lift themselves. A ban follows the account, so a banned player can make a new guest account. Sign-ups are rate limited, and requiring Apple/Google (`ALLOW_GUESTS=false`) makes evasion harder.
 
 `GET /admin/status` shows live matches, accounts and open reports.
+
+## Hosting on your Hetzner box
+
+See **`docs/hetzner-deploy.md`** and the `deploy/` folder: docker-compose (game + its own Postgres), Caddy and nginx snippets, `deploy.sh`, `backup.sh`, `restore.sh`.
+
+## Ranked play and leaderboards
+
+- Ratings are saved in the **same database transaction** as the match result, so a rating can never change without the match being recorded (or the reverse). Saving the same match twice changes nothing.
+- The matchmaking queue and parties live **in memory**. A restart empties them; players just tap search again. Running ranked matches are saved and restored like any other.
+- `ranked_cooldowns` holds the 10-minute wait after walking out of a ranked match. To lift one by hand: `DELETE FROM ranked_cooldowns WHERE account_id = '…';`.
+- To remove a cheater from the boards, ban them (they disappear at once, and return if unbanned). To wipe a rating: `DELETE FROM singles_ratings WHERE account_id = '…';` (teams: `DELETE FROM duo_ratings WHERE member_a = '…' OR member_b = '…';`).
+- `underage` reports arrive in the same report list. Ban the account (`/admin/accounts/:id/ban`).
 
 ## Backups
 

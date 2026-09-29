@@ -1,0 +1,14 @@
+# Used by the bundled proxy (docker compose --profile proxy up -d).
+# WebSockets work with no extra settings in Caddy.
+{$DOMAIN} {
+	encode zstd gzip
+
+	reverse_proxy app:3000 {
+		# Only send traffic to a server that has taken over its matches and is ready.
+		health_uri /ready
+		health_interval 5s
+		# During a deploy the game is away for a couple of seconds: hold requests instead of failing them.
+		lb_try_duration 20s
+		lb_try_interval 500ms
+	}
+}

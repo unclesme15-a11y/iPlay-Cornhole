@@ -3,9 +3,9 @@ name: server
 on:
   push:
     branches: [main]
-    paths: ['server/**', 'assets/**', 'docs/api-contract.md', '.github/workflows/server.yml']
+    paths: ['server/**', 'deploy/**', 'assets/**', 'docs/api-contract.md', '.github/workflows/server.yml']
   pull_request:
-    paths: ['server/**', 'assets/**', 'docs/api-contract.md', '.github/workflows/server.yml']
+    paths: ['server/**', 'deploy/**', 'assets/**', 'docs/api-contract.md', '.github/workflows/server.yml']
 
 jobs:
   check:
@@ -49,3 +49,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build -t iplay-cornhole-server server
+      # The Hetzner deploy pack must stay valid
+      - name: check deploy pack
+        working-directory: deploy
+        run: |
+          cp .env.example .env
+          sed -i 's/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci/' .env
+          docker compose config --quiet
+          docker compose --profile proxy config --quiet
+          for f in deploy.sh backup.sh restore.sh; do bash -n "$f"; done

@@ -123,7 +123,8 @@ export function compareVersions(a: string, b: string): number {
 /** Reads and validates environment variables. Throws with a readable message if any are bad. */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   // Share one Vivox setup with the other iPlay games: accept their variable names as a fallback.
-  const shared: NodeJS.ProcessEnv = { ...env };
+  // An empty value (`FOO=` in an env file) means "not set", so the default applies.
+  const shared: NodeJS.ProcessEnv = Object.fromEntries(Object.entries(env).filter(([, v]) => v !== ''));
   shared.VIVOX_ISSUER ||= env.IPLAY_VIVOX_ISSUER;
   shared.VIVOX_DOMAIN ||= env.IPLAY_VIVOX_DOMAIN;
   shared.VIVOX_SIGNING_KEY ||= env.IPLAY_VIVOX_SIGNING_KEY;

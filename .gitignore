@@ -20,3 +20,4 @@ coverage/
 .env
 preview/board-preview.html
 .data/
+deploy/backups/

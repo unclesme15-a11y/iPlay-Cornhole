@@ -8,11 +8,19 @@
 - **Board cam:** on by default, **far board only**. Your own board is right in front of you, so there's no cut for it.
 - **Bag colors:** teams pick from a 12-color palette, first come first served, and no two teams can share a color.
 - **Characters:** at least 4 men and 4 women for the first build, ages 30-50, summer outfits (see `characters.md`).
-- **Wagers:** none, ever.
+- **Wagers:** none, ever. **Nothing is for sale**; the only income is ads, never shown during a match.
 - **Repo:** its own repo (`iPlay-Cornhole`). Done.
 - **Bag logo:** the iPlay "i▶" mark, extracted from the app icon (`assets/logo/`).
 - **Hole sound:** an original game-show ring-in (not the TV show's audio), with two alternates to pick from.
 - **Flash speed:** capped at 3 flashes a second, with a reduced-motion version.
+
+### Adults, ranked, voice and ads (built)
+
+- **Adults only (18+):** every iPlay game is for adults because voice chat isn't filtered. Sign-up needs an "I am 18 or older" confirmation; ranked and voice also need the current terms accepted.
+- **Ranked:** singles and duo teams, fixed rules (21, regulation, no bust or skunk, 20 s clock, all human), Elo ratings starting at 1200, parties for duos, walking out is a loss with a 10-minute wait, void if nobody had thrown.
+- **Leaderboards:** global singles and teams; 10 ranked games and activity in the last 90 days to appear; players can hide themselves.
+- **Voice:** Vivox with a table channel and a team channel, blocked players muted on the blocker's phone.
+- **Ads:** the phone shows them, the server sets the pacing, never during a match.
 
 ### Accounts, data and safety (built without waiting on answers, all changeable)
 
@@ -30,8 +38,8 @@
 - **Sound choice:** audition the three hole sounds in the preview page and pick one.
 - **Vector logo:** get an SVG/vector version of the iPlay mark for the final bag print.
 - **Video AI:** Kling as the main tool, with a quick side-by-side test against Veo 3.1 and Seedance 2.0 using the same Plate 1 before generating the full clip set.
-- **Hosting and budget:** where the server and database run (the code runs anywhere that has Node or Docker and Postgres).
-- **Minimum age:** 13+ avoids most children's privacy rules (see `data-and-privacy.md`); confirm with a lawyer.
-- **Ranked play and leaderboards:** stats are recorded already; a ranking system is not built.
-- **Purchases (for example cosmetic bag colors or boards):** none today. Adding any changes the store paperwork.
+- **Hosting:** your Hetzner box, with the other iPlay games (see `hetzner-deploy.md`). Still open: which domain name, and where the off-box backups go.
+- **Ranking numbers:** the starting rating (1200), how fast ratings move (40 / 28 / 20), the matchmaking window, the leaver's 10-minute wait, the 3 / 6 rematch farming limits and the leaderboard rules (10 games, 90 days) are sensible first guesses. Watch real play and tune them (`server/src/ranking/`).
+- **Age check strength:** 18+ is a confirmation tick box. Decide with a lawyer whether your markets need more, and set the store age ratings to 17+ / Mature.
+- **Ad provider:** pick the SDK (for example AdMob or AppLovin MAX), and add the consent screen and ATT prompt.
 - **Match history limit:** keep forever, or delete after N months.

@@ -19,11 +19,13 @@ If the server has a minimum app version set, an older app gets `426` (see **Upda
 
 ## Signing in
 
+**iPlay Cornhole is for adults (18+).** Every sign-in call below must include `"confirmAdult": true`, sent only after the app has shown "I am 18 or older" and the person ticked it. Without it the server answers `400 adult_confirmation_required` and creates nothing. (Ranked play, parties and voice also check it, and that the person has accepted the current terms.)
+
 Everyone has an account. There are three ways to get one, and all return a **session token** (43 characters) that you send as `Authorization: Bearer <token>`. A session lasts 90 days from its last use. Store it in the phone's secure storage.
 
 ### Guest (play right away)
 
-`POST /api/auth/guest` with `{ "displayName": "Uncle Me" }` (name optional; you get `Player4821` otherwise).
+`POST /api/auth/guest` with `{ "confirmAdult": true, "displayName": "Uncle Me" }` (name optional; you get `Player4821` otherwise).
 
 ```json
 { "token": "…43 chars…", "expiresAt": "2026-12-28T…Z", "account": { "id": "…", "displayName": "Uncle Me", "isGuest": true }, "created": true, "linked": false, "switched": false }
@@ -33,11 +35,12 @@ A guest can play everything. **If they lose the token (new phone, reinstall), th
 
 ### Apple and Google
 
-`POST /api/auth/apple` with `{ "identityToken": "…", "nonce": "…", "displayName": "…" }`
-`POST /api/auth/google` with `{ "idToken": "…", "nonce": "…", "displayName": "…" }`
+`POST /api/auth/apple` with `{ "identityToken": "…", "nonce": "…", "displayName": "…", "confirmAdult": true }`
+`POST /api/auth/google` with `{ "idToken": "…", "nonce": "…", "displayName": "…", "confirmAdult": true }`
 
 - **Send a nonce.** Make a random string, give it to Apple/Google when you start sign-in, and send the same string here. It stops a stolen token being replayed. (Either the raw string or its SHA-256 in the token works.)
 - `displayName` is optional and is only used the first time.
+- `confirmAdult` is needed the first time (a brand-new account, or a guest being linked). Signing back into an existing account does not need it.
 - **If the app is already signed in as a guest** (the `Authorization` header is present), the Apple/Google identity is **attached to that guest**. The account keeps its id, stats and history, and stops being a guest (`linked: true`).
 - If that Apple/Google identity already has an account (for example on a new phone), you are signed into **that** account instead (`switched: true`). The guest account you arrived with is left behind.
 - Returns `201` for a brand-new account, `200` otherwise. Same body as guest.
@@ -53,8 +56,10 @@ The server stores only Apple's/Google's id for the person. **It never reads or s
 
 | Call | What it does |
 |------|--------------|
-| `GET /api/me` | `{ account, stats, signInMethods: ["apple"], activeMatchId }`. **Call this when the app starts.** If `activeMatchId` is set, offer to rejoin that match (after a crash or a server restart). |
-| `PATCH /api/me` `{ displayName }` | Rename. Passes the name filter. The first custom name is free, then one change every 7 days (`429 rename_cooldown` with `retryAt`). |
+| `GET /api/me` | `{ account, stats, ratings, signInMethods: ["apple"], activeMatchId }`. **Call this when the app starts.** If `activeMatchId` is set, offer to rejoin that match (after a crash or a server restart). `account` also has `adultConfirmed`, `termsVersion`, `currentTermsVersion`, `needsTermsAccept` and `showOnLeaderboards`. If `needsTermsAccept` is true, show the new terms and call `accept-terms` before offering ranked or voice. `ratings` is `{ singles: { rating, peak, games, wins, losses, streak }, teams: [ { rating, …, partner: { accountId, displayName } } ] }` (1200 and 0 games until they play ranked). |
+| `PATCH /api/me` `{ displayName?, showOnLeaderboards? }` | Rename (passes the name filter; the first custom name is free, then one change every 7 days, `429 rename_cooldown` with `retryAt`) and/or hide or show yourself on the public leaderboards. At least one field. |
+| `POST /api/me/accept-terms` `{ version }` | Accept the terms. `version` must equal `currentTermsVersion` (`409 bad_terms_version` otherwise). |
+| `POST /api/me/confirm-adult` | For an older account made before adults-only: confirms 18+. |
 | `DELETE /api/me` | **Erases the account** (required by the app stores). Pulls you out of any match, deletes sign-in links, sessions, stats and blocks. Old match history stays for the other players, with your name replaced by "Deleted player". |
 | `GET /api/me/export` | Everything held about the person, as JSON. |
 | `GET /api/me/matches?limit=20&before=<iso date>` | Match history, newest first. Pass the returned `next` as `before` for the next page. |
@@ -71,13 +76,17 @@ Every name a person types goes through the same filter: 3 to 20 characters, lett
 |------|--------------|
 | `GET /api/blocks` | Who I've blocked. **Use this list to mute their voice.** Blocking is private and one-way. |
 | `PUT /api/blocks/:accountId` / `DELETE …` | Block / unblock. |
-| `POST /api/reports` `{ accountId, matchId?, reason, note? }` | Report someone. `reason` is `harassment`, `cheating`, `inappropriate_name` or `other`. Repeat reports of the same person while one is open are merged, and there is a limit of 10 an hour. |
+| `POST /api/reports` `{ accountId, matchId?, reason, note? }` | Report someone. `reason` is `harassment`, `cheating`, `inappropriate_name`, `underage` or `other`. Repeat reports of the same person while one is open are merged, and there is a limit of 10 an hour. |
 
 Other players' account ids come from `view.seats[].accountId`.
 
 ## Setup screen data
 
-`GET /api/meta` returns the catalog: the 12 bag colors, 8 characters, target scores, defaults, board and bag sizes, name limits, which sign-in methods are on, the LED layout and the sound list.
+`GET /api/meta` returns the catalog: the 12 bag colors, 8 characters, target scores, defaults, board and bag sizes, name limits, which sign-in methods are on, the LED layout and the sound list. It also says:
+
+- `voice: { enabled, provider }`: hide the voice UI when `enabled` is false.
+- `ads: { enabled, interstitialEveryNMatches, minSecondsBetweenInterstitials, menuBanner, duringMatch: false }`: how the app should pace ads (see **Ads** below).
+- `ranked: { modes, playTo, cooldownMinutes }` and `terms: { currentVersion, minAge: 18 }`.
 
 ## Matches
 
@@ -187,6 +196,82 @@ you: null | { playerId, seat, team, host }        // playerId is your account id
 
 `GET /api/matches/:id/events?since=<seq>` returns `{ events, seq, resync }`.
 
+## Ranked play
+
+Ranked matches are always **21 points, regulation distance, no bust or skunk, 20 s throw clock, every seat a real person**. Nobody creates them by hand: the matchmaker does. All calls need sign-in, and queueing needs an adult on the current terms (`403 adult_confirmation_required` / `terms_update_required`).
+
+**Singles (1v1):**
+
+1. `POST /api/ranked/queue` `{ "mode": "singles" }` → `202 { status: "searching", … }`.
+2. Poll `GET /api/ranked/queue` every 2 seconds. It returns one of:
+   - `{ status: "searching", mode, waitedSec, ratingWindow, playersSearching }`. The window starts at ±100 rating points and widens by 50 every 5 seconds (up to ±800), so the wait is short when the ratings are close.
+   - `{ status: "matched", matchId, mode }`. **Connect to `/api/matches/:matchId/ws` right away.** Both players are already seated and the character pick starts at once. Anyone not connected within 30 seconds forfeits.
+   - `{ status: "expired", mode }`: nobody was found in 5 minutes. Offer to search again.
+   - `{ status: "cooldown", until }`: they left a ranked match recently.
+   - `{ status: "idle" }`.
+   The reply also has `party` (see below).
+3. `DELETE /api/ranked/queue` stops searching.
+
+**Teams (2v2 duos):** a duo is two people who chose each other.
+
+- `POST /api/parties` makes a party and returns `{ party: { code, members, full } }`. Show the code (6 letters) so a friend can type it. `POST /api/parties/join` `{ code }` joins it (`404 party_not_found`, `409 party_full`). `GET /api/parties/me`. `DELETE /api/parties/me` leaves (and takes the duo out of the queue).
+- When the party has two people, either one calls `POST /api/ranked/queue` `{ "mode": "teams" }`. **Both** partners enter the queue and both poll the same status. Partners always end up on the same team. Parties live in memory: a server restart empties them.
+- Errors: `party_required` (no full party), `already_queued`, `already_in_match`, `ranked_cooldown` (with `until` and `accountId`, which may be the partner's).
+
+**Rules of a ranked match:**
+
+- **No rematch** (`view.rematch` is null).
+- **Leaving, or being disconnected for 30 seconds, forfeits.** No bot takes the seat. The leaver's whole team loses (`winReason: "forfeit"`), and the leaver can't queue for 10 minutes. The other players are never punished.
+- If it is abandoned or forfeited **before anyone has thrown**, the match is **void**: no rating changes, and it is not counted as a win or loss.
+- **Playing the same people over and over does not farm points:** after 3 ranked matches with the same opponent(s) in 24 hours, gains and losses are halved; from the 6th they are zero.
+- People who blocked each other are never matched. A player who is banned leaves the queue at once.
+
+**Results:** when the result is saved (a moment after `match_end`) the match emits **`ratings_updated`** `{ voided, updates: [ { accountId, mode, before, after, change, games, farmingLimited } ] }` and `view.ratings` is filled in: `{ voided, you: {…} | null, players: [...] }`. For teams, `before`/`after` are the duo's rating. A rating is provisional for the first 10 games (`games < 10`); show it as "placement". Reconnecting later gets the same info from `view`.
+
+`view.ranked` is `"singles"`, `"teams"` or `null`.
+
+## Leaderboards
+
+Global, one board for singles and one for teams. All need sign-in.
+
+| Call | What it does |
+|------|--------------|
+| `GET /api/leaderboards/singles?limit=50&offset=0` | Best first. `{ mode, entries: [ { rank, members: [ { accountId, displayName } ], rating, peak, games, wins, losses, streak } ], total, minGames, activeDays, offset, limit, next }`. `next` is the offset for the next page or null. `limit` is 1 to 100. |
+| `GET /api/leaderboards/teams` | Same, one entry per duo with both partners in `members`. |
+| `GET /api/leaderboards/singles/me` | Where I am: `{ standings: [ { members, rating, games, rank, gamesNeeded, hiddenReason, neighbours: [ entries around me ] } ] }`. `rank` is null if not on the board yet: `gamesNeeded` says how many more ranked games, `hiddenReason` is `opted_out` or `inactive`. |
+| `GET /api/leaderboards/teams/me` | Same, one standing per duo I belong to. |
+
+Who is listed: at least **10 rated games**, a ranked game in the **last 90 days**, not banned, and has not turned off `showOnLeaderboards`. A duo is listed only if both partners qualify. Ties are broken by more games played. Pages are cached for a few seconds, so a result can take a moment to show.
+
+## Voice chat
+
+Voice runs through Unity Vivox; this server only hands out short-lived tokens. `GET /api/meta` → `voice.enabled` says whether to show it.
+
+`POST /api/matches/:id/voice` (only for someone seated in that match: adult, current terms) returns:
+
+```json
+{
+  "identity": { "username": "<account id>", "uri": "sip:.…@…" },
+  "loginToken": "…",
+  "table": { "name": "cornhole-ABCD2345", "uri": "sip:confctl-g-…", "joinToken": "…" },
+  "team": { "name": "cornhole-ABCD2345-team-A", "uri": "…", "joinToken": "…" },
+  "roster": [ { "seat": "A1", "team": "A", "username": "<account id>", "displayName": "Uncle Me" } ],
+  "mute": [ "<account id of someone I blocked>" ],
+  "expiresAt": "2026-09-29T…Z"
+}
+```
+
+- Log in to Vivox with `identity` + `loginToken`, then join the **table** channel (everyone at the match). In **2v2** also join the **team** channel (`team` is null in 1v1) for private talk with your partner.
+- Tokens last **5 minutes** (enough to log in and join). Ask again to rejoin, for example after a reconnect.
+- **You must mute everyone in `mute` on the phone** (the people the player blocked who are at this match). Vivox does the muting locally; the server cannot. Show a report button next to each player (`POST /api/reports`).
+- `roster` maps Vivox usernames (account ids) to seats and names, so you can light up whoever is talking.
+- Errors: `501 voice_unavailable` (not configured), `403 not_in_match`, `403 adult_confirmation_required` / `terms_update_required`, `409 match_over`.
+- Voice is **not filtered**. That is why the game is 18+.
+
+## Ads
+
+Ads are the only income; nothing is for sale. The phone runs the ad SDK; the server only says how often to show them (`GET /api/meta` → `ads`). Follow it: show an interstitial after every `interstitialEveryNMatches` finished matches and never closer than `minSecondsBetweenInterstitials`, a banner only on menu screens if `menuBanner`, and **never during a match** (from the coin toss to the results). Turn everything off when `enabled` is false. Ask for tracking (Apple ATT) and consent (EU/UK) before loading ads.
+
 ## Realtime: `GET /api/matches/:id/ws`
 
 1. Connect, then send within 5 s: `{ "type": "hello", "bearer": "<session token>", "since": <lastSeq>, "clientVersion": "1.4.2" }`. `bearer` is optional (without it you're a read-only spectator, as is a signed-in person who isn't in the match). `since` and `clientVersion` are optional.
@@ -231,7 +316,9 @@ Your seat counts as **connected** while at least one of your sockets is open. If
 | `rematch_update` | `{ deadlineAt, votes }` | The play-again window opened or someone voted |
 | `rematch_ready` | `{ matchId }` | **Switch to this match** |
 | `rematch_cancelled` | `{ reason }` | No rematch: `nobody_accepted`, `unavailable`, `maintenance`, `already_in_match`, `server_busy` |
-| `seat_takeover` | `{ seat, reason: "disconnect"\|"left" }` | A bot took a human's seat |
+| `seat_takeover` | `{ seat, reason: "disconnect"\|"left" }` | A bot took a human's seat (casual matches) |
+| `seat_forfeit` | `{ seat, reason: "disconnect"\|"left" }` | Ranked: that player walked out, their team forfeits |
+| `ratings_updated` | `{ voided, updates }` | Ranked: the result was saved and ratings moved |
 | `seat_reclaimed` | `{ seat }` | The human is back |
 | `resumed` | `{ phase }` | The server restarted and picked this match back up |
 | `match_abandoned` | `{ reason }` | Nobody is left |
@@ -293,15 +380,15 @@ Some errors carry extra fields (`matchId`, `retryAt`, `minVersion`, `reason`, `b
 
 | Status | Codes |
 |--------|-------|
-| 400 | `bad_request` (with `issues`), `bad_config`, `bad_seat`, `bad_character`, `bad_color`, `bad_gesture`, `bad_client_version`, `nonce_required`, `name_length`, `name_chars`, `name_profane`, `name_reserved` |
+| 400 | `adult_confirmation_required` (sign-up), `bad_request` (with `issues`), `bad_config`, `bad_seat`, `bad_character`, `bad_color`, `bad_gesture`, `bad_client_version`, `nonce_required`, `name_length`, `name_chars`, `name_profane`, `name_reserved` |
 | 401 | `unauthorized`, `invalid_identity_token` |
-| 403 | `not_host`, `account_banned` (with `reason`, `bannedUntil`), `guests_disabled` |
-| 404 | `match_not_found`, `unknown_player`, `unknown_account`, `invite_expired`, `not_found` |
-| 409 | `wrong_phase`, `not_your_turn`, `match_full`, `seat_taken`, `seat_is_bot`, `seat_empty`, `seats_open`, `character_taken`, `color_taken`, `team_already_picked`, `already_in_match`, `already_linked`, `no_rematch`, `rematch_closed` |
+| 403 | `not_host`, `account_banned` (with `reason`, `bannedUntil`), `guests_disabled`, `adult_confirmation_required`, `terms_update_required`, `ranked_cooldown` (with `until`), `not_in_match`, `party_not_available` |
+| 404 | `match_not_found`, `unknown_player`, `unknown_account`, `invite_expired`, `party_not_found`, `not_found` |
+| 409 | `wrong_phase`, `not_your_turn`, `match_full`, `seat_taken`, `seat_is_bot`, `seat_empty`, `seats_open`, `character_taken`, `color_taken`, `team_already_picked`, `already_in_match`, `already_linked`, `no_rematch`, `rematch_closed`, `already_queued`, `party_required`, `party_full`, `bad_terms_version`, `match_over`, `not_ranked` |
 | 413 | body over 16 KB |
 | 426 | `client_outdated`, `client_version_required` |
 | 429 | `rename_cooldown`, `too_many_reports`, or the rate limit (slow down) |
-| 501 | `provider_not_configured` |
+| 501 | `provider_not_configured`, `voice_unavailable` |
 | 503 | `server_busy`, `maintenance` |
 
 A banned account gets `403 account_banned` on every call, and can't sign in again, until the ban ends.

@@ -28,15 +28,27 @@
 - [x] App version check ("update required") and maintenance mode.
 - [x] CI with a real Postgres, Dockerfile, health checks, operations guide, privacy data map.
 
+## Phase 2c: Adults, Ranked, Voice, Hosting (DONE, server side)
+
+- [x] 18+ confirmation, terms version, leaderboard opt-out, `underage` reports.
+- [x] Ranked singles and duo teams: matchmaking queue, parties, forfeit and void rules, cooldowns.
+- [x] Elo ratings saved atomically with match history; repeat-opponent guard.
+- [x] Global leaderboards for singles and teams, with "my rank".
+- [x] Voice chat tokens (Vivox): table and team channels, block-list muting.
+- [x] Ad pacing settings for the app.
+- [x] Hetzner deploy pack: docker-compose, Caddy and nginx, deploy, backup and restore scripts (`docs/hetzner-deploy.md`).
+
 ## Before launch (not built yet)
 
 - Real-device test of Sign in with Apple and Google, and of invite links opening in the app.
 - **Load test** to find how many concurrent matches one server handles.
-- Voice chat (Vivox), including muting blocked players.
+- Unity side of voice (log in to Vivox, join the table and team channels, mute the `mute` list, report button). The server side is done.
+- Pick the ad SDK; add the consent (EU/UK) and Apple tracking prompts.
+- Set store age ratings to 17+ / Mature.
+- Try the deploy pack on the real Hetzner box (it has only been validated, not run: the build machine had no Docker).
 - Monitoring and alerts on your host (`docs/operations.md` lists what to alert on).
-- Privacy policy, terms, age rating (`docs/data-and-privacy.md`), and a process for reviewing reports.
+- Privacy policy, terms, and a process for reviewing reports (`docs/data-and-privacy.md`).
 - Push notifications for invites (optional).
-- Rankings and leaderboards (optional; stats are already recorded).
 
 ## Phase 3: Unity Greybox (next: build against `docs/api-contract.md`)
 
@@ -55,5 +67,4 @@
 
 ## Phase 5: Multiplayer Polish
 
-- Voice.
 - Real-device testing of reconnect, deploys and takeover with human players.

@@ -1,0 +1,95 @@
+# iPlay Cornhole on one Hetzner box that also runs other iPlay games.
+#
+#   cp .env.example .env   (fill it in)
+#   ./deploy.sh
+#
+# The game listens on 127.0.0.1 only. Your existing web server (Caddy or nginx, see the
+# snippets next to this file) sends https://cornhole.your-domain to it. No ports are opened
+# to the internet by this file. If the box has no web server yet, start the bundled Caddy:
+#   docker compose --profile proxy up -d
+
+name: iplay-cornhole
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '5'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cornhole
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: cornhole
+    # Small and polite: leaves room for the other games on this box.
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c effective_cache_size=384MB
+      -c max_connections=30
+      -c log_min_duration_statement=1000
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U cornhole -d cornhole']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 200
+    logging: *logging
+
+  app:
+    build:
+      context: ../server
+    image: iplay-cornhole-server:${TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      HOST: 0.0.0.0
+      # Every request arrives through your web server, so trust its forwarded address for rate limits.
+      TRUST_PROXY: 'true'
+      DATABASE_URL: postgres://cornhole:${POSTGRES_PASSWORD}@postgres:5432/cornhole
+      DATABASE_SSL: 'false'
+      NODE_OPTIONS: --max-old-space-size=384
+    ports:
+      - '127.0.0.1:${APP_PORT:-3010}:3000'
+    # A stop saves every live match; give it time (the server finishes in a second or two).
+    stop_grace_period: 45s
+    mem_limit: 640m
+    cpus: 1.5
+    pids_limit: 300
+    logging: *logging
+
+  # Only if this box has no web server yet. Start with:  docker compose --profile proxy up -d
+  caddy:
+    profiles: ['proxy']
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    mem_limit: 128m
+    logging: *logging
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,15 @@
+# Already running Caddy for your other iPlay games? Add this block to that Caddyfile,
+# then `caddy reload` (or `docker exec <caddy> caddy reload --config /etc/caddy/Caddyfile`).
+# If your Caddy runs in Docker, replace 127.0.0.1 with the address that reaches the host
+# (for example host.docker.internal, or put both on one Docker network and use app:3000).
+
+cornhole.example.com {
+	encode zstd gzip
+
+	reverse_proxy 127.0.0.1:3010 {
+		health_uri /ready
+		health_interval 5s
+		lb_try_duration 20s
+		lb_try_interval 500ms
+	}
+}
