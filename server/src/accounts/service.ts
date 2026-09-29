@@ -101,6 +101,19 @@ export class AccountService {
     }
   }
 
+  /** Throws unless the person has accepted the current terms. Used before ranked play and voice. */
+  requireCurrentTerms(account: Account): void {
+    if (this.needsTermsAccept(account)) {
+      throw new DomainError('terms_update_required', 'Please accept the updated terms to continue', 403, { currentTermsVersion: this.termsVersion });
+    }
+  }
+
+  /** Adult and up to date on the terms: the bar for anything social (ranked, voice). */
+  requireEligibleForSocial(account: Account): void {
+    this.requireAdultAccount(account);
+    this.requireCurrentTerms(account);
+  }
+
   private assertAdultConfirmed(confirmed: boolean | undefined): void {
     if (this.requireAdult && !confirmed) {
       throw new DomainError('adult_confirmation_required', 'You must confirm that you are 18 or older to play', 400);

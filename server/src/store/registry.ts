@@ -1,7 +1,9 @@
 import { randomInt as cryptoInt } from 'node:crypto';
 import type { MatchHistory, MatchSummary } from '../accounts/history.js';
 import { DomainError } from '../core/errors.js';
-import type { MatchConfig } from '../core/types.js';
+import type { MatchConfig, SeatId } from '../core/types.js';
+import { rankedConfig } from '../ranking/rules.js';
+import type { RankedMode } from '../ranking/ratings.js';
 import type { LiveMatchStore } from '../lobby/persistence.js';
 import type { Scheduler } from '../lobby/scheduler.js';
 import { MatchSession, type AccountRef, type RematchSeed, type SeatPlan, type SessionHooks, type Timing } from '../lobby/session.js';
@@ -45,6 +47,10 @@ export class MatchRegistry {
   private readonly seedSource: (() => number) | undefined;
   private cancelSweep: (() => void) | null = null;
   private maintenanceOn = false;
+  /** Called when someone walks out of a ranked match. Set by the ranked service. */
+  onRankedForfeit: ((accountId: string) => void) | null = null;
+  /** Called after a ranked result changed ratings (leaderboards should refresh). */
+  onRatingsChanged: (() => void) | null = null;
 
   constructor(opts: RegistryOptions) {
     this.sched = opts.scheduler;
@@ -124,6 +130,19 @@ export class MatchRegistry {
     return session;
   }
 
+  /** Starts a ranked match for players the matchmaker found. Seats are fixed, the picks begin at once. */
+  createRanked(mode: RankedMode, seats: Array<{ account: AccountRef; seat: SeatId }>): MatchSession {
+    this.assertCanStart();
+    for (const s of seats) this.assertFree(s.account.id);
+    const session = MatchSession.createRanked(
+      { id: this.newId(), mode, config: rankedConfig(mode), ...this.sessionBase() },
+      seats,
+    );
+    this.matches.set(session.id, session);
+    session.startRanked();
+    return session;
+  }
+
   /** Joins an account to a match, enforcing one match at a time and the maintenance switch. */
   join(session: MatchSession, account: AccountRef, seat?: Parameters<MatchSession['join']>[1]): ReturnType<MatchSession['join']> {
     if (this.maintenanceOn && !session.hasActivePlayer(account.id)) {
@@ -158,13 +177,24 @@ export class MatchRegistry {
 
   private handleEnded(session: MatchSession): void {
     void this.persistence?.remove(session.id);
+    if (session.ranked && session.forfeitedBy) {
+      try {
+        this.onRankedForfeit?.(session.forfeitedBy);
+      } catch (error) {
+        this.log('error', 'could not apply a ranked cooldown', { error: String(error) });
+      }
+    }
     const summary = session.summary();
-    if (summary && this.history) void this.recordWithRetry(summary, 0);
+    if (summary && this.history) void this.recordWithRetry(summary, 0, session);
   }
 
-  private async recordWithRetry(summary: MatchSummary, attempt: number): Promise<void> {
+  private async recordWithRetry(summary: MatchSummary, attempt: number, session: MatchSession): Promise<void> {
     try {
-      await this.history!.record(summary);
+      const result = await this.history!.recordMatch(summary);
+      if (summary.ranked && !result.duplicate) {
+        session.applyRatings({ voided: result.voided, updates: result.ratingUpdates });
+        this.onRatingsChanged?.();
+      }
     } catch (error) {
       if (attempt >= 2) {
         // Out of retries. Log the whole result so it can be replayed by hand.
@@ -172,7 +202,7 @@ export class MatchRegistry {
         return;
       }
       this.log('warn', 'saving match history failed, will retry', { code: summary.code, attempt, error: String(error) });
-      this.sched.after(attempt === 0 ? 2000 : 10_000, () => void this.recordWithRetry(summary, attempt + 1));
+      this.sched.after(attempt === 0 ? 2000 : 10_000, () => void this.recordWithRetry(summary, attempt + 1, session));
     }
   }
 

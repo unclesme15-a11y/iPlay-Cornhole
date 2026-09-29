@@ -26,6 +26,7 @@ import { registerAuthRoutes } from './routes/auth.js';
 import { registerInviteRoutes } from './routes/invites.js';
 import { registerMatchRoutes } from './routes/matches.js';
 import { registerMeRoutes } from './routes/me.js';
+import { registerRankedRoutes } from './routes/ranked.js';
 import { registerSocialRoutes } from './routes/social.js';
 import { registerVersionGate } from './version.js';
 
@@ -109,6 +110,7 @@ export async function buildApp(services: Services): Promise<BuiltApp> {
   registerMeRoutes(app, services, auth);
   registerSocialRoutes(app, services, auth);
   registerMatchRoutes(app, services, auth);
+  registerRankedRoutes(app, services, auth);
   registerInviteRoutes(app, services);
   registerAdminRoutes(app, services);
   const realtime = registerRealtime(app, services);

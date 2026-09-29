@@ -24,10 +24,17 @@ export function registerMeRoutes(app: FastifyInstance, services: Services, auth:
   });
   app.get('/api/me', async (req) => {
     const account = await auth.require(req);
-    const [stats, providers] = await Promise.all([services.history.stats(account.id), services.accounts.providersOf(account.id)]);
+    const [stats, providers, singles, duos] = await Promise.all([
+      services.history.stats(account.id),
+      services.accounts.providersOf(account.id),
+      services.ratings.singles(account.id),
+      services.ratings.duosOf(account.id),
+    ]);
     return {
       account: { ...publicAccount(account), createdAt: account.createdAt.toISOString(), ...privateFlags(account) },
       stats,
+      /** Ranked ratings. `teams` lists each partner the player has rated games with, best first. */
+      ratings: { singles, teams: duos },
       signInMethods: providers,
       /** If set, the app should offer to rejoin this match (after a crash or a restart). */
       activeMatchId: services.registry.activeMatchOf(account.id)?.id ?? null,
@@ -63,6 +70,7 @@ export function registerMeRoutes(app: FastifyInstance, services: Services, auth:
   app.delete('/api/me', async (req) => {
     const account = await auth.require(req);
     services.registry.leaveAll(account.id);
+    services.ranked.forget(account.id);
     await services.accounts.delete(account.id);
     services.sessions.forget(account.id);
     return { deleted: true };

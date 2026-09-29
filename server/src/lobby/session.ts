@@ -20,6 +20,7 @@ import type {
   WinReason,
 } from '../core/types.js';
 import type { MatchSummary, PlayerSummary } from '../accounts/history.js';
+import type { RankedMode, RatingUpdate } from '../ranking/ratings.js';
 import { decideThrow, type BotLevel } from '../bots/botPolicy.js';
 import { isValidGesture, simulateThrow, type ThrowGesture, type ThrowSimResult } from '../physics/throwSim.js';
 import { cuesForThrow, scoreCue, victoryCue, type LedCue, type PresentationCue } from '../presentation/effects.js';
@@ -115,6 +116,7 @@ export interface SessionSnapshot {
   seq: number;
   seatStats: Record<SeatId, SeatStats>;
   lastActivity: number;
+  ranked?: RankedMode | null;
 }
 
 export interface SessionEvent {
@@ -136,6 +138,8 @@ export interface SessionOptions {
   hooks?: SessionHooks;
   createdAt?: number;
   rematchOf?: string | null;
+  /** Ranked matches: everyone is human, the rules are fixed, leaving forfeits, and there is no rematch. */
+  ranked?: RankedMode | null;
 }
 
 export interface Timing {
@@ -214,6 +218,10 @@ export interface MatchView {
   winner: TeamId | null;
   winReason: WinReason | 'abandoned' | null;
   rematch: { deadlineAt: number; votes: Record<string, boolean>; matchId: string | null; cancelled: boolean } | null;
+  /** 'singles' or 'teams' for a ranked match, otherwise null. */
+  ranked: RankedMode | null;
+  /** Ranked only, once the result is saved: how each player's rating moved (null until then). */
+  ratings: { voided: boolean; you: RatingUpdate | null; players: RatingUpdate[] } | null;
   you: { playerId: string; seat: SeatId; team: TeamId; host: boolean } | null;
 }
 
@@ -261,6 +269,10 @@ export class MatchSession {
 
   readonly createdAt: number;
   readonly rematchOf: string | null;
+  readonly ranked: RankedMode | null;
+  /** Ranked only: the account that walked out (left or timed out). They wait before queueing again. */
+  forfeitedBy: string | null = null;
+  private ratingResult: { voided: boolean; updates: RatingUpdate[] } | null = null;
   startedAt: number | null = null;
   lastActivity: number;
 
@@ -274,6 +286,7 @@ export class MatchSession {
     this.hooks = opts.hooks ?? {};
     this.createdAt = opts.createdAt ?? this.sched.now();
     this.rematchOf = opts.rematchOf ?? null;
+    this.ranked = opts.ranked ?? null;
     this.lastActivity = this.sched.now();
     this.seatStats = { A1: zeroStats(), B1: zeroStats(), A2: zeroStats(), B2: zeroStats() };
 
@@ -301,6 +314,41 @@ export class MatchSession {
   /** Seat the host in A1. Called once right after construction. */
   createHost(account: AccountRef): Seated {
     return this.claim('A1', account, true);
+  }
+
+  /**
+   * A ranked match: every seat is a human who was found by the matchmaker, and the picks start at once.
+   * Nobody is connected yet; anyone who does not show up in time forfeits.
+   */
+  static createRanked(
+    opts: Omit<SessionOptions, 'config' | 'seatPlan' | 'ranked'> & { mode: RankedMode; config: MatchConfig },
+    assignments: Array<{ account: AccountRef; seat: SeatId }>,
+  ): MatchSession {
+    const plan: SeatPlan = {};
+    for (const a of assignments) plan[a.seat] = { kind: 'human' };
+    const { mode, ...rest } = opts;
+    const session = new MatchSession({ ...rest, seatPlan: plan, ranked: mode });
+    for (const a of assignments) {
+      session.claim(a.seat, a.account, a.seat === 'A1');
+      session.players.get(a.account.id)!.connected = false;
+    }
+    return session;
+  }
+
+  /** Ranked only: start the picks and the no-show clock. */
+  startRanked(): void {
+    if (!this.ranked) throw new DomainError('not_ranked', 'This is not a ranked match', 409);
+    this.requirePhase('lobby');
+    this.touch();
+    for (const p of this.players.values()) this.armGrace(p);
+    this.enterCharacters();
+  }
+
+  /** The matchmaker's result: how ratings moved. Shown on the results screen. */
+  applyRatings(result: { voided: boolean; updates: RatingUpdate[] }): void {
+    if (!this.ranked || this.ratingResult) return;
+    this.ratingResult = result;
+    this.emit('ratings_updated', { voided: result.voided, updates: result.updates });
   }
 
   /** Take a seat. If this account already has one in this match, that seat is returned again. */
@@ -684,7 +732,7 @@ export class MatchSession {
     if (finished) {
       this.clearAllTimers();
       this.emit('phase', { phase: this.phase, deadlineAt: null });
-      this.openRematch();
+      if (!this.ranked) this.openRematch();
       this.finish();
       return;
     }
@@ -732,7 +780,7 @@ export class MatchSession {
       return;
     }
     if (this.phase === 'finished') {
-      this.voteRematch(playerId, false);
+      if (this.rematch) this.voteRematch(playerId, false);
       return;
     }
     if (this.phase === 'abandoned') return;
@@ -751,6 +799,10 @@ export class MatchSession {
     const seat = this.seat(player.seat);
     if (seat.controlledByBot) return;
     this.clearTimer(`grace:${player.id}`);
+    if (this.ranked) {
+      this.forfeitBy(player, reason);
+      return;
+    }
     seat.controlledByBot = true;
     this.emit('seat_takeover', { seat: seat.id, reason });
     this.emit('seats', { seats: this.seatsView() });
@@ -765,6 +817,25 @@ export class MatchSession {
       this.scheduleBotThrow();
     }
     this.checkAbandon();
+  }
+
+  /**
+   * Ranked: nobody plays a walked-out seat for them. Their whole team loses. If the match had not
+   * really started, it is cancelled instead (the results screen shows it as voided).
+   */
+  private forfeitBy(player: Player, reason: 'left' | 'disconnect'): void {
+    const seat = this.seat(player.seat);
+    seat.controlledByBot = true; // marks them as gone for good in the history
+    this.forfeitedBy = player.id;
+    this.emit('seat_forfeit', { seat: seat.id, reason });
+    this.emit('seats', { seats: this.seatsView() });
+    if (this.phase !== 'playing' || !this.engine) {
+      this.abandon('forfeit_before_start');
+      return;
+    }
+    this.turn = null;
+    const events = this.engine.forfeit(seat.team);
+    this.afterEngineEvents(0, events, 0);
   }
 
   private humansPresent(): boolean {
@@ -875,6 +946,14 @@ export class MatchSession {
       winner: snap?.winner ?? null,
       winReason: this.phase === 'abandoned' ? 'abandoned' : (snap?.winReason ?? null),
       rematch: this.rematch ? { ...this.rematch, votes: { ...this.rematch.votes } } : null,
+      ranked: this.ranked,
+      ratings: this.ratingResult
+        ? {
+            voided: this.ratingResult.voided,
+            you: this.ratingResult.updates.find((u) => u.accountId === playerId) ?? null,
+            players: this.ratingResult.updates,
+          }
+        : null,
       you: player && !player.left ? { playerId: player.id, seat: player.seat, team: SEAT_TEAM[player.seat], host: player.host } : null,
     };
   }
@@ -1013,6 +1092,7 @@ export class MatchSession {
       scores: snap ? { ...snap.scores } : { A: 0, B: 0 },
       innings: snap?.history.length ?? 0,
       rematchOf: this.rematchOf,
+      ranked: this.ranked,
       players,
     };
   }
@@ -1037,6 +1117,7 @@ export class MatchSession {
       seq: this.seq,
       seatStats: this.seatStats,
       lastActivity: this.lastActivity,
+      ranked: this.ranked,
     });
   }
 
@@ -1045,7 +1126,7 @@ export class MatchSession {
     if (snap.version !== 1) throw new Error(`Unknown snapshot version ${String(snap.version)}`);
     if (snap.phase === 'finished' || snap.phase === 'abandoned') throw new Error('Finished matches are not restored');
     const data = structuredClone(snap);
-    const session = new MatchSession({ ...opts, id: data.id, config: data.config, createdAt: data.createdAt, rematchOf: data.rematchOf });
+    const session = new MatchSession({ ...opts, id: data.id, config: data.config, createdAt: data.createdAt, rematchOf: data.rematchOf, ranked: data.ranked ?? null });
     session.startedAt = data.startedAt;
     session.phase = data.phase;
     session.phaseDeadline = data.phaseDeadline;

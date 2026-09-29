@@ -64,6 +64,7 @@ export async function startServer(
     logger = (level, message, data) => built.app.log[level]({ ...data }, message);
 
     await services.registry.restoreAll();
+    services.ranked.start();
     if (opts.listen !== false) await built.app.listen({ port: config.PORT, host: config.HOST });
   } catch (error) {
     // Don't leave the database connection (and the ownership lock) hanging if start-up fails part-way.
@@ -79,6 +80,7 @@ export async function startServer(
       if (stopped) return;
       stopped = true;
       services.registry.maintenance = true; // nobody can start a match on a server that is going away
+      services.ranked.stop();
       built.closeSockets();
       await services.registry.flush();
       await built.app.close();

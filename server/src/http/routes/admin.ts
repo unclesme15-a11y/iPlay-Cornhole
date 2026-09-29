@@ -66,6 +66,7 @@ export function registerAdminRoutes(app: FastifyInstance, services: Services): v
         // Take effect right now on this server: forget the cached login and pull them out of their match.
         services.sessions.forget(account.id);
         services.registry.leaveAll(account.id);
+        services.ranked.forget(account.id);
         audit(req, 'ban', { accountId: account.id, until: until?.toISOString() ?? 'permanent' });
         return { account: { ...publicAccount(account), status: account.status, bannedUntil: until?.toISOString() ?? null } };
       });

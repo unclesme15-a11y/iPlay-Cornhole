@@ -7,6 +7,8 @@ import type { KeySource } from './accounts/jwt.js';
 import type { AppConfig } from './config.js';
 import type { Db } from './db/types.js';
 import { LiveMatchStore } from './lobby/persistence.js';
+import { RankedService, type RankedOptions } from './ranking/ranked.js';
+import { RatingsReader } from './ranking/reader.js';
 import type { Scheduler } from './lobby/scheduler.js';
 import type { Timing } from './lobby/session.js';
 import { MatchRegistry, type LogFn } from './store/registry.js';
@@ -22,6 +24,8 @@ export interface Services {
   history: MatchHistory;
   persistence: LiveMatchStore;
   registry: MatchRegistry;
+  ratings: RatingsReader;
+  ranked: RankedService;
   log: LogFn;
 }
 
@@ -35,6 +39,7 @@ export interface ServiceOverrides {
   /** Milliseconds live-match changes are batched before saving. */
   persistDebounceMs?: number;
   registry?: { finishedTtlMs?: number; idleTtlMs?: number; sweepEveryMs?: number };
+  ranked?: RankedOptions;
 }
 
 /** Builds every service on top of one database and one clock. Used by the server and by tests. */
@@ -58,6 +63,9 @@ export function createServices(db: Db, scheduler: Scheduler, config: AppConfig, 
     ...over.registry,
   });
   registry.maintenance = config.MAINTENANCE;
+  const ratings = new RatingsReader(db, now);
+  registry.onRatingsChanged = () => ratings.invalidate();
+  const ranked = new RankedService(db, registry, ratings, scheduler, log, over.ranked);
   return {
     db,
     config,
@@ -76,6 +84,8 @@ export function createServices(db: Db, scheduler: Scheduler, config: AppConfig, 
     history,
     persistence,
     registry,
+    ratings,
+    ranked,
     log,
   };
 }
