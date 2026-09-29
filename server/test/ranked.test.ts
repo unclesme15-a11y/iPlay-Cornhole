@@ -1,5 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { gestureToward } from '../src/bots/botPolicy.js';
+import { RankedService } from '../src/ranking/ranked.js';
+import { FORFEIT_COOLDOWN_MS } from '../src/ranking/rules.js';
 import { TestEnv, type Booted } from './helpers/app.js';
 
 let env: TestEnv;
@@ -246,6 +248,41 @@ describe('ranked singles', () => {
     expect((await queue(t, b!)).statusCode).toBe(202);
   });
 
+  it('walking out and re-queueing in the same instant is still refused (the cooldown does not wait for the database)', async () => {
+    const t = await env.boot();
+    const [a, b] = await signUp(t, 2);
+    const id = await pairUp(t, a!, b!);
+    connect(t, id, [a!, b!]);
+    await t.call(a!.token, 'POST', `/api/matches/${id}/leave`);
+    // no settling: the database write for the cooldown may not have finished yet
+    const denied = await queue(t, a!);
+    expect(denied.statusCode).toBe(403);
+    expect(denied.json().error.code).toBe('ranked_cooldown');
+    await settle(t);
+    // once it is saved, staff can lift it by deleting the row
+    await t.db.query('DELETE FROM ranked_cooldowns WHERE account_id = $1', [a!.id]);
+    expect((await queue(t, a!)).statusCode).toBe(202);
+  });
+
+  it('the cooldown holds even while its database write is still in flight, and afterwards the database decides', async () => {
+    const t = await env.boot();
+    const [a] = await signUp(t, 1);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const slow = Object.create(t.db) as typeof t.db;
+    slow.query = (sql: string, params?: readonly unknown[]) =>
+      sql.includes('INSERT INTO ranked_cooldowns') ? gate.then(() => t.db.query(sql, params)) : t.db.query(sql, params);
+    const ranked = new RankedService(slow, t.services.registry, t.services.ratings, t.scheduler);
+    const saving = ranked.penalize(a!.id); // not awaited: the write is stuck
+    expect(await ranked.cooldownUntil(a!.id)).not.toBeNull(); // still refused, from memory
+    release();
+    await saving;
+    expect(await ranked.cooldownUntil(a!.id)).not.toBeNull(); // now from the database
+    await t.db.query('DELETE FROM ranked_cooldowns WHERE account_id = $1', [a!.id]);
+    expect(await ranked.cooldownUntil(a!.id)).toBeNull(); // staff lifted it
+    t.scheduler.advance(FORFEIT_COOLDOWN_MS + 1);
+  });
+
   it('leaving before anyone has thrown voids the match: nobody gains or loses', async () => {
     const t = await env.boot();
     const [a, b] = await signUp(t, 2);
@@ -388,6 +425,29 @@ describe('ranked teams', () => {
     await t.call(b!.token, 'DELETE', '/api/parties/me');
     expect((await status(t, a!)).status).toBe('idle');
     expect((await t.call(a!.token, 'GET', '/api/parties/me')).json().party).toMatchObject({ members: [{ accountId: a!.id }], full: false });
+  });
+
+  it('two people joining the last spot at the same moment: only one gets in', async () => {
+    const t = await env.boot();
+    const [a, b, c] = await signUp(t, 3);
+    const code = (await t.call(a!.token, 'POST', '/api/parties')).json().party.code;
+    // straight to the service so both checks run in the same instant (over HTTP the two requests can be staggered)
+    const results = await Promise.allSettled([
+      t.services.ranked.joinParty(code, { id: b!.id, displayName: 'B' }),
+      t.services.ranked.joinParty(code, { id: c!.id, displayName: 'C' }),
+    ]);
+    expect(results.map((r) => r.status).sort()).toEqual(['fulfilled', 'rejected']);
+    expect(t.services.ranked.party(a!.id)!.members).toHaveLength(2);
+  });
+
+  it('joining a party whose owner left while you were joining fails cleanly', async () => {
+    const t = await env.boot();
+    const [a, b] = await signUp(t, 2);
+    const code = (await t.call(a!.token, 'POST', '/api/parties')).json().party.code;
+    const joining = t.call(b!.token, 'POST', '/api/parties/join', { code });
+    t.services.ranked.leaveParty(a!.id); // happens while the join is waiting on the database
+    expect((await joining).statusCode).toBe(404);
+    expect(t.services.ranked.party(b!.id)).toBeNull();
   });
 
   it('will not let blocked players share a party', async () => {

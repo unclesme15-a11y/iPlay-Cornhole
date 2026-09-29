@@ -18,7 +18,8 @@
     "logo": "tsx tools/extract-logo.ts",
     "board": "tsx tools/export-board.ts",
     "assets": "npm run sfx && npm run logo && npm run board",
-    "preview": "tsx tools/build-preview.ts"
+    "preview": "tsx tools/build-preview.ts",
+    "loadtest": "tsx tools/loadtest.ts"
   },
   "dependencies": {
     "@fastify/rate-limit": "^10.0.0",

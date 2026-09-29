@@ -82,7 +82,7 @@ export async function startServer(
       services.registry.maintenance = true; // nobody can start a match on a server that is going away
       services.ranked.stop();
       built.closeSockets();
-      await services.registry.flush();
+      await services.registry.shutdown();
       await built.app.close();
       if (stopOpts.closeDb === false) await db.releaseOwnership();
       else await db.close();

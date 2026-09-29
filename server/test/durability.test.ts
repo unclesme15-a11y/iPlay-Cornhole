@@ -234,6 +234,45 @@ describe('a real server stopping and starting again', () => {
     throw new Error('did not reach the goal');
   }
 
+  it('shutting down with many matches running saves each one last, then stops saving (no writes after the database closes)', async () => {
+    const sched = new ManualScheduler();
+    const writes: string[] = [];
+    const errors: string[] = [];
+    const watched = spyOn(handle.db, { onQuery: (sql) => sql.includes('INSERT INTO live_matches') && writes.push(sql) });
+    let seed = 1;
+    const s = await startServer(config(), {
+      db: watched,
+      scheduler: sched,
+      overrides: { timing: FAST, persistDebounceMs: 10, seedSource: () => (seed += 7919), log: (level, message) => level === 'error' && errors.push(message) },
+    });
+    running.push(s);
+    const ids: string[] = [];
+    for (let i = 0; i < 25; i++) {
+      // straight to the services: sign-up and match creation are rate limited per address over HTTP
+      const account = await s.services.accounts.createGuest(`Many ${i}`, { adultConfirmed: true });
+      const session = s.services.registry.create({ config: { ...DEFAULT_CONFIG, mode: '1v1' }, host: { id: account.id, displayName: account.displayName } });
+      session.start(account.id, {});
+      ids.push(session.id);
+    }
+    sched.advance(60_000); // picks time out, bots start throwing
+    await new Promise((r) => setTimeout(r, 200));
+    const before = s.services.registry.get(ids[0]!)!.view().seq;
+    expect(ids.every((i) => !s.services.registry.get(i)!.isOver)).toBe(true);
+    await s.stop({ closeDb: false });
+    const writesAtStop = writes.length;
+    // a late change (for example a socket that closes just after the stop) must not be saved either
+    s.services.persistence.markDirty(s.services.registry.get(ids[0]!)!);
+    // Time keeps passing after the stop (timers that were about to fire, late socket closes): nothing may be saved or fail.
+    sched.advance(120_000);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(writes.length).toBe(writesAtStop);
+    expect(errors).toEqual([]);
+    expect(s.services.registry.get(ids[0]!)!.view().seq).toBe(before); // frozen: no more throws after the last save
+    // and every match was saved in its final state
+    const saved = (await handle.db.query<{ id: string }>('SELECT id FROM live_matches')).rows.map((r) => r.id).sort();
+    expect(saved).toEqual([...ids].sort());
+  });
+
   it('a match in progress survives the server being stopped and started, and plays on to a saved result', async () => {
     const sched1 = new ManualScheduler();
     const one = await boot(sched1);

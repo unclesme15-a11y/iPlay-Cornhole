@@ -21,6 +21,7 @@ export class LiveMatchStore {
   private readonly sessions = new Map<string, MatchSession>();
   private readonly chains = new Map<string, Promise<void>>();
   private readonly removed = new Set<string>();
+  private frozen = false;
   private readonly onError: (message: string, error: unknown) => void;
 
   constructor(
@@ -34,7 +35,7 @@ export class LiveMatchStore {
 
   /** The match changed: save it soon. Cheap to call as often as you like. */
   markDirty(session: MatchSession): void {
-    if (session.isOver) return;
+    if (this.frozen || session.isOver) return;
     this.removed.delete(session.id);
     this.sessions.set(session.id, session);
     if (this.timers.has(session.id)) return;
@@ -67,6 +68,16 @@ export class LiveMatchStore {
     }
     await Promise.all(ids.map((id) => this.write(id)));
     await Promise.all([...this.chains.values()]);
+  }
+
+  /**
+   * Shutdown: after this, changes are no longer saved (the final save has been made and the database
+   * is about to close). Call after `flushAll`.
+   */
+  freeze(): void {
+    this.frozen = true;
+    for (const cancel of this.timers.values()) cancel();
+    this.timers.clear();
   }
 
   /** Waits for writes already started. */

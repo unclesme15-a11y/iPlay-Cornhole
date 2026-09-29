@@ -8,7 +8,7 @@ import {
   STEADY_HOLD_MS,
   STRAIGHT_DEG,
 } from './release.js';
-import { AIM_TO_X, POWER_MAX_Y, POWER_MIN_Y, slideDistance } from './throwSim.js';
+import { AIM_TO_X, DECEL, POWER_MAX_Y, POWER_MIN_Y, SLIDE_V_FLAT, SLIDE_V_LOB, slideDistance } from './throwSim.js';
 import { ALONG_IN_PER_MPH, CROSS_IN_PER_MPH, WIND_PRESETS, airtimeFactor } from './wind.js';
 
 /** The three shots on the shot picker, as arcs. The phone may also allow anything in between. */
@@ -31,6 +31,11 @@ export const THROWING_GUIDE = {
     powerMaxY: POWER_MAX_Y,
   },
   shots: SHOTS.map((s) => ({ ...s, slideIn: Math.round(slideDistance(s.arc) * 10) / 10 })),
+  /**
+   * After landing, a bag slides: speed = flatSpeed + (lobSpeed - flatSpeed) * arc (inches per second),
+   * slowing at `decel` (inches per second squared), so it slides speed^2 / (2 * decel) inches.
+   */
+  slide: { flatSpeed: SLIDE_V_FLAT, lobSpeed: SLIDE_V_LOB, decel: DECEL },
   /** One "hole mark" on the landing ring = the hole's width. */
   holeMarkIn: BOARD.holeRadiusIn * 2,
   wind: {

@@ -57,6 +57,8 @@ export class RankedService {
   private readonly expired = new Map<string, { mode: RankedMode; at: number }>();
   private readonly parties = new Map<string, Party>();
   private readonly partyOf = new Map<string, string>();
+  /** Cooldowns are noted here the instant a match ends, before the database write finishes, so re-queueing at once is still refused. */
+  private readonly cooldowns = new Map<string, number>();
   private cancelTick: (() => void) | null = null;
   private readonly tickMs: number;
   private readonly maxWaitMs: number;
@@ -106,17 +108,28 @@ export class RankedService {
 
   async penalize(accountId: string): Promise<void> {
     const until = new Date(this.sched.now() + FORFEIT_COOLDOWN_MS);
+    this.cooldowns.set(accountId, until.getTime());
     await this.db.query(
       `INSERT INTO ranked_cooldowns (account_id, until, reason) VALUES ($1, $2, 'forfeit')
        ON CONFLICT (account_id) DO UPDATE SET until = GREATEST(ranked_cooldowns.until, EXCLUDED.until), reason = EXCLUDED.reason`,
       [accountId, until],
     );
+    // Saved: from now on the database is the authority (so staff can lift a cooldown by deleting the row).
+    // If the write failed we never get here and the in-memory note keeps the cooldown in force.
+    if (this.cooldowns.get(accountId) === until.getTime()) this.cooldowns.delete(accountId);
   }
 
   async cooldownUntil(accountId: string): Promise<Date | null> {
+    const now = this.sched.now();
+    const noted = this.cooldowns.get(accountId) ?? 0;
     const res = await this.db.query<{ until: Date }>('SELECT until FROM ranked_cooldowns WHERE account_id = $1', [accountId]);
-    const until = res.rows[0]?.until;
-    return until && until.getTime() > this.sched.now() ? until : null;
+    const saved = res.rows[0]?.until.getTime() ?? 0;
+    const latest = Math.max(noted, saved);
+    if (latest <= now) {
+      this.cooldowns.delete(accountId); // over: forget it
+      return null;
+    }
+    return new Date(latest);
   }
 
   // ------------------------------------------------------------------- parties
@@ -153,6 +166,12 @@ export class RankedService {
     this.assertNotQueued(account.id);
     const avoid = await this.avoidSet(party.members.map((m) => m.id));
     if (avoid.has(account.id)) throw new DomainError('party_not_available', 'You cannot join that party', 403);
+    // The database lookup took a moment: check again, because someone else may have joined, the
+    // owner may have left, or this player may have started searching in the meantime.
+    if (this.parties.get(party.code) !== party) throw new DomainError('party_not_found', 'That party code is not valid (it may have expired)', 404);
+    if (party.members.some((m) => m.id === account.id)) return party;
+    if (party.members.length >= 2) throw new DomainError('party_full', 'That party is full', 409);
+    this.assertNotQueued(account.id);
     this.leaveParty(account.id);
     party.members.push(account);
     party.touchedAt = this.sched.now();

@@ -96,10 +96,10 @@ export interface ThrowSimResult {
 export const POWER_MIN_Y = -48;
 export const POWER_MAX_Y = 96;
 export const AIM_TO_X = 24;
-const SLIDE_V_FLAT = 110; // in/s for arc 0
-const SLIDE_V_LOB = 20; // in/s for arc 1
+export const SLIDE_V_FLAT = 110; // in/s for arc 0
+export const SLIDE_V_LOB = 20; // in/s for arc 1
 /** Friction plus the uphill tilt of the board. */
-const DECEL = 200; // in/s^2
+export const DECEL = 200; // in/s^2
 const STOP_SPEED = 1.5;
 const HOLE_FALL_RADIUS = BOARD.holeRadiusIn - 0.2;
 const HOLE_SKIP_SPEED = 85; // a bag sliding faster than this skates over the hole

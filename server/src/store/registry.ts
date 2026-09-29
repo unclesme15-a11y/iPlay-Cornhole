@@ -255,6 +255,21 @@ export class MatchRegistry {
     return removed;
   }
 
+  /**
+   * Stop cleanly: freeze every running match so its state can no longer change, save each one a final
+   * time, and refuse any later save (the database is about to close). Matches stay in memory so
+   * phones that are still connected can be told to reconnect.
+   */
+  async shutdown(): Promise<void> {
+    for (const session of this.matches.values()) {
+      if (session.isOver) continue;
+      session.dispose(); // no more bot throws, timers or events
+      this.persistence?.markDirty(session); // make sure the very latest state is written
+    }
+    await this.persistence?.flushAll();
+    this.persistence?.freeze();
+  }
+
   /** Save everything that is waiting to be saved. Call before the process exits. */
   async flush(): Promise<void> {
     await this.persistence?.flushAll();
