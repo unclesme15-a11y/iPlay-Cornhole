@@ -13,14 +13,16 @@ import { MatchSession, type SeatPlan } from '../src/lobby/session.js';
 function playMatch(opts: { seed: number; config: Partial<MatchConfig>; seats: SeatPlan; humanLevel: BotLevel }) {
   const sched = new ManualScheduler();
   const rng = createRng(opts.seed);
+  let throwSeed = opts.seed * 100_003;
   const session = new MatchSession({
+    seedSource: () => (throwSeed += 7919),
     id: `SOAK${opts.seed}`,
     config: { ...DEFAULT_CONFIG, ...opts.config },
     seatPlan: opts.seats,
     scheduler: sched,
     rng,
   });
-  const host = session.createHost('Host');
+  const host = session.createHost({ id: 'soak-host', displayName: 'Host' });
   session.start(host.playerId);
   session.pickCharacter(host.playerId, 'keisha');
   session.pickColor(host.playerId, 'teal');
@@ -42,6 +44,9 @@ function playMatch(opts: { seed: number; config: Partial<MatchConfig>; seats: Se
   }
   return { session, sched, view: session.view(host.playerId) };
 }
+
+// These play hundreds of whole matches, so they get a generous limit for when the whole suite runs at once.
+const SOAK_TIMEOUT = 180_000;
 
 describe('soak: full matches through the real session', () => {
   it('300 mixed matches all finish cleanly with a consistent result', () => {
@@ -73,6 +78,7 @@ describe('soak: full matches through the real session', () => {
       }
       // ends alternate: odd innings from end 0, even from end 1
       view.history.forEach((h, idx) => expect(h.fromEnd).toBe(idx % 2));
+      sched.advance(61_000); // let the rematch window close
       expect(sched.pending).toBe(0);
       totalInnings += view.history.length;
       winReasons[view.winReason ?? 'none'] = (winReasons[view.winReason ?? 'none'] ?? 0) + 1;
@@ -84,7 +90,7 @@ describe('soak: full matches through the real session', () => {
     expect(avg).toBeGreaterThan(2);
     expect(avg).toBeLessThan(25);
     expect(winReasons.score).toBeGreaterThan(0);
-  });
+  }, SOAK_TIMEOUT);
 
   it('skill matters: a Pro beats a Rookie in most 1v1 matches to 21', () => {
     let proWins = 0;
@@ -100,7 +106,7 @@ describe('soak: full matches through the real session', () => {
     }
     if (process.env.SOAK_LOG) console.log('pro beats rookie', ((proWins / N) * 100).toFixed(0) + '%');
     expect(proWins / N).toBeGreaterThan(0.85);
-  });
+  }, SOAK_TIMEOUT);
 
   it('equal skill is close to a coin flip (no built-in side advantage)', () => {
     let aWins = 0;
@@ -117,5 +123,5 @@ describe('soak: full matches through the real session', () => {
     if (process.env.SOAK_LOG) console.log('team A wins at equal skill', ((aWins / N) * 100).toFixed(0) + '%');
     expect(aWins / N).toBeGreaterThan(0.38);
     expect(aWins / N).toBeLessThan(0.62);
-  });
+  }, SOAK_TIMEOUT);
 });

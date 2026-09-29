@@ -223,6 +223,7 @@ export class MatchEngine {
       scoringTeam: tally.scoringTeam,
       scored: tally.scored,
       bags: { holes: tally.holes, boards: tally.boards },
+      finalBags: s.bags.map((b) => ({ seat: b.seat, team: b.team, status: b.status })),
       scoreAfter: { ...s.scores },
       busted,
     };

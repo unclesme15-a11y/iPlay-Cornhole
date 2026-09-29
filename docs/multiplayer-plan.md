@@ -63,4 +63,6 @@ Bots use simple strategy: when their team is ahead with two or fewer bags left, 
 
 ## Disconnects
 
-- A human who drops gets 30 s to come back. Their seat is then taken over by a Video Bot at the same skill level until the game ends. Nothing is forfeited. There are no wagers in this game. An explicit Leave hands the seat to a bot immediately. If every human has left, the match is abandoned.
+- A human who drops gets 30 s to come back. Their seat is then taken over by a Video Bot at the same skill level, and they get the seat back if they return. Nothing is forfeited. There are no wagers in this game. An explicit Leave hands the seat to a bot for good and counts as a "leave" in that player's stats. If every human has left, the match is abandoned.
+- Live matches are saved to the database, so a server restart or crash does not end them (see `operations.md`).
+- Players are identified by their account (guest, Apple or Google), not by a per-match code. One account can be in one running match at a time.

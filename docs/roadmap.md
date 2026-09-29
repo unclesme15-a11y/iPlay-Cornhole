@@ -8,7 +8,7 @@
 - Side-by-side test: the same Plate 1 plus one background prompt in Kling, Veo 3.1 and Seedance 2.0. Pick per clip type.
 - Generate 3-4 random background life takes plus the cornhole nearby-reaction take, and an ambient audio bed with random one-shots.
 
-## Phase 2: Scoring Backend (DONE, see `server/`)
+## Phase 2: Game Server (DONE, see `server/`)
 
 - [x] Cornhole rules engine: innings, alternating throws, cancellation scoring, target score from Match Setup (default 21), bust/skunk toggles.
 - [x] Unit tests for each scoring example in `game-rules.md`.
@@ -16,13 +16,36 @@
 - [x] Lobby, character pick, first-come bag colors, bots, disconnect takeover, REST + WebSocket API.
 - [x] LED board config, the ring-in sound, and the iPlay logo for the bags.
 
+## Phase 2b: Production Foundations (DONE, see `docs/operations.md`)
+
+- [x] Accounts: guest, Sign in with Apple, Google. Sessions. Delete and export my data.
+- [x] Postgres database with automatic, checksummed migrations. Tested on real Postgres.
+- [x] Live matches survive a restart or a crash. Safe deploys (the new server waits for the old one).
+- [x] Match history and player stats.
+- [x] Invite links, filling seats, removing players, start with bots.
+- [x] Rematch.
+- [x] Name filter, blocking, reporting, bans, staff API.
+- [x] App version check ("update required") and maintenance mode.
+- [x] CI with a real Postgres, Dockerfile, health checks, operations guide, privacy data map.
+
+## Before launch (not built yet)
+
+- Real-device test of Sign in with Apple and Google, and of invite links opening in the app.
+- **Load test** to find how many concurrent matches one server handles.
+- Voice chat (Vivox), including muting blocked players.
+- Monitoring and alerts on your host (`docs/operations.md` lists what to alert on).
+- Privacy policy, terms, age rating (`docs/data-and-privacy.md`), and a process for reviewing reports.
+- Push notifications for invites (optional).
+- Rankings and leaderboards (optional; stats are already recorded).
+
 ## Phase 3: Unity Greybox (next: build against `docs/api-contract.md`)
 
+- Sign-in flow: guest first, then "add Apple/Google". Call `GET /api/me` at launch to rejoin a match.
 - Invisible boards lined up on the locked plates.
 - First-person hand + swipe throw + bag flight.
 - Board-cam cut after release.
-- Match Setup screen, HUD, bag counters, inning summary.
-- Local practice mode against a placeholder bot, no video yet.
+- Match Setup screen, HUD, bag counters, inning summary, rematch screen.
+- Reconnect handling: on close code 1012, reconnect and resume (`resync` rule in the contract).
 
 ## Phase 4: Video Opponents
 
@@ -30,8 +53,7 @@
 - Then the rest of the 8-character roster in `characters.md`.
 - Add the release-frame JSON and the Unity bag hand-off.
 
-## Phase 5: Multiplayer
+## Phase 5: Multiplayer Polish
 
-- 2v2 seats, human/bot mixing, character pick, bag color pick (first come first served).
 - Voice.
-- Reconnect / bot takeover.
+- Real-device testing of reconnect, deploys and takeover with human players.

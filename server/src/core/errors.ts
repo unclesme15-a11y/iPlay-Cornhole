@@ -4,6 +4,8 @@ export class DomainError extends Error {
     public readonly code: string,
     message: string,
     public readonly status = 400,
+    /** Extra fields the client may need (for example when a ban ends). Sent alongside `code` and `message`. */
+    public readonly details?: Record<string, unknown>,
   ) {
     super(message);
     this.name = 'DomainError';

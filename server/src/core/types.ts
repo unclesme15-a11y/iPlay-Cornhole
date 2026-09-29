@@ -61,6 +61,8 @@ export interface InningResult {
   scoringTeam: TeamId | null;
   scored: number;
   bags: { holes: Record<TeamId, number>; boards: Record<TeamId, number> };
+  /** Where every bag finished, so per-player stats can be counted. */
+  finalBags: Array<{ seat: SeatId; team: TeamId; status: BagStatus }>;
   scoreAfter: Record<TeamId, number>;
   busted: TeamId | null;
 }

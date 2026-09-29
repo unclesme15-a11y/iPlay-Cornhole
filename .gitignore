@@ -19,3 +19,4 @@ coverage/
 *.log
 .env
 preview/board-preview.html
+.data/

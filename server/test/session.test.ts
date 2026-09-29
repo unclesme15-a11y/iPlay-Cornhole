@@ -9,6 +9,10 @@ import { MatchSession, type SeatPlan, type SessionEvent } from '../src/lobby/ses
 
 import { simulateThrow } from '../src/physics/throwSim.js';
 
+let acctCounter = 0;
+/** A fake account for a match seat. Real ones come from the accounts service. */
+const acct = (name: string) => ({ id: `acct-${++acctCounter}-${name.replace(/\W/g, '')}`, displayName: name });
+
 const PERFECT = gestureToward({ x: 0, y: 39 }, 1);
 
 /** A throw seed for which the given gesture drops straight into the hole (wobble is seeded). */
@@ -33,7 +37,7 @@ function make(over: { config?: Partial<MatchConfig>; seats?: SeatPlan; seed?: nu
     rng,
     seedSource: over.throwSeed !== undefined ? () => over.throwSeed! : () => ++n * 7919,
   });
-  const host = session.createHost('Host');
+  const host = session.createHost(acct('Host'));
   const events: SessionEvent[] = [];
   session.subscribe((e) => events.push(e));
   return { session, sched, host, events };
@@ -76,54 +80,63 @@ describe('lobby', () => {
     const { session, host } = make({ config: { mode: '2v2' }, seats: { B1: { kind: 'human' }, A2: { kind: 'bot' }, B2: { kind: 'bot' } } });
     expect(host.seat).toBe('A1');
     expect(fail(() => session.start(host.playerId)).code).toBe('seats_open');
-    const guest = session.join('Guest');
+    const guest = session.join(acct('Guest'));
     expect(guest.seat).toBe('B1');
-    expect(fail(() => session.join('Third')).code).toBe('match_full');
+    expect(fail(() => session.join(acct('Third'))).code).toBe('match_full');
     session.start(host.playerId);
     expect(session.currentPhase).toBe('characters');
   });
 
   it('only the host can start; a guest gets 403', () => {
     const { session, host } = make({ seats: { B1: { kind: 'human' } } });
-    const guest = session.join('Guest');
+    const guest = session.join(acct('Guest'));
     expect(fail(() => session.start(guest.playerId)).status).toBe(403);
     session.start(host.playerId);
   });
 
   it('cannot join a bot seat, a taken seat, or a seat that does not exist', () => {
     const { session } = make({ config: { mode: '2v2' }, seats: { B1: { kind: 'human' } } });
-    expect(fail(() => session.join('X', 'A2')).code).toBe('seat_is_bot');
-    expect(fail(() => session.join('X', 'A1')).code).toBe('seat_taken');
+    expect(fail(() => session.join(acct('X'), 'A2')).code).toBe('seat_is_bot');
+    expect(fail(() => session.join(acct('X'), 'A1')).code).toBe('seat_taken');
     const one = make(); // 1v1 has no A2
-    expect(fail(() => one.session.join('X', 'A2')).code).toMatch(/bad_seat|match_full/);
+    expect(fail(() => one.session.join(acct('X'), 'A2')).code).toMatch(/bad_seat|match_full/);
   });
 
-  it('cleans names: trims, collapses whitespace, strips control characters, caps length', () => {
-    const { session } = make({ seats: { B1: { kind: 'human' } } });
-    session.join('  Big\u0000  Mike\n  ');
-    expect(session.view().seats.find((s) => s.id === 'B1')!.name).toBe('Big Mike');
-    expect(fail(() => make().session.join('   ')).code).toBeDefined();
-    const long = make({ seats: { B1: { kind: 'human' } } });
-    long.session.join('x'.repeat(200));
-    expect(long.session.view().seats.find((s) => s.id === 'B1')!.name).toHaveLength(24);
+  it('a seat shows the account name, and humans carry their account id (bots do not)', () => {
+    const { session, host } = make({ seats: { B1: { kind: 'human' } } });
+    const friend = acct('Big Mike');
+    session.join(friend);
+    const seats = session.view().seats;
+    expect(seats.find((s) => s.id === 'B1')).toMatchObject({ name: 'Big Mike', accountId: friend.id, claimed: true });
+    expect(seats.find((s) => s.id === 'A1')!.accountId).toBe(host.playerId);
+    const botView = make().session.view().seats.find((s) => s.id === 'B1')!;
+    expect(botView.accountId).toBeNull();
   });
 
-  it('authenticates with the right token only', () => {
-    const { session, host } = make();
-    expect(session.authenticate(host.playerId, host.token)).toBe(true);
-    expect(session.authenticate(host.playerId, 'x'.repeat(64))).toBe(false);
-    expect(session.authenticate('nobody', host.token)).toBe(false);
+  it('joining again from the same account returns the same seat instead of taking another', () => {
+    const { session } = make({ config: { mode: '2v2' }, seats: { B1: { kind: 'human' }, A2: { kind: 'human' } } });
+    const friend = acct('Friend');
+    const first = session.join(friend);
+    const again = session.join(friend);
+    expect(again).toEqual(first);
+    expect(session.view().seats.filter((s) => s.kind === 'human' && s.claimed)).toHaveLength(2);
   });
 
-  it('the view never contains tokens', () => {
-    const { session, host } = make();
-    const json = JSON.stringify(session.view(host.playerId)) + JSON.stringify(session.eventsSince(0));
-    expect(json).not.toContain(host.token);
+  it('knows who is in the match', () => {
+    const { session, host } = make({ seats: { B1: { kind: 'human' } } });
+    const friend = acct('Friend');
+    session.join(friend);
+    expect(session.hasActivePlayer(host.playerId)).toBe(true);
+    expect(session.hasActivePlayer(friend.id)).toBe(true);
+    expect(session.hasActivePlayer('someone-else')).toBe(false);
+    expect(session.seatOf(friend.id)).toBe('B1');
+    expect(session.activeAccountIds().sort()).toEqual([host.playerId, friend.id].sort());
+    expect(session.hostName).toBe('Host');
   });
 
   it('host leaving the lobby abandons the match; a guest leaving frees the seat', () => {
     const a = make({ seats: { B1: { kind: 'human' } } });
-    const guest = a.session.join('G');
+    const guest = a.session.join(acct('G'));
     a.session.leave(guest.playerId);
     expect(a.session.view().seats.find((s) => s.id === 'B1')!.claimed).toBe(false);
     a.session.leave(a.host.playerId);
@@ -134,7 +147,7 @@ describe('lobby', () => {
 describe('character pick', () => {
   it('first come, first served: a taken character is rejected', () => {
     const { session, host } = make({ seats: { B1: { kind: 'human' } } });
-    const guest = session.join('G');
+    const guest = session.join(acct('G'));
     session.start(host.playerId);
     session.pickCharacter(host.playerId, 'keisha');
     expect(fail(() => session.pickCharacter(guest.playerId, 'keisha')).code).toBe('character_taken');
@@ -144,7 +157,7 @@ describe('character pick', () => {
 
   it('can change your pick before the phase ends; unknown characters are rejected', () => {
     const { session, host } = make({ seats: { B1: { kind: 'human' } } });
-    session.join('G');
+    session.join(acct('G'));
     session.start(host.playerId);
     session.pickCharacter(host.playerId, 'keisha');
     session.pickCharacter(host.playerId, 'tanya');
@@ -181,7 +194,7 @@ describe('character pick', () => {
 describe('bag colour pick (first come, first served)', () => {
   function toColors(over: Parameters<typeof make>[0] = {}) {
     const ctx = make({ seats: { B1: { kind: 'human' } }, ...over });
-    const guest = ctx.session.join('G');
+    const guest = ctx.session.join(acct('G'));
     ctx.session.start(ctx.host.playerId);
     ctx.session.pickCharacter(ctx.host.playerId, 'keisha');
     ctx.session.pickCharacter(guest.playerId, 'dre');
@@ -208,9 +221,9 @@ describe('bag colour pick (first come, first served)', () => {
       scheduler: sched,
       rng: createRng(3),
     });
-    const a1 = s.createHost('One');
-    const b1 = s.join('Three', 'B1');
-    const a2 = s.join('Two', 'A2');
+    const a1 = s.createHost(acct('One'));
+    const b1 = s.join(acct('Three'), 'B1');
+    const a2 = s.join(acct('Two'), 'A2');
     s.start(a1.playerId);
     s.pickCharacter(a1.playerId, 'keisha');
     s.pickCharacter(a2.playerId, 'tanya');
@@ -283,7 +296,11 @@ describe('playing a match', () => {
     for (const [inning, count] of throwsPerInning) {
       if (inning < v.history.length) expect(count).toBe(8);
     }
-    expect(ctx.sched.pending).toBe(0); // no timers leak after the match ends
+    // the only thing left running is the 60 s "play again?" window, and it cleans itself up
+    expect(ctx.sched.pending).toBe(1);
+    expect(v.rematch).toMatchObject({ votes: {}, matchId: null, cancelled: false });
+    ctx.sched.advance(61_000);
+    expect(ctx.sched.pending).toBe(0);
   });
 
   it('a cornhole fires the ring-in sound and LED flash at the moment the bag drops in', () => {
@@ -340,7 +357,7 @@ describe('playing a match', () => {
 
   it('a wrong-seat human cannot throw on someone else\'s turn', () => {
     const ctx = make({ seats: { B1: { kind: 'human' } } });
-    const guest = ctx.session.join('G');
+    const guest = ctx.session.join(acct('G'));
     ctx.session.start(ctx.host.playerId);
     ctx.session.pickCharacter(ctx.host.playerId, 'keisha');
     ctx.session.pickCharacter(guest.playerId, 'dre');
@@ -483,7 +500,7 @@ describe('disconnects and leaving', () => {
 
   it('with another human still in, a leaver is replaced by a bot and the match goes on', () => {
     const ctx = make({ seats: { B1: { kind: 'human' } } });
-    const guest = ctx.session.join('G');
+    const guest = ctx.session.join(acct('G'));
     ctx.session.start(ctx.host.playerId);
     ctx.session.pickCharacter(ctx.host.playerId, 'keisha');
     ctx.session.pickCharacter(guest.playerId, 'dre');

@@ -85,6 +85,16 @@ After setup, each player picks a video character, then each team picks a bag col
   - This is the key layout point for the video idea. When the far end is throwing, you are looking straight at those two players as they throw at **your** board. That's the "their hole is right in front of me" shot.
 - **[iPlay]** Only regulation layouts are used. There is no non-regulation face-off mode.
 
+## Friends, Leaving And Play Again **[iPlay]**
+
+- **Invite:** the host shares a link (or the 8-letter code). A friend taps it and takes an open seat. The host can turn any empty seat into a human seat or a bot, remove someone from the lobby, or press **Start with bots** to fill empty seats with Regular bots instead of waiting.
+- **One match at a time:** a player can only be in one running match. If the app is closed mid-match, it offers to jump back in.
+- **Dropping out:** if a player's connection drops, they have **30 seconds** to get back. Then a bot plays their seat, and they get the seat back the next time they reconnect.
+- **Leaving:** pressing Leave hands the seat to a bot for good. It is recorded as a "leave" in that player's stats, with no win or loss. If every human leaves, the match ends with no result.
+- **Server restart:** a running match carries on. Everyone gets the usual 30 seconds to reconnect, and a player whose turn was open gets a few extra seconds to throw.
+- **Play again:** after a match, every human gets 60 seconds to say yes or no. Everyone who says yes keeps their seat, character and bag color and skips the picks; anyone who says no (or nothing) is replaced by a bot.
+- **Stats** (games, wins, losses, leaves, throws, holes, woodies, fouls) are kept per account. Abandoned matches count for nobody.
+
 ## No Wagers
 
 - **[iPlay]** Cornhole has no wagers, no wallet, and no money of any kind. Matches are played for wins, stats, and bragging rights only.

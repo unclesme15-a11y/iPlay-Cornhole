@@ -1,11 +1,15 @@
 import { randomInt as cryptoInt } from 'node:crypto';
+import type { MatchHistory, MatchSummary } from '../accounts/history.js';
 import { DomainError } from '../core/errors.js';
 import type { MatchConfig } from '../core/types.js';
-import { MatchSession, type Credentials, type SeatPlan } from '../lobby/session.js';
+import type { LiveMatchStore } from '../lobby/persistence.js';
 import type { Scheduler } from '../lobby/scheduler.js';
+import { MatchSession, type AccountRef, type RematchSeed, type SeatPlan, type SessionHooks, type Timing } from '../lobby/session.js';
 
 /** No 0/O/1/I/L so a code read aloud or typed on a phone is hard to get wrong. */
 const ID_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+export type LogFn = (level: 'info' | 'warn' | 'error', message: string, data?: Record<string, unknown>) => void;
 
 export interface RegistryOptions {
   scheduler: Scheduler;
@@ -15,6 +19,14 @@ export interface RegistryOptions {
   /** A match nobody has touched for this long is dropped. */
   idleTtlMs?: number;
   sweepEveryMs?: number;
+  persistence?: LiveMatchStore | null;
+  history?: MatchHistory | null;
+  timing?: Partial<Timing>;
+  log?: LogFn;
+  /** Saved live matches older than this are discarded on boot instead of restored. */
+  restoreMaxAgeMs?: number;
+  /** Where each throw's random seed comes from. Tests pin this to make matches repeatable; production leaves it alone. */
+  seedSource?: () => number;
 }
 
 export class MatchRegistry {
@@ -25,7 +37,14 @@ export class MatchRegistry {
   private readonly finishedTtl: number;
   private readonly idleTtl: number;
   private readonly sweepEvery: number;
+  private readonly persistence: LiveMatchStore | null;
+  private readonly history: MatchHistory | null;
+  private readonly timing: Partial<Timing> | undefined;
+  private readonly log: LogFn;
+  private readonly restoreMaxAge: number;
+  private readonly seedSource: (() => number) | undefined;
   private cancelSweep: (() => void) | null = null;
+  private maintenanceOn = false;
 
   constructor(opts: RegistryOptions) {
     this.sched = opts.scheduler;
@@ -33,6 +52,12 @@ export class MatchRegistry {
     this.finishedTtl = opts.finishedTtlMs ?? 10 * 60_000;
     this.idleTtl = opts.idleTtlMs ?? 2 * 60 * 60_000;
     this.sweepEvery = opts.sweepEveryMs ?? 60_000;
+    this.persistence = opts.persistence ?? null;
+    this.history = opts.history ?? null;
+    this.timing = opts.timing;
+    this.log = opts.log ?? (() => undefined);
+    this.restoreMaxAge = opts.restoreMaxAgeMs ?? 2 * 60 * 60_000;
+    this.seedSource = opts.seedSource;
     this.scheduleSweep();
   }
 
@@ -40,26 +65,141 @@ export class MatchRegistry {
     return this.matches.size;
   }
 
-  create(input: { config: MatchConfig; seatPlan?: SeatPlan; hostName: string }): { session: MatchSession; host: Credentials } {
+  /** While on, no new matches (or rematches) can start. Matches already running carry on. */
+  get maintenance(): boolean {
+    return this.maintenanceOn;
+  }
+  set maintenance(on: boolean) {
+    this.maintenanceOn = on;
+  }
+
+  private hooks(): SessionHooks {
+    return {
+      onChange: (s) => this.persistence?.markDirty(s),
+      onEnded: (s) => this.handleEnded(s),
+      createRematch: (old, seed) => this.createRematch(old, seed),
+    };
+  }
+
+  private sessionBase() {
+    return {
+      scheduler: this.sched,
+      hooks: this.hooks(),
+      ...(this.timing ? { timing: this.timing } : {}),
+      ...(this.seedSource ? { seedSource: this.seedSource } : {}),
+    };
+  }
+
+  /** One account can only be in one running match at a time. Throws 409 with the match id so the app can rejoin it. */
+  assertFree(accountId: string, exceptMatchId?: string): void {
+    const current = this.activeMatchOf(accountId);
+    if (current && current.id !== exceptMatchId) {
+      throw new DomainError('already_in_match', 'You are already in a match', 409, { matchId: current.id });
+    }
+  }
+
+  activeMatchOf(accountId: string): MatchSession | undefined {
+    for (const session of this.matches.values()) if (session.hasActivePlayer(accountId)) return session;
+    return undefined;
+  }
+
+  private assertCanStart(): void {
+    if (this.maintenanceOn) throw new DomainError('maintenance', 'iPlay Cornhole is being updated. New matches will be back shortly.', 503);
     if (this.matches.size >= this.maxMatches) {
       throw new DomainError('server_busy', 'The server is at capacity. Try again in a minute.', 503);
     }
-    let id = this.newId();
-    while (this.matches.has(id)) id = this.newId();
+  }
+
+  create(input: { config: MatchConfig; seatPlan?: SeatPlan; host: AccountRef }): MatchSession {
+    this.assertCanStart();
+    this.assertFree(input.host.id);
     const session = new MatchSession({
-      id,
+      id: this.newId(),
       config: input.config,
       ...(input.seatPlan ? { seatPlan: input.seatPlan } : {}),
-      scheduler: this.sched,
+      ...this.sessionBase(),
     });
-    const host = session.createHost(input.hostName);
-    this.matches.set(id, session);
-    return { session, host };
+    session.createHost(input.host);
+    this.matches.set(session.id, session);
+    return session;
+  }
+
+  /** Joins an account to a match, enforcing one match at a time and the maintenance switch. */
+  join(session: MatchSession, account: AccountRef, seat?: Parameters<MatchSession['join']>[1]): ReturnType<MatchSession['join']> {
+    if (this.maintenanceOn && !session.hasActivePlayer(account.id)) {
+      throw new DomainError('maintenance', 'iPlay Cornhole is being updated. Try again shortly.', 503);
+    }
+    this.assertFree(account.id, session.id);
+    return session.join(account, seat);
   }
 
   get(id: string): MatchSession | undefined {
     return this.matches.get(id.toUpperCase());
   }
+
+  /** Takes an account out of whatever match it is in (a ban, a deleted account). */
+  leaveAll(accountId: string): boolean {
+    const session = this.activeMatchOf(accountId);
+    if (!session) return false;
+    session.leave(accountId);
+    return true;
+  }
+
+  private createRematch(old: MatchSession, seed: RematchSeed): string {
+    this.assertCanStart();
+    for (const p of seed.players) this.assertFree(p.id, old.id);
+    const session = MatchSession.fromRematch({ id: this.newId(), ...this.sessionBase() }, seed);
+    this.matches.set(session.id, session);
+    session.beginRematch();
+    return session.id;
+  }
+
+  // ------------------------------------------------------ history and persistence
+
+  private handleEnded(session: MatchSession): void {
+    void this.persistence?.remove(session.id);
+    const summary = session.summary();
+    if (summary && this.history) void this.recordWithRetry(summary, 0);
+  }
+
+  private async recordWithRetry(summary: MatchSummary, attempt: number): Promise<void> {
+    try {
+      await this.history!.record(summary);
+    } catch (error) {
+      if (attempt >= 2) {
+        // Out of retries. Log the whole result so it can be replayed by hand.
+        this.log('error', 'could not save match history', { code: summary.code, summary, error: String(error) });
+        return;
+      }
+      this.log('warn', 'saving match history failed, will retry', { code: summary.code, attempt, error: String(error) });
+      this.sched.after(attempt === 0 ? 2000 : 10_000, () => void this.recordWithRetry(summary, attempt + 1));
+    }
+  }
+
+  /** Brings back matches that were running when the server last stopped. Call once on boot, before serving. */
+  async restoreAll(): Promise<{ restored: number; discarded: number }> {
+    if (!this.persistence) return { restored: 0, discarded: 0 };
+    let restored = 0;
+    let discarded = 0;
+    for (const { id, snapshot } of await this.persistence.loadAll(this.restoreMaxAge)) {
+      try {
+        if (this.matches.has(id)) continue;
+        const session = MatchSession.restore(snapshot, this.sessionBase());
+        if (session.id !== id) throw new Error(`saved match is stored under ${id} but says it is ${session.id}`);
+        this.matches.set(session.id, session);
+        session.resume();
+        restored++;
+      } catch (error) {
+        discarded++;
+        this.log('error', 'could not restore a live match, discarding it', { id, error: String(error) });
+        await this.persistence.discard(id).catch(() => undefined);
+      }
+    }
+    if (restored || discarded) this.log('info', 'restored live matches', { restored, discarded });
+    return { restored, discarded };
+  }
+
+  // ---------------------------------------------------------------- housekeeping
 
   /** Drop finished and idle matches. Runs on a timer; exposed for tests. */
   sweep(): number {
@@ -75,6 +215,7 @@ export class MatchRegistry {
         drop = true;
       }
       if (drop) {
+        if (!session.isOver) void this.persistence?.remove(id);
         session.dispose();
         this.matches.delete(id);
         this.endedAt.delete(id);
@@ -82,6 +223,11 @@ export class MatchRegistry {
       }
     }
     return removed;
+  }
+
+  /** Save everything that is waiting to be saved. Call before the process exits. */
+  async flush(): Promise<void> {
+    await this.persistence?.flushAll();
   }
 
   dispose(): void {
@@ -100,8 +246,10 @@ export class MatchRegistry {
   }
 
   private newId(): string {
-    let id = '';
-    for (let i = 0; i < 8; i++) id += ID_ALPHABET[cryptoInt(ID_ALPHABET.length)];
-    return id;
+    for (;;) {
+      let id = '';
+      for (let i = 0; i < 8; i++) id += ID_ALPHABET[cryptoInt(ID_ALPHABET.length)];
+      if (!this.matches.has(id)) return id;
+    }
   }
 }

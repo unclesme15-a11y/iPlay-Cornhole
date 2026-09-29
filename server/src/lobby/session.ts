@@ -1,4 +1,3 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import {
   ABANDON_AFTER_MS,
   BAG_COLORS,
@@ -6,7 +5,6 @@ import {
   CHARACTERS,
   COLOR_PICK_TIMER_MS,
   DISTANCE_IN,
-  MAX_DISPLAY_NAME_LENGTH,
   RECONNECT_GRACE_MS,
 } from '../core/constants.js';
 import { DomainError } from '../core/errors.js';
@@ -16,10 +14,12 @@ import type {
   EngineEvent,
   InningResult,
   MatchConfig,
+  MatchState,
   SeatId,
   TeamId,
   WinReason,
 } from '../core/types.js';
+import type { MatchSummary, PlayerSummary } from '../accounts/history.js';
 import { decideThrow, type BotLevel } from '../bots/botPolicy.js';
 import { isValidGesture, simulateThrow, type ThrowGesture, type ThrowSimResult } from '../physics/throwSim.js';
 import { cuesForThrow, scoreCue, victoryCue, type LedCue, type PresentationCue } from '../presentation/effects.js';
@@ -43,14 +43,78 @@ export interface SeatState {
   controlledByBot: boolean;
 }
 
+/** The bit of an account a match needs. Players are identified by account id everywhere. */
+export interface AccountRef {
+  id: string;
+  displayName: string;
+}
+
 interface Player {
   id: string;
   seat: SeatId;
   name: string;
-  tokenHash: Buffer;
   connected: boolean;
   host: boolean;
   left: boolean;
+}
+
+interface SeatStats {
+  throws: number;
+  holes: number;
+  boards: number;
+  fouls: number;
+}
+
+const zeroStats = (): SeatStats => ({ throws: 0, holes: 0, boards: 0, fouls: 0 });
+
+/** Bumped when the wire format changes in a way old apps cannot read. */
+export const PROTOCOL_VERSION = 2;
+
+interface RematchState {
+  deadlineAt: number;
+  votes: Record<string, boolean>;
+  matchId: string | null;
+  cancelled: boolean;
+}
+
+/** Everything needed to seat the same people (and bots) in a new match. */
+export interface RematchSeed {
+  config: MatchConfig;
+  rematchOf: string;
+  seats: SeatState[];
+  players: Array<{ id: string; seat: SeatId; name: string; host: boolean }>;
+  colors: Partial<Record<TeamId, string>>;
+}
+
+/** How a session tells the outside world about itself. All optional. */
+export interface SessionHooks {
+  /** Something about the match changed (used to save it). */
+  onChange?: (session: MatchSession) => void;
+  /** The match finished or was abandoned. Called once. */
+  onEnded?: (session: MatchSession) => void;
+  /** Start a rematch. Returns the new match's id, or throws a DomainError if it can't be made. */
+  createRematch?: (session: MatchSession, seed: RematchSeed) => string;
+}
+
+/** Plain JSON copy of a live match, enough to bring it back after a server restart. */
+export interface SessionSnapshot {
+  version: 1;
+  id: string;
+  createdAt: number;
+  startedAt: number | null;
+  rematchOf: string | null;
+  config: MatchConfig;
+  phase: Phase;
+  phaseDeadline: number | null;
+  seats: SeatState[];
+  players: Array<{ id: string; seat: SeatId; name: string; host: boolean; left: boolean }>;
+  colors: Partial<Record<TeamId, string>>;
+  engine: MatchState | null;
+  positions: Array<[string, { x: number; y: number }]>;
+  turn: Turn | null;
+  seq: number;
+  seatStats: Record<SeatId, SeatStats>;
+  lastActivity: number;
 }
 
 export interface SessionEvent {
@@ -69,6 +133,9 @@ export interface SessionOptions {
   rng?: Rng;
   seedSource?: () => number;
   timing?: Partial<Timing>;
+  hooks?: SessionHooks;
+  createdAt?: number;
+  rematchOf?: string | null;
 }
 
 export interface Timing {
@@ -83,6 +150,10 @@ export interface Timing {
   colorPickMs: number;
   reconnectGraceMs: number;
   abandonAfterMs: number;
+  /** How long players have to say yes to a rematch. */
+  rematchWindowMs: number;
+  /** Coin-toss pause at the start of a rematch (players must switch to the new match). */
+  rematchTossMs: number;
 }
 
 const DEFAULT_TIMING: Timing = {
@@ -95,13 +166,15 @@ const DEFAULT_TIMING: Timing = {
   colorPickMs: COLOR_PICK_TIMER_MS,
   reconnectGraceMs: RECONNECT_GRACE_MS,
   abandonAfterMs: ABANDON_AFTER_MS,
+  rematchWindowMs: 60_000,
+  rematchTossMs: 5000,
 };
 
 const SEAT_TEAM: Record<SeatId, TeamId> = { A1: 'A', B1: 'B', A2: 'A', B2: 'B' };
 const SEAT_END: Record<SeatId, 0 | 1> = { A1: 0, B1: 0, A2: 1, B2: 1 };
 const EVENT_LOG_LIMIT = 500;
 
-interface Turn {
+export interface Turn {
   seat: SeatId;
   team: TeamId;
   bagId: string;
@@ -111,7 +184,10 @@ interface Turn {
 
 export interface MatchView {
   id: string;
+  protocol: number;
   seq: number;
+  createdAt: number;
+  rematchOf: string | null;
   phase: Phase;
   config: MatchConfig;
   seats: Array<{
@@ -123,6 +199,7 @@ export interface MatchView {
     name: string | null;
     claimed: boolean;
     connected: boolean;
+    accountId: string | null;
     characterId: string | null;
     controlledByBot: boolean;
   }>;
@@ -136,21 +213,24 @@ export interface MatchView {
   history: InningResult[];
   winner: TeamId | null;
   winReason: WinReason | 'abandoned' | null;
+  rematch: { deadlineAt: number; votes: Record<string, boolean>; matchId: string | null; cancelled: boolean } | null;
   you: { playerId: string; seat: SeatId; team: TeamId; host: boolean } | null;
 }
 
-export interface Credentials {
+export interface Seated {
   playerId: string;
-  token: string;
   seat: SeatId;
 }
 
-const hashToken = (token: string): Buffer => createHash('sha256').update(token).digest();
-
-export function cleanName(raw: string): string {
-  const name = raw.replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim();
-  if (name.length === 0) throw new DomainError('bad_name', 'Name is required');
-  return name.slice(0, MAX_DISPLAY_NAME_LENGTH);
+/** Small summary for the "join this match" screen. Safe to show to anyone holding the code. */
+export interface InvitePreview {
+  code: string;
+  hostName: string | null;
+  mode: MatchConfig['mode'];
+  playTo: MatchConfig['playTo'];
+  phase: Phase;
+  openSeats: SeatId[];
+  canJoin: boolean;
 }
 
 export class MatchSession {
@@ -174,7 +254,14 @@ export class MatchSession {
   private listeners = new Set<(event: SessionEvent) => void>();
   private timers = new Map<string, () => void>();
   private finalReason: WinReason | 'abandoned' | null = null;
+  private readonly hooks: SessionHooks;
+  private seatStats: Record<SeatId, SeatStats>;
+  private rematch: RematchState | null = null;
+  private ended = false;
 
+  readonly createdAt: number;
+  readonly rematchOf: string | null;
+  startedAt: number | null = null;
   lastActivity: number;
 
   constructor(opts: SessionOptions) {
@@ -184,7 +271,11 @@ export class MatchSession {
     this.rng = opts.rng ?? secureRng();
     this.seed = opts.seedSource ?? secureSeed;
     this.timing = { ...DEFAULT_TIMING, ...opts.timing };
+    this.hooks = opts.hooks ?? {};
+    this.createdAt = opts.createdAt ?? this.sched.now();
+    this.rematchOf = opts.rematchOf ?? null;
     this.lastActivity = this.sched.now();
+    this.seatStats = { A1: zeroStats(), B1: zeroStats(), A2: zeroStats(), B2: zeroStats() };
 
     const plan = opts.seatPlan ?? {};
     this.seats = seatsFor(opts.config.mode).map((id) => {
@@ -208,11 +299,14 @@ export class MatchSession {
   // ------------------------------------------------------------------ lobby
 
   /** Seat the host in A1. Called once right after construction. */
-  createHost(name: string): Credentials {
-    return this.claim('A1', name, true);
+  createHost(account: AccountRef): Seated {
+    return this.claim('A1', account, true);
   }
 
-  join(name: string, seatId?: SeatId): Credentials {
+  /** Take a seat. If this account already has one in this match, that seat is returned again. */
+  join(account: AccountRef, seatId?: SeatId): Seated {
+    const existing = this.players.get(account.id);
+    if (existing && !existing.left) return { playerId: existing.id, seat: existing.seat };
     this.requirePhase('lobby');
     const open = this.seats.filter((s) => s.kind === 'human' && !s.playerId);
     if (open.length === 0) throw new DomainError('match_full', 'No open human seats', 409);
@@ -225,48 +319,82 @@ export class MatchSession {
     } else {
       seat = open[0]!;
     }
-    return this.claim(seat.id, name, false);
+    return this.claim(seat.id, account, false);
   }
 
-  private claim(seatId: SeatId, rawName: string, host: boolean): Credentials {
-    const name = cleanName(rawName);
+  private claim(seatId: SeatId, account: AccountRef, host: boolean): Seated {
     const seat = this.seat(seatId);
-    const playerId = randomBytes(12).toString('hex');
-    const token = randomBytes(32).toString('hex');
-    this.players.set(playerId, {
-      id: playerId,
+    this.players.set(account.id, {
+      id: account.id,
       seat: seatId,
-      name,
-      tokenHash: hashToken(token),
+      name: account.displayName,
       connected: true,
       host,
       left: false,
     });
-    seat.playerId = playerId;
-    seat.name = name;
+    seat.playerId = account.id;
+    seat.name = account.displayName;
     this.touch();
     this.emit('seats', { seats: this.seatsView() });
-    return { playerId, token, seat: seatId };
+    return { playerId: account.id, seat: seatId };
   }
 
-  authenticate(playerId: string, token: string): boolean {
-    const player = this.players.get(playerId);
-    if (!player || player.left) return false;
-    const given = hashToken(token);
-    return given.length === player.tokenHash.length && timingSafeEqual(given, player.tokenHash);
-  }
-
-  /** Host closes the lobby and starts the pick phases. */
-  start(playerId: string): void {
+  /**
+   * Host closes the lobby and starts the pick phases.
+   * With `fillOpenWithBots`, seats nobody has taken yet are given to bots instead of waiting.
+   */
+  start(playerId: string, opts: { fillOpenWithBots?: boolean } = {}): void {
     const player = this.requirePlayer(playerId);
     this.requirePhase('lobby');
     if (!player.host) throw new DomainError('not_host', 'Only the host can start the match', 403);
     const open = this.seats.filter((s) => s.kind === 'human' && !s.playerId);
     if (open.length > 0) {
-      throw new DomainError('seats_open', `Waiting for players to fill ${open.map((s) => s.id).join(', ')}`, 409);
+      if (!opts.fillOpenWithBots) {
+        throw new DomainError('seats_open', `Waiting for players to fill ${open.map((s) => s.id).join(', ')}`, 409);
+      }
+      for (const seat of open) seat.kind = 'bot';
+      this.emit('seats', { seats: this.seatsView() });
     }
     this.touch();
     this.enterCharacters();
+  }
+
+  /**
+   * Host changes an empty seat while the lobby is open: make it a human seat (so a friend can take
+   * it from an invite) or a bot of a given skill. A seat someone is sitting in can't be changed
+   * (kick them first), and the host's own seat is always a human.
+   */
+  setSeat(playerId: string, seatId: SeatId, kind: 'human' | 'bot', level?: BotLevel): void {
+    const host = this.requirePlayer(playerId);
+    this.requirePhase('lobby');
+    if (!host.host) throw new DomainError('not_host', 'Only the host can change seats', 403);
+    const seat = this.seats.find((s) => s.id === seatId);
+    if (!seat) throw new DomainError('bad_seat', `No seat ${seatId} in a ${this.config.mode} match`);
+    if (seatId === 'A1') throw new DomainError('bad_seat', 'The host always sits in A1', 400);
+    if (seat.playerId) throw new DomainError('seat_taken', `${seatId} has a player in it. Remove them first.`, 409);
+    seat.kind = kind;
+    if (kind === 'bot' && level) seat.botLevel = level;
+    this.touch();
+    this.emit('seats', { seats: this.seatsView() });
+  }
+
+  /** Host removes someone from the lobby. Their seat stays open for someone else. */
+  kick(playerId: string, seatId: SeatId): void {
+    const host = this.requirePlayer(playerId);
+    this.requirePhase('lobby');
+    if (!host.host) throw new DomainError('not_host', 'Only the host can remove players', 403);
+    const seat = this.seats.find((s) => s.id === seatId);
+    if (!seat) throw new DomainError('bad_seat', `No seat ${seatId} in a ${this.config.mode} match`);
+    const target = seat.playerId ? this.players.get(seat.playerId) : undefined;
+    if (!target || target.left) throw new DomainError('seat_empty', `Nobody is in ${seatId}`, 409);
+    if (target.host) throw new DomainError('bad_seat', "You can't remove yourself. Leave the match instead.", 400);
+    target.left = true;
+    this.clearTimer(`grace:${target.id}`);
+    seat.playerId = null;
+    seat.name = null;
+    this.touch();
+    this.emit('kicked', { seat: seatId, accountId: target.id });
+    this.emit('seats', { seats: this.seatsView() });
   }
 
   // ------------------------------------------------------------ character pick
@@ -367,18 +495,21 @@ export class MatchSession {
 
   // ------------------------------------------------------------------ coin toss
 
-  private enterToss(): void {
+  private enterToss(tossMs = this.timing.tossMs): void {
     this.phase = 'toss';
     this.phaseDeadline = null;
     const firstTeam: TeamId = this.rng() < 0.5 ? 'A' : 'B';
     this.engine = new MatchEngine(this.config, firstTeam);
     this.emit('phase', { phase: this.phase, deadlineAt: null });
     this.emit('coin_toss', { firstTeam });
-    this.setTimer('phase', this.timing.tossMs, () => {
-      this.phase = 'playing';
-      this.emit('phase', { phase: this.phase, deadlineAt: null });
-      this.beginTurn();
-    });
+    this.setTimer('phase', tossMs, () => this.startPlaying());
+  }
+
+  private startPlaying(): void {
+    this.phase = 'playing';
+    this.startedAt ??= this.sched.now();
+    this.emit('phase', { phase: this.phase, deadlineAt: null });
+    this.beginTurn();
   }
 
   // -------------------------------------------------------------------- turns
@@ -455,6 +586,8 @@ export class MatchSession {
     this.clearTimer('turn');
     const targetEnd = (1 - engine.next()!.fromEnd) as 0 | 1;
     const events = engine.foulTimeout(turn.seat);
+    this.seatStats[turn.seat].throws++;
+    this.seatStats[turn.seat].fouls++;
     this.emit('throw_timeout', { seat: turn.seat, bagId: turn.bagId });
     this.afterEngineEvents(targetEnd, events, 1200);
   }
@@ -495,6 +628,8 @@ export class MatchSession {
     });
 
     this.positions = new Map(Object.entries(sim.resting).map(([id, p]) => [id, p]));
+    this.seatStats[upcoming.seat].throws++;
+    if (sim.status === 'ground') this.seatStats[upcoming.seat].fouls++;
 
     this.emit('throw_result', {
       seat: upcoming.seat,
@@ -529,6 +664,10 @@ export class MatchSession {
         extra = this.timing.inningEndMs;
         this.positions.clear();
         const r = event.result;
+        for (const bag of r.finalBags) {
+          if (bag.status === 'hole') this.seatStats[bag.seat].holes++;
+          else if (bag.status === 'board') this.seatStats[bag.seat].boards++;
+        }
         this.emit('inning_complete', { result: r });
         if (r.scoringTeam) {
           const led: LedCue = scoreCue(targetEnd, this.teamColorHex()[r.scoringTeam]);
@@ -545,6 +684,8 @@ export class MatchSession {
     if (finished) {
       this.clearAllTimers();
       this.emit('phase', { phase: this.phase, deadlineAt: null });
+      this.openRematch();
+      this.finish();
       return;
     }
     this.setTimer('turn', delayMs + extra, () => this.beginTurn());
@@ -567,8 +708,8 @@ export class MatchSession {
         seat.controlledByBot = false;
         this.emit('seat_reclaimed', { seat: seat.id });
       }
-    } else if (this.phase !== 'finished' && this.phase !== 'abandoned') {
-      this.setTimer(key, this.timing.reconnectGraceMs, () => this.takeOver(player, 'disconnect'));
+    } else if (this.phase !== 'finished' && this.phase !== 'abandoned' && this.phase !== 'lobby') {
+      this.armGrace(player);
     }
     this.emit('seats', { seats: this.seatsView() });
     this.checkAbandon();
@@ -590,9 +731,19 @@ export class MatchSession {
       this.emit('seats', { seats: this.seatsView() });
       return;
     }
-    if (this.phase === 'finished' || this.phase === 'abandoned') return;
+    if (this.phase === 'finished') {
+      this.voteRematch(playerId, false);
+      return;
+    }
+    if (this.phase === 'abandoned') return;
     player.left = true;
     this.takeOver(player, 'left');
+  }
+
+  /** Start the reconnect clock for a player who is not connected: when it runs out a bot plays their seat. */
+  private armGrace(player: Player): void {
+    if (player.left || player.connected || this.isOver) return;
+    this.setTimer(`grace:${player.id}`, this.timing.reconnectGraceMs, () => this.takeOver(player, 'disconnect'));
   }
 
   private takeOver(player: Player, reason: 'left' | 'disconnect'): void {
@@ -641,6 +792,18 @@ export class MatchSession {
     this.turn = null;
     this.emit('match_abandoned', { reason });
     this.emit('phase', { phase: this.phase, deadlineAt: null });
+    this.finish();
+  }
+
+  /** Tell the outside world the match is over. Only ever once. */
+  private finish(): void {
+    if (this.ended) return;
+    this.ended = true;
+    try {
+      this.hooks.onEnded?.(this);
+    } catch {
+      // saving results must never break the match
+    }
   }
 
   // -------------------------------------------------------------------- views
@@ -662,6 +825,7 @@ export class MatchSession {
         name: s.name ?? (s.characterId ? (CHARACTERS.find((c) => c.id === s.characterId)?.name ?? null) : null),
         claimed: s.kind === 'bot' ? true : Boolean(s.playerId),
         connected: s.kind === 'bot' ? true : Boolean(player?.connected && !player.left),
+        accountId: s.kind === 'human' ? s.playerId : null,
         characterId: s.characterId,
         controlledByBot: s.kind === 'bot' || s.controlledByBot,
       };
@@ -688,7 +852,10 @@ export class MatchSession {
       : null;
     return {
       id: this.id,
+      protocol: PROTOCOL_VERSION,
       seq: this.seq,
+      createdAt: this.createdAt,
+      rematchOf: this.rematchOf,
       phase: this.phase,
       config: this.config,
       seats: this.seatsView(),
@@ -707,12 +874,273 @@ export class MatchSession {
       history: snap?.history ?? [],
       winner: snap?.winner ?? null,
       winReason: this.phase === 'abandoned' ? 'abandoned' : (snap?.winReason ?? null),
+      rematch: this.rematch ? { ...this.rematch, votes: { ...this.rematch.votes } } : null,
       you: player && !player.left ? { playerId: player.id, seat: player.seat, team: SEAT_TEAM[player.seat], host: player.host } : null,
     };
   }
 
   eventsSince(seq: number): SessionEvent[] {
     return this.log.filter((e) => e.seq > seq);
+  }
+
+  /** Latest event number. A client whose `since` is higher than this missed a server restart and must reload the view. */
+  get seqNumber(): number {
+    return this.seq;
+  }
+
+  // ----------------------------------------------------------------- rematch
+
+  private humansEligibleForRematch(): Player[] {
+    return [...this.players.values()].filter((p) => !p.left && this.seat(p.seat).kind === 'human');
+  }
+
+  private openRematch(): void {
+    if (this.rematch || this.phase !== 'finished') return;
+    const deadlineAt = this.sched.now() + this.timing.rematchWindowMs;
+    this.rematch = { deadlineAt, votes: {}, matchId: null, cancelled: false };
+    this.setTimer('rematch', this.timing.rematchWindowMs, () => this.closeRematch());
+    this.emit('rematch_update', { deadlineAt, votes: {} });
+  }
+
+  /** "Play again?" Every human answers yes or no. When all have answered (or the clock runs out) it starts. */
+  voteRematch(playerId: string, accept: boolean): void {
+    this.requirePlayer(playerId);
+    this.requirePhase('finished');
+    const state = this.rematch;
+    if (!state) throw new DomainError('no_rematch', 'There is no rematch to vote on', 409);
+    if (state.matchId || state.cancelled) throw new DomainError('rematch_closed', 'The rematch has already been decided', 409);
+    state.votes[playerId] = accept;
+    this.touch();
+    this.emit('rematch_update', { deadlineAt: state.deadlineAt, votes: { ...state.votes } });
+    const everyoneAnswered = this.humansEligibleForRematch().every((p) => p.id in state.votes);
+    if (everyoneAnswered) this.closeRematch();
+  }
+
+  private closeRematch(): void {
+    const state = this.rematch;
+    if (!state || state.matchId || state.cancelled) return;
+    this.clearTimer('rematch');
+    const accepted = this.humansEligibleForRematch().filter((p) => state.votes[p.id] === true);
+    if (accepted.length === 0) {
+      state.cancelled = true;
+      this.emit('rematch_cancelled', { reason: 'nobody_accepted' });
+      return;
+    }
+    const create = this.hooks.createRematch;
+    if (!create) {
+      state.cancelled = true;
+      this.emit('rematch_cancelled', { reason: 'unavailable' });
+      return;
+    }
+    const acceptedIds = new Set(accepted.map((p) => p.id));
+    const host = accepted.find((p) => p.host) ?? accepted[0]!;
+    const seed: RematchSeed = {
+      config: this.config,
+      rematchOf: this.id,
+      colors: { ...this.colors },
+      players: accepted.map((p) => ({ id: p.id, seat: p.seat, name: p.name, host: p.id === host.id })),
+      // A human who did not say yes is replaced by a bot; everyone keeps their character.
+      seats: this.seats.map((seat) => ({
+        ...seat,
+        kind: seat.kind === 'human' && !(seat.playerId && acceptedIds.has(seat.playerId)) ? 'bot' : seat.kind,
+        playerId: seat.playerId && acceptedIds.has(seat.playerId) ? seat.playerId : null,
+        name: seat.playerId && acceptedIds.has(seat.playerId) ? seat.name : null,
+        controlledByBot: false,
+      })),
+    };
+    try {
+      state.matchId = create(this, seed);
+      this.emit('rematch_ready', { matchId: state.matchId });
+    } catch (e) {
+      state.cancelled = true;
+      this.emit('rematch_cancelled', { reason: e instanceof DomainError ? e.code : 'unavailable' });
+    }
+  }
+
+  /** Builds the follow-up match from a finished one. Call `beginRematch()` on it once it is registered. */
+  static fromRematch(opts: Omit<SessionOptions, 'config' | 'seatPlan' | 'rematchOf'>, seed: RematchSeed): MatchSession {
+    const session = new MatchSession({ ...opts, config: seed.config, rematchOf: seed.rematchOf });
+    session.seats = seed.seats.map((seat) => ({ ...seat }));
+    for (const p of seed.players) {
+      session.players.set(p.id, { id: p.id, seat: p.seat, name: p.name, connected: false, host: p.host, left: false });
+    }
+    session.colors = { ...seed.colors };
+    return session;
+  }
+
+  /** Skips the picks (everyone keeps their character and color) and goes straight to the coin toss. */
+  beginRematch(): void {
+    if (this.phase !== 'lobby') return;
+    this.emit('seats', { seats: this.seatsView() });
+    for (const p of this.players.values()) this.armGrace(p);
+    this.enterToss(this.timing.rematchTossMs);
+  }
+
+  // ---------------------------------------------------------- saving and history
+
+  /** Who is in this match and how they did. Null if it never got as far as playing. */
+  summary(): MatchSummary | null {
+    if (!this.ended || !this.startedAt) return null;
+    const snap = this.engine?.snapshot();
+    const players: PlayerSummary[] = this.seats.map((seat) => {
+      const player = seat.playerId ? this.players.get(seat.playerId) : undefined;
+      const human = seat.kind === 'human' && player !== undefined;
+      const stats = this.seatStats[seat.id];
+      return {
+        seat: seat.id,
+        team: seat.team,
+        accountId: human ? player.id : null,
+        displayName: human ? player.name : (CHARACTERS.find((c) => c.id === seat.characterId)?.name ?? 'Bot'),
+        kind: human ? 'human' : 'bot',
+        botLevel: human ? null : seat.botLevel,
+        characterId: seat.characterId,
+        // Gone for good: left on purpose, or dropped and never came back before the end.
+        leftEarly: human && (player.left || seat.controlledByBot),
+        throws: stats.throws,
+        holes: stats.holes,
+        boards: stats.boards,
+        fouls: stats.fouls,
+      };
+    });
+    return {
+      code: this.id,
+      config: this.config,
+      createdAt: new Date(this.createdAt),
+      startedAt: new Date(this.startedAt),
+      endedAt: new Date(this.sched.now()),
+      outcome: this.finalReason ?? 'abandoned',
+      winner: snap?.winner ?? null,
+      scores: snap ? { ...snap.scores } : { A: 0, B: 0 },
+      innings: snap?.history.length ?? 0,
+      rematchOf: this.rematchOf,
+      players,
+    };
+  }
+
+  /** A copy of the live match that can be saved and later restored. Only meaningful while it is running. */
+  snapshot(): SessionSnapshot {
+    return structuredClone({
+      version: 1 as const,
+      id: this.id,
+      createdAt: this.createdAt,
+      startedAt: this.startedAt,
+      rematchOf: this.rematchOf,
+      config: this.config,
+      phase: this.phase,
+      phaseDeadline: this.phaseDeadline,
+      seats: this.seats,
+      players: [...this.players.values()].map((p) => ({ id: p.id, seat: p.seat, name: p.name, host: p.host, left: p.left })),
+      colors: this.colors,
+      engine: this.engine?.snapshot() ?? null,
+      positions: [...this.positions.entries()],
+      turn: this.turn,
+      seq: this.seq,
+      seatStats: this.seatStats,
+      lastActivity: this.lastActivity,
+    });
+  }
+
+  /** Rebuilds a match from a snapshot. Call `resume()` once it is registered to get its timers going again. */
+  static restore(snap: SessionSnapshot, opts: Omit<SessionOptions, 'id' | 'config' | 'seatPlan' | 'createdAt' | 'rematchOf'>): MatchSession {
+    if (snap.version !== 1) throw new Error(`Unknown snapshot version ${String(snap.version)}`);
+    if (snap.phase === 'finished' || snap.phase === 'abandoned') throw new Error('Finished matches are not restored');
+    const data = structuredClone(snap);
+    const session = new MatchSession({ ...opts, id: data.id, config: data.config, createdAt: data.createdAt, rematchOf: data.rematchOf });
+    session.startedAt = data.startedAt;
+    session.phase = data.phase;
+    session.phaseDeadline = data.phaseDeadline;
+    session.seats = data.seats;
+    session.colors = data.colors;
+    session.engine = data.engine ? MatchEngine.restore(data.engine) : null;
+    session.positions = new Map(data.positions);
+    session.turn = data.turn;
+    session.seq = data.seq;
+    session.seatStats = data.seatStats;
+    session.lastActivity = data.lastActivity;
+    for (const p of data.players) session.players.set(p.id, { ...p, connected: false });
+    return session;
+  }
+
+  /**
+   * After a restart nobody is connected yet. Give everyone the usual 30 seconds to reconnect, keep
+   * pick timers and turn clocks running (never less than a few seconds so people can get back in),
+   * and carry on from where the match was.
+   */
+  resume(): void {
+    const now = this.sched.now();
+    const floor = 8000;
+    if (this.phase !== 'lobby') for (const p of this.players.values()) this.armGrace(p);
+
+    switch (this.phase) {
+      case 'lobby':
+        this.checkAbandon();
+        break;
+      case 'characters': {
+        const remaining = Math.min(this.timing.characterPickMs, Math.max(floor, (this.phaseDeadline ?? now) - now));
+        this.phaseDeadline = now + remaining;
+        this.setTimer('phase', remaining, () => this.finishCharacters());
+        break;
+      }
+      case 'colors': {
+        const remaining = Math.min(this.timing.colorPickMs, Math.max(floor, (this.phaseDeadline ?? now) - now));
+        this.phaseDeadline = now + remaining;
+        this.setTimer('phase', remaining, () => this.finishColors());
+        break;
+      }
+      case 'toss':
+        this.setTimer('phase', 3000, () => this.startPlaying());
+        break;
+      case 'playing': {
+        const turn = this.turn;
+        if (!turn) {
+          this.setTimer('turn', 3000, () => this.beginTurn());
+        } else if (turn.controlledBy === 'bot') {
+          this.scheduleBotThrow();
+        } else if (this.config.throwTimerSec) {
+          const deadline = Math.max(turn.deadlineAt ?? 0, now + floor);
+          turn.deadlineAt = deadline;
+          this.setTimer('turn', deadline - now, () => this.onThrowTimeout());
+        }
+        break;
+      }
+      default:
+        break;
+    }
+    this.emit('resumed', { phase: this.phase });
+  }
+
+  // ------------------------------------------------------------- lobby queries
+
+  hasActivePlayer(accountId: string): boolean {
+    const p = this.players.get(accountId);
+    return Boolean(p && !p.left && !this.isOver);
+  }
+
+  seatOf(accountId: string): SeatId | null {
+    const p = this.players.get(accountId);
+    return p && !p.left ? p.seat : null;
+  }
+
+  get hostName(): string | null {
+    return [...this.players.values()].find((p) => p.host && !p.left)?.name ?? null;
+  }
+
+  /** Human account ids currently sitting in this match. */
+  activeAccountIds(): string[] {
+    return [...this.players.values()].filter((p) => !p.left).map((p) => p.id);
+  }
+
+  invitePreview(): InvitePreview {
+    const openSeats = this.seats.filter((s) => s.kind === 'human' && !s.playerId).map((s) => s.id);
+    return {
+      code: this.id,
+      hostName: this.hostName,
+      mode: this.config.mode,
+      playTo: this.config.playTo,
+      phase: this.phase,
+      openSeats,
+      canJoin: this.phase === 'lobby' && openSeats.length > 0,
+    };
   }
 
   subscribe(listener: (event: SessionEvent) => void): () => void {
@@ -759,6 +1187,11 @@ export class MatchSession {
       } catch {
         // A broken subscriber must never break the match.
       }
+    }
+    try {
+      this.hooks.onChange?.(this);
+    } catch {
+      // saving must never break the match
     }
   }
 
