@@ -64,6 +64,11 @@ namespace IPlay.Cornhole
     public enum SocketState { Idle, Connecting, Live, Reconnecting, Stopped }
 
     /// <summary>
+    /// Note for Unity: start <see cref="RunAsync"/> from the main thread. Nothing in this class detaches from the
+    /// caller's context, so in Unity every model update and event arrives on the main thread, where it is safe to
+    /// touch GameObjects.
+    /// </summary>
+    /// <summary>
     /// Keeps a match's realtime connection alive: connects, says hello with the last event number, feeds the
     /// <see cref="MatchModel"/>, and reconnects by itself when the connection drops or the server restarts
     /// (close code 1012). Stops, and says why, on codes that reconnecting cannot fix.
@@ -113,7 +118,7 @@ namespace IPlay.Cornhole
                 int closeCode = 0;
                 try
                 {
-                    closeCode = await RunOnce(youAccountId, ct).ConfigureAwait(false);
+                    closeCode = await RunOnce(youAccountId, ct);
                 }
                 catch (OperationCanceledException) { break; }
                 catch (Exception) { closeCode = 0; }
@@ -129,7 +134,7 @@ namespace IPlay.Cornhole
                 }
                 if (model.IsOver && closeCode == 1000) break;
                 Set(SocketState.Reconnecting);
-                try { await delay(policy.Next(), ct).ConfigureAwait(false); }
+                try { await delay(policy.Next(), ct); }
                 catch (OperationCanceledException) { break; }
             }
             Set(SocketState.Stopped);
@@ -139,9 +144,9 @@ namespace IPlay.Cornhole
         {
             using (var socket = factory.Create())
             {
-                await socket.ConnectAsync(api.WebSocketUrl(matchId), ct).ConfigureAwait(false);
+                await socket.ConnectAsync(api.WebSocketUrl(matchId), ct);
                 var hello = J.Make("type", "hello", "bearer", api.Token, "since", (double)model.Seq, "clientVersion", api.Client.Version);
-                await socket.SendAsync(MiniJson.Serialize(hello), ct).ConfigureAwait(false);
+                await socket.SendAsync(MiniJson.Serialize(hello), ct);
 
                 using (var heartbeat = CancellationTokenSource.CreateLinkedTokenSource(ct))
                 {
@@ -150,16 +155,16 @@ namespace IPlay.Cornhole
                     {
                         for (;;)
                         {
-                            var m = await socket.ReceiveAsync(ct).ConfigureAwait(false);
+                            var m = await socket.ReceiveAsync(ct);
                             if (m.Closed) return m.CloseCode;
                             if (m.Text == null) continue;
                             Dictionary<string, object> msg;
                             try { msg = MiniJson.ParseObject(m.Text); }
                             catch (FormatException) { continue; }
-                            await Handle(msg, youAccountId).ConfigureAwait(false);
+                            await Handle(msg, youAccountId);
                         }
                     }
-                    finally { heartbeat.Cancel(); try { await ping.ConfigureAwait(false); } catch (Exception) { } }
+                    finally { heartbeat.Cancel(); try { await ping; } catch (Exception) { } }
                 }
             }
         }
@@ -170,8 +175,8 @@ namespace IPlay.Cornhole
             {
                 while (!ct.IsCancellationRequested)
                 {
-                    await Task.Delay(20000, ct).ConfigureAwait(false);
-                    await socket.SendAsync("{\"type\":\"ping\"}", ct).ConfigureAwait(false);
+                    await Task.Delay(20000, ct);
+                    await socket.SendAsync("{\"type\":\"ping\"}", ct);
                 }
             }
             catch (Exception) { /* the receive loop notices a dead connection */ }
@@ -194,14 +199,14 @@ namespace IPlay.Cornhole
                     {
                         var missed = J.Arr(msg, "missed");
                         if (missed != null) foreach (var e in missed) model.ApplyEvent((Dictionary<string, object>)e);
-                        if (model.NeedsRefresh) await Refresh(youAccountId).ConfigureAwait(false);
+                        if (model.NeedsRefresh) await Refresh(youAccountId);
                     }
                     policy.Reset();
                     Set(SocketState.Live);
                     break;
                 case "event":
                     model.ApplyEvent(J.Obj(msg, "event"));
-                    if (model.NeedsRefresh) await Refresh(youAccountId).ConfigureAwait(false);
+                    if (model.NeedsRefresh) await Refresh(youAccountId);
                     break;
                 case "error":
                     break; // the close that follows carries the code
@@ -210,7 +215,7 @@ namespace IPlay.Cornhole
 
         private async Task Refresh(string youAccountId)
         {
-            var view = await api.GetMatch(matchId).ConfigureAwait(false);
+            var view = await api.GetMatch(matchId);
             model.ApplyView(view, youAccountId);
             var h = Resynced;
             if (h != null) h();

@@ -217,5 +217,14 @@ namespace IPlay.Cornhole
 
         // ---------------------------------------------------------------- voice
         public Task<Dictionary<string, object>> VoiceGrant(string matchId) { return SendAsync("POST", "/api/matches/" + Uri.EscapeDataString(matchId) + "/voice"); }
+
+        /// <summary>
+        /// A 5-minute Vivox token. action: login, join or join_muted. Pass the identity and channel the Vivox SDK asks for.
+        /// Returns { accessToken, expiresAt }.
+        /// </summary>
+        public Task<Dictionary<string, object>> VoiceToken(string matchId, string action, string channelUri = null, string fromUserUri = null)
+        {
+            return SendAsync("POST", "/api/matches/" + Uri.EscapeDataString(matchId) + "/voice/token", J.Make("action", action, "channelUri", channelUri, "fromUserUri", fromUserUri));
+        }
     }
 }

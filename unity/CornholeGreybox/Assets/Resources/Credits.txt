@@ -1,0 +1,4 @@
+iPlay Cornhole credits
+
+Barlow Condensed (BarlowCondensed-SemiBold.ttf) is licensed under the SIL Open Font License 1.1 (see UI/BarlowCondensed-OFL.txt).
+The iPlay mark, the ring-in and bag sounds, and the LED board layout are original iPlay assets made for this game.

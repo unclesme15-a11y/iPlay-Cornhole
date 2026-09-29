@@ -13,13 +13,17 @@ export interface SignedVivoxToken {
 
 const TOKEN_LIFETIME_S = 300;
 const SAFE_SEGMENT = /^[A-Za-z0-9._-]+$/;
+const MAX_URI = 256;
 
 const b64url = (input: string | Buffer): string => Buffer.from(input).toString('base64url');
 
 /**
  * Makes the short-lived tokens the phone needs to log in to Unity Vivox and join a voice channel.
- * The signing key never leaves the server: the phone only ever holds a 5-minute token for one person
- * and one channel. (Same scheme as iPlay Street Dice.)
+ * The signing key never leaves the server: the phone only ever holds a 5-minute token for one Vivox
+ * identity and one channel. (Same scheme as iPlay Street Dice.)
+ *
+ * The Vivox Unity SDK picks the player's Vivox identity itself (from their Unity player id) and asks
+ * us to sign for it, so the identity is passed in rather than derived from the account.
  */
 export class VivoxSigner {
   private readonly domain: string;
@@ -43,10 +47,20 @@ export class VivoxSigner {
     return value.length > 0 && value.length <= 64 && SAFE_SEGMENT.test(value);
   }
 
-  /** The person's Vivox address. Anyone in a channel sees this, so it is the account id, never a name. */
-  userUri(playerId: string): string {
-    this.assertSafe(playerId, 'participant');
-    return `sip:.${this.issuer}.${playerId}.${this.environmentId}.@${this.domain}`;
+  /** A Vivox address for a given id, in this project's environment. Used when the phone does not name its own. */
+  userUri(id: string): string {
+    this.assertSafe(id, 'participant');
+    return `sip:.${this.issuer}.${id}.${this.environmentId}.@${this.domain}`;
+  }
+
+  /** True if this is a Vivox user address in our project and environment (so we never sign for someone else's project). */
+  isOurUserUri(uri: string): boolean {
+    const lower = uri.toLowerCase();
+    return (
+      uri.length <= MAX_URI &&
+      lower.startsWith(`sip:.${this.issuer}.`.toLowerCase()) &&
+      lower.endsWith(`.${this.environmentId}.@${this.domain}`.toLowerCase())
+    );
   }
 
   channelUri(channelName: string): string {
@@ -58,10 +72,14 @@ export class VivoxSigner {
     if (!VivoxSigner.isSafeSegment(value)) throw new Error(`Invalid voice ${what}`);
   }
 
-  /** `login` has no channel; `join` and `join_muted` are for one named channel. */
-  sign(action: VivoxAction, playerId: string, channelName: string | null, nowMs: number): SignedVivoxToken {
+  /**
+   * `login` has no channel; `join` and `join_muted` are for one named channel.
+   * `fromUserUri` is the Vivox identity the phone is using.
+   */
+  sign(action: VivoxAction, fromUserUri: string, channelName: string | null, nowMs: number): SignedVivoxToken {
     if (action !== 'login' && action !== 'join' && action !== 'join_muted') throw new Error('Unsupported voice action');
     if (action !== 'login' && !channelName) throw new Error('A channel is required to join');
+    if (!this.isOurUserUri(fromUserUri)) throw new Error('That voice identity does not belong to this Vivox environment');
     const expiresAt = nowMs + TOKEN_LIFETIME_S * 1000;
     const channelUri = action === 'login' ? null : this.channelUri(channelName!);
     const payload: Record<string, string | number> = {
@@ -69,7 +87,7 @@ export class VivoxSigner {
       exp: Math.floor(expiresAt / 1000),
       vxa: action,
       vxi: randomUUID().replaceAll('-', ''),
-      f: this.userUri(playerId),
+      f: fromUserUri,
     };
     if (channelUri) payload.t = channelUri;
     const unsigned = `${b64url('{}')}.${b64url(JSON.stringify(payload))}`;

@@ -680,6 +680,8 @@ namespace IPlay.Cornhole.Tests
                 Ck.Null(m.Turn, "turn closes when the bag is thrown");
                 Ck.False(m.Board.ContainsKey("B1-1"), "knocked-off bag is gone");
                 Ck.Near(36, m.Board["A1-3"].Y, 0);
+                Ck.Near(2.5, m.BoardBeforeLastThrow["B1-1"].X, 0);
+                Ck.False(m.BoardBeforeLastThrow.ContainsKey("A1-3"), "the board before the throw does not have the new bag");
                 Ck.Eq("pure", m.LastThrow.Release.Verdict);
                 Ck.Near(4.6, m.LastThrow.DriftX, 1e-9);
                 Ck.Eq(2, m.LastThrow.Flight.Count);
@@ -818,20 +820,114 @@ namespace IPlay.Cornhole.Tests
             });
 
             // ---- voice
-            add("voice: reads the tokens, the team channel (or none), the roster and who to mute", () =>
+            add("voice: reads the channels, the team channel (or none), the roster and who to mute", () =>
             {
-                var d = MiniJson.ParseObject(@"{""identity"":{""username"":""a1"",""uri"":""sip:.i.a1.e.@d""},""loginToken"":""L"",
-                    ""table"":{""name"":""cornhole-M1"",""uri"":""sip:t"",""joinToken"":""TT""},
-                    ""team"":{""name"":""cornhole-M1-team-A"",""uri"":""sip:tm"",""joinToken"":""TM""},
+                var d = MiniJson.ParseObject(@"{""displayName"":""a1"",
+                    ""table"":{""name"":""cornhole-M1"",""uri"":""sip:t""},
+                    ""team"":{""name"":""cornhole-M1-team-A"",""uri"":""sip:tm""},
                     ""roster"":[{""seat"":""A1"",""team"":""A"",""username"":""a1"",""displayName"":""Me""},{""seat"":""B1"",""team"":""B"",""username"":""a2"",""displayName"":""Dre""}],
-                    ""mute"":[""a2""],""expiresAt"":""2026-01-01T00:00:00Z""}");
+                    ""mute"":[""a2""]}");
                 var g = VoiceGrant.From(d);
-                Ck.Eq("TM", g.TeamToken);
+                Ck.Eq("a1", g.DisplayName);
+                Ck.Eq("sip:tm", g.TeamUri);
                 Ck.True(g.ShouldMute("a2"));
                 Ck.False(g.ShouldMute("a1"));
                 Ck.Eq("Dre", g.NameOf("a2"));
                 Ck.Eq("zzz", g.NameOf("zzz"));
-                Ck.Null(VoiceGrant.From(MiniJson.ParseObject(@"{""identity"":{},""table"":{}}")).TeamName);
+                Ck.Null(VoiceGrant.From(MiniJson.ParseObject(@"{""table"":{}}")).TeamName);
+            });
+            add("voice: token requests carry the identity and channel the SDK asked for", () =>
+            {
+                var t = new FakeTransport();
+                t.On("POST /api/matches/M1/voice/token", 200, @"{""accessToken"":""TKN"",""expiresAt"":""2026-01-01T00:00:00Z""}");
+                var api = new ApiClient(t, "http://x", null);
+                var r = Ck.Run(api.VoiceToken("M1", "join", "sip:chan", "sip:.i.me.e.@d"));
+                Ck.Eq("TKN", J.Str(r, "accessToken"));
+                var sent = MiniJson.ParseObject(t.BodiesSeen[0]);
+                Ck.Eq("join", J.Str(sent, "action"));
+                Ck.Eq("sip:chan", J.Str(sent, "channelUri"));
+                Ck.Eq("sip:.i.me.e.@d", J.Str(sent, "fromUserUri"));
+                Ck.Run(api.VoiceToken("M1", "login"));
+                Ck.False(MiniJson.ParseObject(t.BodiesSeen[1]).ContainsKey("channelUri"), "no channel for login");
+            });
+
+            // ---- replay
+            Func<ThrowResult> sampleThrow = () =>
+            {
+                var r = new ThrowResult { BagId = "A1-1", Status = "hole", FlightMs = 600, DurationMs = 1000, Landing = new Point2(1, 30) };
+                r.Flight.Add(new FlightSample { T = 0, X = 28, Y = -324, Z = 40 });
+                r.Flight.Add(new FlightSample { T = 300, X = 14, Y = -150, Z = 60 });
+                r.Flight.Add(new FlightSample { T = 600, X = 1, Y = 30, Z = 10 });
+                var f1 = new SlideFrame { T = 0 }; f1.Bags["A1-1"] = new Point2(1, 30);
+                var f2 = new SlideFrame { T = 200 }; f2.Bags["A1-1"] = new Point2(0.5, 36); f2.Bags["B1-1"] = new Point2(3, 25);
+                r.Slide.Add(f1); r.Slide.Add(f2);
+                r.HoleEvents.Add(new HoleEvent { BagId = "A1-1", Cause = "slide", TMs = 900 });
+                r.Resting["B1-1"] = new Point2(3, 25);
+                r.Cues.Add(new Cue { AtMs = 600, Reason = "landing", Sound = "thud" });
+                r.Cues.Add(new Cue { AtMs = 900, Reason = "hole", Sound = "cornhole_hit", Led = new LedCue { Pattern = "flash_burst" } });
+                return r;
+            };
+            add("replay: the bag flies along the samples, then slides, then rests, and drops in the hole at the server's moment", () =>
+            {
+                var r = sampleThrow();
+                var before = new Dictionary<string, BoardBag> { { "B1-1", new BoardBag { Id = "B1-1", Status = "board", X = 2, Y = 20, HasPosition = true } } };
+                var start = ThrowReplay.At(r, 0, before);
+                Ck.Eq("flight", start.Phase);
+                Ck.Near(28, start.Bag.X, 1e-9);
+                Ck.Near(40, start.Height, 1e-9);
+                var mid = ThrowReplay.At(r, 150, before);
+                Ck.Near(21, mid.Bag.X, 1e-9, "halfway between the first two samples");
+                Ck.Near(50, mid.Height, 1e-9);
+                Ck.Near(2, mid.Board["B1-1"].X, 0, "bags already on the board stay put while the bag is in the air");
+                var landed = ThrowReplay.At(r, 650, before);
+                Ck.Eq("slide", landed.Phase);
+                Ck.Near(30, landed.Bag.Y, 1e-9);
+                Ck.Near(20, landed.Board["B1-1"].Y, 0, "not knocked yet");
+                var knocked = ThrowReplay.At(r, 850, before);
+                Ck.Near(25, knocked.Board["B1-1"].Y, 1e-9, "knocked bag moved");
+                Ck.Near(36, knocked.Bag.Y, 1e-9);
+                Ck.False(knocked.InHole.Contains("A1-1"));
+                var end = ThrowReplay.At(r, 1000, before);
+                Ck.Eq("rest", end.Phase);
+                Ck.True(end.InHole.Contains("A1-1"), "in the hole");
+                Ck.False(end.Board.ContainsKey("A1-1"), "gone from the board");
+                Ck.Near(25, end.Board["B1-1"].Y, 1e-9);
+            });
+            add("replay: cues are due exactly once as time passes, and the first hole moment is known", () =>
+            {
+                var r = sampleThrow();
+                Ck.Eq(0, ThrowReplay.CuesBetween(r, 0, 599).Count);
+                Ck.Eq("thud", ThrowReplay.CuesBetween(r, 599, 600)[0].Sound);
+                Ck.Eq(0, ThrowReplay.CuesBetween(r, 600, 899).Count, "already played");
+                var hole = ThrowReplay.CuesBetween(r, 899, 1000);
+                Ck.Eq(1, hole.Count);
+                Ck.Eq("flash_burst", hole[0].Led.Pattern);
+                Ck.Near(900, ThrowReplay.FirstHoleMs(r), 0);
+                Ck.Near(-1, ThrowReplay.FirstHoleMs(new ThrowResult()), 0);
+            });
+            add("replay: a throw with no frames (a long-ago event) still gives a sensible frame", () =>
+            {
+                var r = new ThrowResult { BagId = "X", FlightMs = 600, DurationMs = 900, Landing = new Point2(4, 12) };
+                Ck.Eq("flight", ThrowReplay.At(r, 100, null).Phase);
+                var end = ThrowReplay.At(r, 900, null);
+                Ck.Eq("rest", end.Phase);
+                Ck.Near(4, end.Bag.X, 0);
+            });
+
+            add("settings: remembered on the phone with sensible defaults", () =>
+            {
+                var store = new MemoryStore();
+                var s = new LocalSettings(store);
+                Ck.True(s.Sound && s.Voice && s.AimAssist && s.Tutorial);
+                Ck.False(s.StartMuted || s.LeftHanded || s.ReduceMotion);
+                Ck.Eq("standard", s.LastShot);
+                s.Voice = false;
+                s.LastShot = "airmail";
+                s.LeftHanded = true;
+                var again = new LocalSettings(store);
+                Ck.False(again.Voice);
+                Ck.Eq("airmail", again.LastShot);
+                Ck.True(again.LeftHanded);
             });
 
             // ---- theme

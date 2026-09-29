@@ -216,6 +216,44 @@ public static class LiveSuite
             }
         });
 
+        add("live: MatchSession plays a friendly match against a bot: picks, throw through the session, no double throws, leave", () =>
+        {
+            var p = new Phone(url);
+            p.Start("Session Player");
+            var guide = p.Session.Guide;
+            var created = Ck.Run(p.Api.CreateMatch(J.Make("mode", "1v1", "wind", "light")));
+            var id = J.Str(created, "matchId");
+            var session = new MatchSession(p.Api, new ClientWebSocketFactory(), guide, id, "standard");
+            session.Connect(p.Session.Account.Id);
+            try
+            {
+                WaitUntil(() => session.IsConnected, 10, "connect");
+                Ck.True(Ck.Run(session.StartAsync(false)), session.LastError);
+                Ck.False(Ck.Run(session.PickCharacterAsync("no-such-character")), "bad pick is refused");
+                Ck.Eq("bad_character", session.LastError);
+                Ck.True(Ck.Run(session.PickCharacterAsync("tanya")), session.LastError);
+                Ck.True(Ck.Run(session.PickColorAsync("teal")), session.LastError);
+                Ck.False(Ck.Run(session.SendThrowAsync(new ThrowCommand { Power = 0.6, Arc = 0.55 })), "cannot throw before it is my turn");
+                WaitUntil(() => session.CanThrow, 30, "my turn");
+                Ck.True(session.ThrowSecondsLeft(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) > 5, "throw clock is running (20 s)");
+                var c = session.Throw;
+                c.SelectShot("standard");
+                c.SetAim(0);
+                c.BeginPull(0, 0.5, 0.35);
+                c.MovePull(0.3, 0.5, 0.35 - 0.6 * ThrowController.FullPull);
+                var cmd = FlickUp(c, 0.4, 0.5, 0.35 - 0.6 * ThrowController.FullPull);
+                var sent = Ck.Run(session.SendThrowAsync(cmd));
+                Ck.True(sent, session.LastError);
+                Ck.False(Ck.Run(session.SendThrowAsync(cmd)), "a second throw for the same turn is not sent");
+                WaitUntil(() => session.Model.LastThrow != null && !session.ThrowInFlight, 10, "the result");
+                Ck.Eq("A1", session.Model.LastThrow.Seat);
+                Ck.True(session.Model.Seq > 5, "events flowed");
+                Ck.Eq(0, session.OtherHumans().Count, "only a bot is at the other seat");
+                Ck.True(Ck.Run(session.LeaveAsync()));
+            }
+            finally { session.Disconnect(); }
+        });
+
         add("live: two phones find each other in ranked, both connect, voice tokens work, leaving forfeits with a cooldown", () =>
         {
             var a = new Phone(url);
@@ -257,8 +295,15 @@ public static class LiveSuite
                 Ck.Eq("cornhole-" + id, grant.TableName);
                 Ck.Null(grant.TeamName, "no team channel in 1v1");
                 Ck.Eq(2, grant.Roster.Count);
-                Ck.Eq(a.Session.Account.Id, grant.Username);
-                Ck.True(grant.LoginToken.Split('.').Length == 3 && grant.TableToken.Split('.').Length == 3, "signed tokens");
+                Ck.Eq(a.Session.Account.Id, grant.DisplayName);
+                // the Vivox SDK presents its own identity; the server signs for it, and only for this match's channel
+                var sdkId = "sip:.iss.unity-player-1.env1.@vdx.example";
+                var login = Ck.Run(a.Api.VoiceToken(id, "login", null, sdkId));
+                var join = Ck.Run(a.Api.VoiceToken(id, "join", grant.TableUri, sdkId));
+                Ck.True(J.Str(login, "accessToken").Split('.').Length == 3 && J.Str(join, "accessToken").Split('.').Length == 3, "signed tokens");
+                var denied = Ck.Throws<ApiException>(() => Ck.Run(a.Api.VoiceToken(id, "join", "sip:confctl-g-iss.cornhole-OTHER.env1@vdx.example", sdkId)));
+                Ck.Eq("voice_channel_forbidden", denied.Code);
+                Ck.Eq("voice_identity_invalid", Ck.Throws<ApiException>(() => Ck.Run(a.Api.VoiceToken(id, "login", null, "sip:.stranger.x.env1.@vdx.example"))).Code);
 
                 // A walks out: their seat forfeits, the match ends, and a cooldown applies
                 Ck.Run(a.Api.LeaveMatch(id));

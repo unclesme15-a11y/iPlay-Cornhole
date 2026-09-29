@@ -271,6 +271,9 @@ namespace IPlay.Cornhole
 
         public event Action<string> Matched;
 
+        /// <summary>Forget everything (after signing out or deleting the account).</summary>
+        public void Reset() { Current = new QueueStatus(); Party = null; }
+
         public async Task<QueueStatus> JoinAsync(string mode)
         {
             Current = QueueStatus.From(await api.RankedJoin(mode).ConfigureAwait(false));
@@ -436,28 +439,25 @@ namespace IPlay.Cornhole
     }
 
     // ====================================================================== voice
-    /// <summary>The tokens and channels from POST /api/matches/:id/voice.</summary>
+    /// <summary>
+    /// Which voice channels the player may use (POST /api/matches/:id/voice). Tokens are fetched separately, for the
+    /// Vivox identity the SDK picks, with <see cref="ApiClient.VoiceToken"/>.
+    /// </summary>
     public sealed class VoiceGrant
     {
-        public string Username, UserUri, LoginToken;
-        public string TableName, TableUri, TableToken;
-        public string TeamName, TeamUri, TeamToken; // null in 1v1
-        public string ExpiresAt;
+        /// <summary>Log in to Vivox with this display name (it is the account id, so phones can match speakers to players).</summary>
+        public string DisplayName;
+        public string TableName, TableUri;
+        public string TeamName, TeamUri; // null in 1v1
         public List<string> Mute = new List<string>();
         public List<VoicePlayer> Roster = new List<VoicePlayer>();
 
         public static VoiceGrant From(Dictionary<string, object> d)
         {
-            var identity = J.Obj(d, "identity");
             var table = J.Obj(d, "table");
             var team = J.Obj(d, "team");
-            var g = new VoiceGrant
-            {
-                Username = J.Str(identity, "username"), UserUri = J.Str(identity, "uri"), LoginToken = J.Str(d, "loginToken"),
-                TableName = J.Str(table, "name"), TableUri = J.Str(table, "uri"), TableToken = J.Str(table, "joinToken"),
-                ExpiresAt = J.Str(d, "expiresAt"),
-            };
-            if (team != null) { g.TeamName = J.Str(team, "name"); g.TeamUri = J.Str(team, "uri"); g.TeamToken = J.Str(team, "joinToken"); }
+            var g = new VoiceGrant { DisplayName = J.Str(d, "displayName"), TableName = J.Str(table, "name"), TableUri = J.Str(table, "uri") };
+            if (team != null) { g.TeamName = J.Str(team, "name"); g.TeamUri = J.Str(team, "uri"); }
             var mute = J.Arr(d, "mute");
             if (mute != null) foreach (var m in mute) g.Mute.Add(m as string);
             var roster = J.Arr(d, "roster");

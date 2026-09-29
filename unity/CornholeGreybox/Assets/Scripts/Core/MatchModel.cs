@@ -108,6 +108,8 @@ namespace IPlay.Cornhole
         public bool RatingsReady;
         public Dictionary<string, object> Rematch;
         public ThrowResult LastThrow;
+        /// <summary>The board as it was just before the latest throw landed (what a replay starts from).</summary>
+        public Dictionary<string, BoardBag> BoardBeforeLastThrow = new Dictionary<string, BoardBag>();
 
         /// <summary>Set when a gap in event numbers means the model may be wrong: reload the full view.</summary>
         public bool NeedsRefresh { get; private set; }
@@ -241,6 +243,7 @@ namespace IPlay.Cornhole
                 case "throw_result":
                     LastThrow = ParseThrow(data);
                     Turn = null;
+                    BoardBeforeLastThrow = CopyBoard();
                     ApplyBoard(LastThrow);
                     Raise(ThrowResultReceived, LastThrow);
                     break;
@@ -301,6 +304,14 @@ namespace IPlay.Cornhole
                     break;
             }
             Raise(Changed);
+        }
+
+        private Dictionary<string, BoardBag> CopyBoard()
+        {
+            var copy = new Dictionary<string, BoardBag>();
+            foreach (var kv in Board)
+                copy[kv.Key] = new BoardBag { Id = kv.Value.Id, Team = kv.Value.Team, Status = kv.Value.Status, X = kv.Value.X, Y = kv.Value.Y, HasPosition = kv.Value.HasPosition };
+            return copy;
         }
 
         private void ApplyBoard(ThrowResult t)
