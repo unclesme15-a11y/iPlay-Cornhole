@@ -1,7 +1,7 @@
 import { DomainError } from '../core/errors.js';
 import type { Db } from '../db/types.js';
 
-export const REPORT_REASONS = ['harassment', 'cheating', 'inappropriate_name', 'other'] as const;
+export const REPORT_REASONS = ['harassment', 'cheating', 'inappropriate_name', 'underage', 'other'] as const;
 export type ReportReason = (typeof REPORT_REASONS)[number];
 export type ReportStatus = 'open' | 'resolved' | 'dismissed';
 

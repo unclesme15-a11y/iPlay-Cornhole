@@ -61,6 +61,11 @@ const envSchema = z
     ALLOW_MISSING_NONCE: bool(false),
     ALLOW_GUESTS: bool(true),
 
+    /** Every iPlay game is for adults. New accounts must confirm they are 18 or older. */
+    REQUIRE_ADULT_CONFIRMATION: bool(true),
+    /** Bump when the terms change: apps then ask players to accept again. */
+    TERMS_VERSION: z.coerce.number().int().min(1).default(1),
+
     /** Protects /admin. At least 32 characters. Leave unset to turn the admin API off. */
     ADMIN_TOKEN: z.string().min(32, 'ADMIN_TOKEN must be at least 32 characters').optional(),
     /** Start with new matches switched off (deploys, incidents). */

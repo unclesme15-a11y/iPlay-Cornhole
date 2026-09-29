@@ -273,7 +273,7 @@ describe('rate limiting', () => {
     const t = await env.boot();
     let limited = 0;
     for (let i = 0; i < 30; i++) {
-      const res = await t.call(null, 'POST', '/api/auth/guest', {});
+      const res = await t.call(null, 'POST', '/api/auth/guest', { confirmAdult: true });
       if (res.statusCode === 429) limited++;
     }
     expect(limited).toBeGreaterThan(0);

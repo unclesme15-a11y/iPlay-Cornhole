@@ -74,7 +74,7 @@ describe('the app version gate', () => {
       const res = await t.app.inject({ method, url, headers: { 'x-client-version': '1.0.0' }, ...(method === 'POST' ? { payload: {} } : {}) });
       expect(res.statusCode, `${method} ${url}`).toBe(426);
     }
-    const ok = await t.app.inject({ method: 'POST', url: '/api/auth/guest', headers: { 'x-client-version': '1.2.0', 'x-client-platform': 'ios' }, payload: {} });
+    const ok = await t.app.inject({ method: 'POST', url: '/api/auth/guest', headers: { 'x-client-version': '1.2.0', 'x-client-platform': 'ios' }, payload: { confirmAdult: true } });
     expect(ok.statusCode).toBe(201);
     // the version and platform are kept with the session for support
     const row = (await t.db.query<{ platform: string; client_version: string }>('SELECT platform, client_version FROM sessions')).rows[0]!;
@@ -98,7 +98,7 @@ describe('the app version gate', () => {
   it('applies to the realtime connection too', async () => {
     const t = await env.boot({ env: STRICT });
     // The shared sign-up helper sends no app version, so make this player directly.
-    const account = await t.services.accounts.createGuest('Version Host');
+    const account = await t.services.accounts.createGuest('Version Host', { adultConfirmed: true });
     const host = { token: (await t.services.sessions.issue(account.id)).token };
     const created = (await t.call(host.token, 'POST', '/api/matches', {}, { 'x-client-version': '1.2.0' })).json();
     const port = await t.listen();

@@ -72,7 +72,7 @@ export class TestEnv {
       built,
       call,
       async guest(name) {
-        const res = await call(null, 'POST', '/api/auth/guest', name ? { displayName: name } : {});
+        const res = await call(null, 'POST', '/api/auth/guest', name ? { displayName: name, confirmAdult: true } : { confirmAdult: true });
         if (res.statusCode !== 201) throw new Error(`guest sign-up failed: ${res.statusCode} ${res.body}`);
         const json = res.json();
         n++;

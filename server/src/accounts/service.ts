@@ -14,6 +14,12 @@ export interface Account {
   createdAt: Date;
   displayNameChangedAt: Date | null;
   lastSeenAt: Date;
+  /** When they confirmed they are 18 or older (every iPlay game is for adults). */
+  adultConfirmedAt: Date | null;
+  /** The version of the terms they last accepted. */
+  termsVersion: number | null;
+  /** Whether their name appears on the public leaderboards. */
+  showOnLeaderboards: boolean;
 }
 
 export interface AccountRow {
@@ -26,6 +32,9 @@ export interface AccountRow {
   created_at: Date;
   display_name_changed_at: Date | null;
   last_seen_at: Date;
+  adult_confirmed_at: Date | null;
+  terms_version: string | null;
+  show_on_leaderboards: boolean;
 }
 
 export const toAccount = (r: AccountRow): Account => ({
@@ -38,6 +47,9 @@ export const toAccount = (r: AccountRow): Account => ({
   createdAt: r.created_at,
   displayNameChangedAt: r.display_name_changed_at,
   lastSeenAt: r.last_seen_at,
+  adultConfirmedAt: r.adult_confirmed_at,
+  termsVersion: r.terms_version === null ? null : Number(r.terms_version),
+  showOnLeaderboards: r.show_on_leaderboards,
 });
 
 /** What other players and the client may see about someone. */
@@ -56,10 +68,16 @@ const isUniqueViolation = (e: unknown): boolean => typeof e === 'object' && e !=
 export interface AccountServiceOptions {
   /** Time you must wait between name changes (a first custom name is always free). */
   renameCooldownMs?: number;
+  /** New accounts must confirm they are 18 or older. */
+  requireAdult?: boolean;
+  /** The current terms version, stamped on new accounts. */
+  termsVersion?: number;
 }
 
 export class AccountService {
   private readonly renameCooldownMs: number;
+  private readonly requireAdult: boolean;
+  readonly termsVersion: number;
 
   constructor(
     private readonly db: Db,
@@ -67,6 +85,26 @@ export class AccountService {
     opts: AccountServiceOptions = {},
   ) {
     this.renameCooldownMs = opts.renameCooldownMs ?? 7 * 24 * 60 * 60_000;
+    this.requireAdult = opts.requireAdult ?? true;
+    this.termsVersion = opts.termsVersion ?? 1;
+  }
+
+  /** True if this person has confirmed they are an adult (or the server does not ask for it). */
+  meetsAgeRequirement(account: Account): boolean {
+    return !this.requireAdult || account.adultConfirmedAt !== null;
+  }
+
+  /** Throws unless the person has confirmed they are 18 or older. Used before ranked play and voice. */
+  requireAdultAccount(account: Account): void {
+    if (!this.meetsAgeRequirement(account)) {
+      throw new DomainError('adult_confirmation_required', 'Confirm that you are 18 or older to use this', 403);
+    }
+  }
+
+  private assertAdultConfirmed(confirmed: boolean | undefined): void {
+    if (this.requireAdult && !confirmed) {
+      throw new DomainError('adult_confirmation_required', 'You must confirm that you are 18 or older to play', 400);
+    }
   }
 
   /** Validates a name the person typed. Throws a 400 with a specific code if it is not allowed. */
@@ -76,19 +114,50 @@ export class AccountService {
     return check.name;
   }
 
-  async createGuest(displayName?: string): Promise<Account> {
+  async createGuest(displayName?: string, opts: { adultConfirmed?: boolean } = {}): Promise<Account> {
+    this.assertAdultConfirmed(opts.adultConfirmed);
     const name = displayName === undefined ? defaultGuestName() : this.cleanName(displayName);
-    return this.insertAccount(this.db, name, true, displayName === undefined ? null : new Date(this.now()));
+    return this.insertAccount(this.db, name, true, displayName === undefined ? null : new Date(this.now()), Boolean(opts.adultConfirmed));
   }
 
-  private async insertAccount(q: Queryable, name: string, isGuest: boolean, nameChangedAt: Date | null): Promise<Account> {
+  private async insertAccount(q: Queryable, name: string, isGuest: boolean, nameChangedAt: Date | null, adultConfirmed: boolean): Promise<Account> {
     const id = randomUUID();
+    const now = new Date(this.now());
     const res = await q.query<AccountRow>(
-      `INSERT INTO accounts (id, display_name, is_guest, display_name_changed_at, created_at, last_seen_at)
-       VALUES ($1, $2, $3, $4, $5, $5) RETURNING *`,
-      [id, name, isGuest, nameChangedAt, new Date(this.now())],
+      `INSERT INTO accounts (id, display_name, is_guest, display_name_changed_at, created_at, last_seen_at, adult_confirmed_at, terms_version)
+       VALUES ($1, $2, $3, $4, $5, $5, $6, $7) RETURNING *`,
+      [id, name, isGuest, nameChangedAt, now, adultConfirmed ? now : null, adultConfirmed ? String(this.termsVersion) : null],
     );
     return toAccount(res.rows[0]!);
+  }
+
+  /** For accounts made before adults-only was switched on: they confirm now. */
+  async confirmAdult(id: string): Promise<Account> {
+    const res = await this.db.query<AccountRow>(
+      `UPDATE accounts SET adult_confirmed_at = COALESCE(adult_confirmed_at, $2), terms_version = COALESCE(terms_version, $3) WHERE id = $1 RETURNING *`,
+      [id, new Date(this.now()), String(this.termsVersion)],
+    );
+    if (!res.rows[0]) throw new DomainError('unknown_account', 'Account not found', 404);
+    return toAccount(res.rows[0]);
+  }
+
+  /** The person accepts the current terms. */
+  async acceptTerms(id: string, version: number): Promise<Account> {
+    if (version !== this.termsVersion) throw new DomainError('bad_terms_version', `The current terms are version ${this.termsVersion}`, 409);
+    const res = await this.db.query<AccountRow>('UPDATE accounts SET terms_version = $2 WHERE id = $1 RETURNING *', [id, String(version)]);
+    if (!res.rows[0]) throw new DomainError('unknown_account', 'Account not found', 404);
+    return toAccount(res.rows[0]);
+  }
+
+  /** True when the terms have changed since they last accepted. */
+  needsTermsAccept(account: Account): boolean {
+    return (account.termsVersion ?? 0) < this.termsVersion;
+  }
+
+  async setLeaderboardVisibility(id: string, visible: boolean): Promise<Account> {
+    const res = await this.db.query<AccountRow>('UPDATE accounts SET show_on_leaderboards = $2 WHERE id = $1 RETURNING *', [id, visible]);
+    if (!res.rows[0]) throw new DomainError('unknown_account', 'Account not found', 404);
+    return toAccount(res.rows[0]);
   }
 
   async get(id: string): Promise<Account | null> {
@@ -104,7 +173,7 @@ export class AccountService {
    */
   async signInWithIdentity(
     identity: VerifiedIdentity,
-    opts: { linkTo?: string; displayName?: string } = {},
+    opts: { linkTo?: string; displayName?: string; adultConfirmed?: boolean } = {},
   ): Promise<{ account: Account; created: boolean; linked: boolean; switched: boolean }> {
     const name = opts.displayName === undefined ? undefined : this.cleanName(opts.displayName);
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -132,12 +201,18 @@ export class AccountService {
                 opts.linkTo,
                 new Date(this.now()),
               ]);
-              const updated = await tx.query<AccountRow>('UPDATE accounts SET is_guest = false WHERE id = $1 RETURNING *', [opts.linkTo]);
+              const updated = await tx.query<AccountRow>(
+                `UPDATE accounts SET is_guest = false,
+                   adult_confirmed_at = CASE WHEN $2::boolean THEN COALESCE(adult_confirmed_at, $3) ELSE adult_confirmed_at END
+                 WHERE id = $1 RETURNING *`,
+                [opts.linkTo, Boolean(opts.adultConfirmed), new Date(this.now())],
+              );
               return { account: toAccount(updated.rows[0]!), created: false, linked: true, switched: false };
             }
           }
 
-          const account = await this.insertAccount(tx, name ?? defaultGuestName(), false, name ? new Date(this.now()) : null);
+          this.assertAdultConfirmed(opts.adultConfirmed);
+          const account = await this.insertAccount(tx, name ?? defaultGuestName(), false, name ? new Date(this.now()) : null, Boolean(opts.adultConfirmed));
           await tx.query('INSERT INTO identities (provider, subject, account_id, created_at) VALUES ($1, $2, $3, $4)', [
             identity.provider,
             identity.subject,
@@ -223,7 +298,16 @@ export class AccountService {
     ]);
     return {
       exportedAt: new Date(this.now()).toISOString(),
-      account: { id: account.id, displayName: account.displayName, isGuest: account.isGuest, createdAt: account.createdAt, lastSeenAt: account.lastSeenAt },
+      account: {
+        id: account.id,
+        displayName: account.displayName,
+        isGuest: account.isGuest,
+        createdAt: account.createdAt,
+        lastSeenAt: account.lastSeenAt,
+        adultConfirmedAt: account.adultConfirmedAt,
+        termsVersion: account.termsVersion,
+        showOnLeaderboards: account.showOnLeaderboards,
+      },
       signInMethods: identities.rows,
       stats: stats.rows[0] ?? null,
       matches: matches.rows,

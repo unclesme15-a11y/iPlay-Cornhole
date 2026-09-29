@@ -214,7 +214,7 @@ describe('a real server stopping and starting again', () => {
     s.app.inject({ method, url, ...(token ? { headers: { authorization: `Bearer ${token}` } } : {}), ...(payload !== undefined ? { payload: payload as object } : {}) });
 
   async function startMatchWithHuman(s: RunningServer) {
-    const guest = (await call(s, null, 'POST', '/api/auth/guest', { displayName: 'Uncle Me' })).json();
+    const guest = (await call(s, null, 'POST', '/api/auth/guest', { displayName: 'Uncle Me', confirmAdult: true })).json();
     const token = guest.token as string;
     const created = (await call(s, token, 'POST', '/api/matches', { config: { mode: '1v1', playTo: 21 } })).json();
     const id = created.matchId as string;
@@ -305,7 +305,7 @@ describe('a real server stopping and starting again', () => {
   it('a server that is stopping refuses new matches', async () => {
     const sched = new ManualScheduler();
     const one = await boot(sched);
-    const guest = (await call(one, null, 'POST', '/api/auth/guest', {})).json();
+    const guest = (await call(one, null, 'POST', '/api/auth/guest', { confirmAdult: true })).json();
     const stopping = one.stop({ closeDb: false });
     one.services.registry.maintenance = true;
     const res = await call(one, guest.token, 'POST', '/api/matches', {}).catch(() => null);
@@ -316,7 +316,7 @@ describe('a real server stopping and starting again', () => {
   it('a match that ended before the restart is not brought back', async () => {
     const sched = new ManualScheduler();
     const one = await boot(sched);
-    const guest = (await call(one, null, 'POST', '/api/auth/guest', {})).json();
+    const guest = (await call(one, null, 'POST', '/api/auth/guest', { confirmAdult: true })).json();
     const created = (await call(one, guest.token, 'POST', '/api/matches', {})).json();
     await call(one, guest.token, 'POST', `/api/matches/${created.matchId}/leave`, {});
     await one.services.persistence.idle();
@@ -433,7 +433,7 @@ describe.skipIf(!PG_URL)('deploying a new server while the old one is running (r
   it('a second server cannot take over until the first lets go, then it picks up the running match', async () => {
     const sched = new ManualScheduler();
     const old = await start(sched);
-    const guest = (await call(old, null, 'POST', '/api/auth/guest', { displayName: 'Deploy Test' })).json();
+    const guest = (await call(old, null, 'POST', '/api/auth/guest', { displayName: 'Deploy Test', confirmAdult: true })).json();
     const created = (await call(old, guest.token, 'POST', '/api/matches', { config: { mode: '1v1', playTo: 11 } })).json();
     await call(old, guest.token, 'POST', `/api/matches/${created.matchId}/start`, {});
 

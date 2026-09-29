@@ -27,7 +27,7 @@ describe.each(backends)('moderation and history ($name)', (backend) => {
   beforeEach(async () => {
     await db.exec('TRUNCATE accounts, matches, live_matches, reports RESTART IDENTITY CASCADE');
     now = T0;
-    accounts = new AccountService(db, () => now);
+    accounts = new AccountService(db, () => now, { requireAdult: false });
     mod = new ModerationService(db, () => now);
     history = new MatchHistory(db);
   });
@@ -127,7 +127,7 @@ describe.each(backends)('moderation and history ($name)', (backend) => {
 
     it('adds up over several matches', async () => {
       const w = await accounts.createGuest('Winner W');
-      for (let i = 0; i < 3; i++) await history.record(summary([player({ accountId: w.id })], { endedAt: new Date(now + i * 1000) }));
+      for (let i = 0; i < 3; i++) await history.record(summary([player({ accountId: w.id })], { createdAt: new Date(now + i * 1000), endedAt: new Date(now + i * 1000) }));
       expect(await history.stats(w.id)).toMatchObject({ games: 3, wins: 3, throws: 24, holes: 6 });
     });
 

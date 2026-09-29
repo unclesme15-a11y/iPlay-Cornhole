@@ -140,4 +140,68 @@ CREATE TRIGGER accounts_anonymise_history BEFORE DELETE ON accounts
   FOR EACH ROW EXECUTE FUNCTION anonymise_match_players();
 `,
   },
+  {
+    version: 3,
+    name: 'adult confirmation, ranked play, ratings and leaderboards',
+    sql: `
+-- Every iPlay game is for adults: we keep when the player confirmed it and which terms they accepted.
+ALTER TABLE accounts
+  ADD COLUMN adult_confirmed_at timestamptz,
+  ADD COLUMN terms_version text,
+  ADD COLUMN show_on_leaderboards boolean NOT NULL DEFAULT true;
+
+ALTER TABLE reports DROP CONSTRAINT reports_reason_check;
+ALTER TABLE reports ADD CONSTRAINT reports_reason_check
+  CHECK (reason IN ('harassment', 'cheating', 'inappropriate_name', 'underage', 'other'));
+
+ALTER TABLE matches
+  ADD COLUMN ranked text CHECK (ranked IN ('singles', 'teams')),
+  ADD COLUMN voided boolean NOT NULL DEFAULT false;
+-- A result can only be saved once, so retrying a save that already went through does nothing.
+CREATE UNIQUE INDEX matches_code_created_uniq ON matches (code, created_at);
+CREATE INDEX matches_ranked_idx ON matches (ended_at DESC) WHERE ranked IS NOT NULL;
+
+ALTER TABLE match_players
+  ADD COLUMN rating_before int,
+  ADD COLUMN rating_after int;
+
+-- One rating per player for 1v1.
+CREATE TABLE singles_ratings (
+  account_id text PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+  rating int NOT NULL,
+  peak int NOT NULL,
+  games int NOT NULL DEFAULT 0,
+  wins int NOT NULL DEFAULT 0,
+  losses int NOT NULL DEFAULT 0,
+  streak int NOT NULL DEFAULT 0,
+  last_played_at timestamptz NOT NULL
+);
+CREATE INDEX singles_ratings_rank_idx ON singles_ratings (rating DESC, games DESC);
+
+-- One rating per pair of partners for 2v2. member_a is always the smaller id so a pair is one row.
+CREATE TABLE duo_ratings (
+  duo_key text PRIMARY KEY,
+  member_a text NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  member_b text NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  rating int NOT NULL,
+  peak int NOT NULL,
+  games int NOT NULL DEFAULT 0,
+  wins int NOT NULL DEFAULT 0,
+  losses int NOT NULL DEFAULT 0,
+  streak int NOT NULL DEFAULT 0,
+  last_played_at timestamptz NOT NULL,
+  CHECK (member_a < member_b)
+);
+CREATE INDEX duo_ratings_rank_idx ON duo_ratings (rating DESC, games DESC);
+CREATE INDEX duo_ratings_member_a_idx ON duo_ratings (member_a);
+CREATE INDEX duo_ratings_member_b_idx ON duo_ratings (member_b);
+
+-- Players who walk out of a ranked match wait before queueing again.
+CREATE TABLE ranked_cooldowns (
+  account_id text PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+  until timestamptz NOT NULL,
+  reason text NOT NULL
+);
+`,
+  },
 ];

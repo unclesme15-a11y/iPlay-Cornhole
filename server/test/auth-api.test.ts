@@ -41,7 +41,7 @@ const admin = (t: Booted, method: 'GET' | 'POST', url: string, payload?: unknown
 describe('guests', () => {
   it('signs up a guest who can use the API straight away', async () => {
     const t = await env.boot();
-    const res = await t.call(null, 'POST', '/api/auth/guest', {});
+    const res = await t.call(null, 'POST', '/api/auth/guest', { confirmAdult: true });
     expect(res.statusCode).toBe(201);
     const json = res.json();
     expect(json.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
@@ -54,31 +54,31 @@ describe('guests', () => {
 
   it('applies the name filter to a chosen name', async () => {
     const t = await env.boot();
-    expect((await t.call(null, 'POST', '/api/auth/guest', { displayName: 'sh1t' })).json().error.code).toBe('name_profane');
-    expect((await t.call(null, 'POST', '/api/auth/guest', { displayName: 'iPlay Support' })).json().error.code).toBe('name_reserved');
-    expect((await t.call(null, 'POST', '/api/auth/guest', { displayName: 'Big Mike' })).json().account.displayName).toBe('Big Mike');
+    expect((await t.call(null, 'POST', '/api/auth/guest', { displayName: 'sh1t', confirmAdult: true })).json().error.code).toBe('name_profane');
+    expect((await t.call(null, 'POST', '/api/auth/guest', { displayName: 'iPlay Support', confirmAdult: true })).json().error.code).toBe('name_reserved');
+    expect((await t.call(null, 'POST', '/api/auth/guest', { displayName: 'Big Mike', confirmAdult: true })).json().account.displayName).toBe('Big Mike');
   });
 
   it('can be switched off so only Apple and Google accounts exist', async () => {
     const t = await env.boot({ env: { ALLOW_GUESTS: 'false' } });
-    const res = await t.call(null, 'POST', '/api/auth/guest', {});
+    const res = await t.call(null, 'POST', '/api/auth/guest', { confirmAdult: true });
     expect(res.statusCode).toBe(403);
     expect(res.json().error.code).toBe('guests_disabled');
   });
 
   it('rejects unknown fields', async () => {
     const t = await env.boot();
-    expect((await t.call(null, 'POST', '/api/auth/guest', { displayName: 'Fine Name', isAdmin: true })).statusCode).toBe(400);
+    expect((await t.call(null, 'POST', '/api/auth/guest', { displayName: 'Fine Name', isAdmin: true, confirmAdult: true })).statusCode).toBe(400);
   });
 });
 
 describe('sign in with Apple and Google', () => {
   it('creates an account on first sign-in and finds it on the next', async () => {
     const t = await bootWithProviders();
-    const first = await t.call(null, 'POST', '/api/auth/apple', { identityToken: appleToken(t), nonce: NONCE, displayName: 'Keisha 34' });
+    const first = await t.call(null, 'POST', '/api/auth/apple', { identityToken: appleToken(t), nonce: NONCE, displayName: 'Keisha 34', confirmAdult: true });
     expect(first.statusCode).toBe(201);
     expect(first.json()).toMatchObject({ created: true, linked: false, account: { displayName: 'Keisha 34', isGuest: false } });
-    const second = await t.call(null, 'POST', '/api/auth/apple', { identityToken: appleToken(t), nonce: NONCE });
+    const second = await t.call(null, 'POST', '/api/auth/apple', { identityToken: appleToken(t), nonce: NONCE, confirmAdult: true });
     expect(second.statusCode).toBe(200);
     expect(second.json().account.id).toBe(first.json().account.id);
     expect(second.json().token).not.toBe(first.json().token); // a new session on each sign-in
@@ -88,7 +88,7 @@ describe('sign in with Apple and Google', () => {
 
   it('works for Google too', async () => {
     const t = await bootWithProviders();
-    const res = await t.call(null, 'POST', '/api/auth/google', { idToken: googleToken(t), nonce: NONCE });
+    const res = await t.call(null, 'POST', '/api/auth/google', { idToken: googleToken(t), nonce: NONCE, confirmAdult: true });
     expect(res.statusCode).toBe(201);
     expect((await t.call(res.json().token, 'GET', '/api/me')).json().signInMethods).toEqual(['google']);
   });
@@ -98,10 +98,10 @@ describe('sign in with Apple and Google', () => {
     const forger = makeKey('k1');
     const now = t.scheduler.now() / 1000;
     const forged = signJwt(forger, { iss: 'https://appleid.apple.com', aud: 'com.iplay.cornhole', sub: 'x', exp: now + 600, nonce: hashed });
-    expect((await t.call(null, 'POST', '/api/auth/apple', { identityToken: forged, nonce: NONCE })).json().error.code).toBe('invalid_identity_token');
-    expect((await t.call(null, 'POST', '/api/auth/apple', { identityToken: appleToken(t), nonce: 'a-different-nonce' })).json().error.code).toBe('invalid_identity_token');
-    expect((await t.call(null, 'POST', '/api/auth/apple', { identityToken: appleToken(t, 'x', { exp: now - 3600 }), nonce: NONCE })).json().error.code).toBe('invalid_identity_token');
-    const noNonce = await t.call(null, 'POST', '/api/auth/apple', { identityToken: appleToken(t) });
+    expect((await t.call(null, 'POST', '/api/auth/apple', { identityToken: forged, nonce: NONCE, confirmAdult: true })).json().error.code).toBe('invalid_identity_token');
+    expect((await t.call(null, 'POST', '/api/auth/apple', { identityToken: appleToken(t), nonce: 'a-different-nonce', confirmAdult: true })).json().error.code).toBe('invalid_identity_token');
+    expect((await t.call(null, 'POST', '/api/auth/apple', { identityToken: appleToken(t, 'x', { exp: now - 3600 }), nonce: NONCE, confirmAdult: true })).json().error.code).toBe('invalid_identity_token');
+    const noNonce = await t.call(null, 'POST', '/api/auth/apple', { identityToken: appleToken(t), confirmAdult: true });
     expect(noNonce.statusCode).toBe(400);
     expect(noNonce.json().error.code).toBe('nonce_required');
     expect((await t.db.query('SELECT 1 FROM accounts')).rowCount).toBe(0);
@@ -109,7 +109,7 @@ describe('sign in with Apple and Google', () => {
 
   it('reports a provider that is not set up', async () => {
     const t = await env.boot();
-    const res = await t.call(null, 'POST', '/api/auth/apple', { identityToken: 'x'.repeat(30), nonce: NONCE });
+    const res = await t.call(null, 'POST', '/api/auth/apple', { identityToken: 'x'.repeat(30), nonce: NONCE, confirmAdult: true });
     expect(res.statusCode).toBe(501);
     expect(res.json().error.code).toBe('provider_not_configured');
   });
@@ -118,7 +118,7 @@ describe('sign in with Apple and Google', () => {
     const t = await bootWithProviders();
     const guest = await t.guest('Dre Dre');
     await t.db.query('INSERT INTO player_stats (account_id, games, wins) VALUES ($1, 4, 3)', [guest.id]);
-    const res = await t.call(guest.token, 'POST', '/api/auth/apple', { identityToken: appleToken(t), nonce: NONCE });
+    const res = await t.call(guest.token, 'POST', '/api/auth/apple', { identityToken: appleToken(t), nonce: NONCE, confirmAdult: true });
     expect(res.json()).toMatchObject({ linked: true, created: false, switched: false, account: { id: guest.id, isGuest: false } });
     const me = (await t.call(res.json().token, 'GET', '/api/me')).json();
     expect(me.stats).toMatchObject({ games: 4, wins: 3 });
@@ -127,16 +127,16 @@ describe('sign in with Apple and Google', () => {
 
   it('signing in on a phone that holds a different guest switches to the existing account', async () => {
     const t = await bootWithProviders();
-    const original = await t.call(null, 'POST', '/api/auth/apple', { identityToken: appleToken(t), nonce: NONCE });
+    const original = await t.call(null, 'POST', '/api/auth/apple', { identityToken: appleToken(t), nonce: NONCE, confirmAdult: true });
     const newGuest = await t.guest();
-    const res = await t.call(newGuest.token, 'POST', '/api/auth/apple', { identityToken: appleToken(t), nonce: NONCE });
+    const res = await t.call(newGuest.token, 'POST', '/api/auth/apple', { identityToken: appleToken(t), nonce: NONCE, confirmAdult: true });
     expect(res.json()).toMatchObject({ switched: true, linked: false });
     expect(res.json().account.id).toBe(original.json().account.id);
   });
 
   it('the name filter applies to a name sent with sign-in', async () => {
     const t = await bootWithProviders();
-    const res = await t.call(null, 'POST', '/api/auth/apple', { identityToken: appleToken(t), nonce: NONCE, displayName: 'admin' });
+    const res = await t.call(null, 'POST', '/api/auth/apple', { identityToken: appleToken(t), nonce: NONCE, displayName: 'admin', confirmAdult: true });
     expect(res.statusCode).toBe(400);
     expect(res.json().error.code).toBe('name_reserved');
   });
@@ -326,7 +326,7 @@ describe('admin', () => {
     expect(t.services.registry.get(created.matchId)!.currentPhase).toBe('abandoned');
 
     // they cannot get a new login while banned
-    const viaApple = await t.call(null, 'POST', '/api/auth/apple', { identityToken: appleToken(t, 'apple-ban'), nonce: NONCE, displayName: 'Banned Guy' });
+    const viaApple = await t.call(null, 'POST', '/api/auth/apple', { identityToken: appleToken(t, 'apple-ban'), nonce: NONCE, displayName: 'Banned Guy', confirmAdult: true });
     expect(viaApple.statusCode).toBe(201); // a different person: this identity is new
     // the ban ends by itself
     t.scheduler.advance(8 * 24 * 60 * 60_000);
@@ -344,9 +344,9 @@ describe('admin', () => {
 
   it('a banned Apple/Google account cannot sign back in', async () => {
     const t = await bootWithProviders();
-    const first = await t.call(null, 'POST', '/api/auth/apple', { identityToken: appleToken(t), nonce: NONCE });
+    const first = await t.call(null, 'POST', '/api/auth/apple', { identityToken: appleToken(t), nonce: NONCE, confirmAdult: true });
     await admin(t, 'POST', `/admin/accounts/${first.json().account.id}/ban`, { reason: 'x' });
-    const again = await t.call(null, 'POST', '/api/auth/apple', { identityToken: appleToken(t), nonce: NONCE });
+    const again = await t.call(null, 'POST', '/api/auth/apple', { identityToken: appleToken(t), nonce: NONCE, confirmAdult: true });
     expect(again.statusCode).toBe(403);
     expect(again.json().error.code).toBe('account_banned');
   });

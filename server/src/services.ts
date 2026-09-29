@@ -62,7 +62,7 @@ export function createServices(db: Db, scheduler: Scheduler, config: AppConfig, 
     db,
     config,
     scheduler,
-    accounts: new AccountService(db, now),
+    accounts: new AccountService(db, now, { requireAdult: config.REQUIRE_ADULT_CONFIRMATION, termsVersion: config.TERMS_VERSION }),
     sessions: new SessionService(db, now),
     providers: new IdentityProviders({
       appleClientIds: config.APPLE_CLIENT_IDS,

@@ -24,7 +24,7 @@ describe.each(backends)('accounts and sessions ($name)', (backend) => {
   beforeEach(async () => {
     await db.exec('TRUNCATE accounts, matches, live_matches, reports RESTART IDENTITY CASCADE');
     now = T0;
-    accounts = new AccountService(db, () => now);
+    accounts = new AccountService(db, () => now, { requireAdult: false });
     sessions = new SessionService(db, () => now);
   });
 
