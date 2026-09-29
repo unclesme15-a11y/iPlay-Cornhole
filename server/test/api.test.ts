@@ -82,7 +82,7 @@ describe('creating and joining', () => {
       config: { mode: '2v2', playTo: 15, bust: true, skunk: true, distance: 'backyard', throwTimerSec: null, boardCam: false, tutorial: true },
       seats: { B1: { kind: 'human' }, A2: { kind: 'bot', level: 'pro' }, B2: { kind: 'bot', level: 'rookie' } },
     });
-    expect(json.view.config).toEqual({ mode: '2v2', playTo: 15, bust: true, skunk: true, distance: 'backyard', throwTimerSec: null, boardCam: false, tutorial: true });
+    expect(json.view.config).toEqual({ mode: '2v2', playTo: 15, bust: true, skunk: true, distance: 'backyard', throwTimerSec: null, boardCam: false, tutorial: true, wind: 'breezy' });
     const seats = Object.fromEntries(json.view.seats.map((s: { id: string }) => [s.id, s]));
     expect(seats.B1.kind).toBe('human');
     expect(seats.A2.botLevel).toBe('pro');

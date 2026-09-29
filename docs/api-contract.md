@@ -87,6 +87,7 @@ Other players' account ids come from `view.seats[].accountId`.
 - `voice: { enabled, provider }`: hide the voice UI when `enabled` is false.
 - `ads: { enabled, interstitialEveryNMatches, minSecondsBetweenInterstitials, menuBanner, duringMatch: false }`: how the app should pace ads (see **Ads** below).
 - `ranked: { modes, playTo, cooldownMinutes }` and `terms: { currentVersion, minAge: 18 }`.
+- `throwing`: every number needed to draw the aim line, landing ring, hole marks and shot picker exactly as the server computes them (see `docs/throwing-controls.md`).
 
 ## Matches
 
@@ -94,10 +95,12 @@ Other players' account ids come from `view.seats[].accountId`.
 
 ```json
 {
-  "config": { "mode": "2v2", "playTo": 21, "bust": false, "skunk": false, "distance": "regulation", "throwTimerSec": 20, "boardCam": true, "tutorial": false },
+  "config": { "mode": "2v2", "playTo": 21, "bust": false, "skunk": false, "distance": "regulation", "throwTimerSec": 20, "boardCam": true, "tutorial": false, "wind": "breezy" },
   "seats": { "B1": { "kind": "human" }, "A2": { "kind": "bot", "level": "pro" } }
 }
 ```
+
+`wind` is `off`, `light` (1-5 mph), `breezy` (3-10, the default) or `gusty` (8-16, bigger gusts). The tutorial is always calm; ranked is always breezy.
 
 Everything is optional (2v2, play to 21, you in `A1`, everyone else a Regular bot). Unknown fields are rejected, which is how "no wagers" is enforced. You are the host, in seat `A1`, using your account's name.
 
@@ -149,7 +152,8 @@ An account can be in only one running match. Creating or joining another returns
 ### Throwing: `POST /api/matches/:id/throw`
 
 ```json
-{ "power": 0.604, "aim": 0.0, "arc": 0.85, "spin": 0.0, "leftHanded": false }
+{ "power": 0.604, "aim": 0.0, "arc": 0.9, "spin": 0.0, "leftHanded": false,
+  "release": { "angleDeg": 1.5, "speed": 3.2, "holdMs": 900, "curve": 0.0 } }
 ```
 
 | Field | Range | Meaning |
@@ -159,8 +163,11 @@ An account can be in only one running match. Creating or joining another returns
 | `arc` | 0 to 1 | 0 is a flat skimmer that slides a long way, 1 is a high lob that sticks |
 | `spin` | -1 to 1 | Sideways drift while sliding (default 0) |
 | `leftHanded` | boolean | Only changes which side the flight starts from |
+| `release` | object, **recommended** | How the player flicked. `angleDeg` (-60 to 60): how far the flick leaned from straight up, negative = left. `speed` (0 to 30): screen heights per second. `holdMs` (0 to 60000): how long the bag was held pulled back. `curve` (-1 to 1): how much the flick bent. The server turns this into a push/pull, a short-arm, extra scatter and spin, and it **replaces `spin`**. Without `release` the throw counts as a perfectly clean flick. |
 
-Returns `{ "accepted": true }`. The result arrives as a `throw_result` event. Only valid when `view.turn.seat` is your seat and `view.turn.controlledBy` is `"human"` (`409 not_your_turn` otherwise). The server adds a small random wobble.
+`aim`, `power` and `arc` are what the player lined up (the calm-day spot); **do not correct them for wind**, the server applies the wind. See `docs/throwing-controls.md` for how the controls map to these.
+
+Returns `{ "accepted": true }`. The result arrives as a `throw_result` event. Only valid when `view.turn.seat` is your seat and `view.turn.controlledBy` is `"human"` (`409 not_your_turn` otherwise). The server adds a small random wobble, then the wind (the shown wind plus this throw's gust).
 
 ### Leaving
 
@@ -307,6 +314,7 @@ Your seat counts as **connected** while at least one of your sockets is open. If
 | `color_picked` | `{ team, colorId, auto }` | Same |
 | `coin_toss` | `{ firstTeam }` | Who throws first |
 | `turn_start` | `{ seat, team, bagId, inning, fromEnd, targetEnd, throwNumber, bagsLeft, controlledBy, deadlineAt }` | A turn opens. `deadlineAt` is the throw clock (null for bots or no timer) |
+| `wind` | `{ wind: { mph, towardDeg, gustiness }, inning }` | The field's wind, set when play starts and nudged each inning |
 | `turn_control` | `{ seat, controlledBy }` | A bot took over the current turn |
 | **`throw_result`** | see below | **A bag was thrown** |
 | `throw_timeout` | `{ seat, bagId }` | The clock ran out (a foul) |
@@ -345,6 +353,13 @@ cues: [ { atMs, reason, bagId?, sound?, led? } ]
 
 **How to play it back:** start the flight at time 0, walk the `flight` samples, then at `flightMs` start the `slide` frames (their `t` counts from touchdown). Fire each `cues` entry at `atMs` after release. Stop the bag at `resting`.
 
+
+**Wind and release in `throw_result`:**
+
+- `wind`: `{ cross, along, driftX, driftY }`: the wind this bag actually flew through (mph, from the thrower's side: `cross` + = pushing right, `along` + = carrying long) and how far it moved the landing (inches). Use it to draw the faint calm-day path next to the real one.
+- `release`: `{ pushIn, shortIn, shake, spin, verdict, aimed }` or null. `verdict` is `pure`, `pushed`, `pulled`, `short-armed` or `shaky` (show it on the replay). `aimed` is the gesture the player lined up; `gesture` is what was actually thrown after the flick.
+
+**Wind on the turn:** `turn_start` and `view.turn` carry `wind: { mph, towardDeg, cross, along }` already turned to the thrower's point of view (`towardDeg` 0 = blowing toward the board, 90 = to their right, 180 = in their face). `view.wind` is the field's wind (`towardDeg` from end 0's point of view) or null before play.
 ### Cues: the sound and the lights
 
 For every bag that drops in the hole there is one cue:

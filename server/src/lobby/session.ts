@@ -23,6 +23,8 @@ import type { MatchSummary, PlayerSummary } from '../accounts/history.js';
 import type { RankedMode, RatingUpdate } from '../ranking/ratings.js';
 import { decideThrow, type BotLevel } from '../bots/botPolicy.js';
 import { isValidGesture, simulateThrow, type ThrowGesture, type ThrowSimResult } from '../physics/throwSim.js';
+import { CALM, relativeWind, rollWind, shiftWind, type RelativeWind, type Wind, type WindLevel } from '../physics/wind.js';
+import { applyRelease, type ReleaseEffect, type ReleaseInput } from '../physics/release.js';
 import { cuesForThrow, scoreCue, victoryCue, type LedCue, type PresentationCue } from '../presentation/effects.js';
 import type { Scheduler } from './scheduler.js';
 
@@ -117,6 +119,8 @@ export interface SessionSnapshot {
   seatStats: Record<SeatId, SeatStats>;
   lastActivity: number;
   ranked?: RankedMode | null;
+  wind?: Wind;
+  windInning?: number;
 }
 
 export interface SessionEvent {
@@ -212,12 +216,14 @@ export interface MatchView {
   scores: Record<TeamId, number>;
   inning: number;
   firstTeam: TeamId | null;
-  turn: (Omit<Turn, 'controlledBy'> & { controlledBy: 'human' | 'bot'; fromEnd: 0 | 1; targetEnd: 0 | 1; throwNumber: number; bagsLeft: Record<TeamId, number> }) | null;
+  turn: (Omit<Turn, 'controlledBy'> & { controlledBy: 'human' | 'bot'; fromEnd: 0 | 1; targetEnd: 0 | 1; throwNumber: number; bagsLeft: Record<TeamId, number>; wind: RelativeWind }) | null;
   board: Array<{ id: string; team: TeamId; status: 'board' | 'hole'; x: number | null; y: number | null }>;
   history: InningResult[];
   winner: TeamId | null;
   winReason: WinReason | 'abandoned' | null;
   rematch: { deadlineAt: number; votes: Record<string, boolean>; matchId: string | null; cancelled: boolean } | null;
+  /** The field's wind right now (null before play). The turn has the same wind from the thrower's point of view. */
+  wind: Wind | null;
   /** 'singles' or 'teams' for a ranked match, otherwise null. */
   ranked: RankedMode | null;
   /** Ranked only, once the result is saved: how each player's rating moved (null until then). */
@@ -266,6 +272,9 @@ export class MatchSession {
   private seatStats: Record<SeatId, SeatStats>;
   private rematch: RematchState | null = null;
   private ended = false;
+  private wind: Wind = { ...CALM };
+  /** The inning the current wind was set for (0 = not yet). */
+  private windInning = 0;
 
   readonly createdAt: number;
   readonly rematchOf: string | null;
@@ -553,6 +562,18 @@ export class MatchSession {
     this.setTimer('phase', tossMs, () => this.startPlaying());
   }
 
+  private get windLevel(): WindLevel {
+    return this.config.tutorial ? 'off' : (this.config.wind ?? 'breezy');
+  }
+
+  /** New wind at the start of play; after that it drifts a little each inning. */
+  private updateWind(inning: number): void {
+    if (inning === this.windInning) return;
+    this.wind = this.windInning === 0 ? rollWind(this.windLevel, this.seed()) : shiftWind(this.wind, this.windLevel, this.seed());
+    this.windInning = inning;
+    this.emit('wind', { wind: this.wind, inning });
+  }
+
   private startPlaying(): void {
     this.phase = 'playing';
     this.startedAt ??= this.sched.now();
@@ -567,6 +588,7 @@ export class MatchSession {
     if (!engine || this.phase !== 'playing') return;
     const next = engine.next();
     if (!next) return;
+    this.updateWind(next.inning);
     const seat = this.seat(next.seat);
     const controlledBy: 'human' | 'bot' = seat.kind === 'bot' || seat.controlledByBot ? 'bot' : 'human';
     const timerSec = this.config.throwTimerSec;
@@ -583,6 +605,7 @@ export class MatchSession {
       bagsLeft: next.bagsLeft,
       controlledBy,
       deadlineAt,
+      wind: relativeWind(this.wind, next.fromEnd),
     });
     if (controlledBy === 'bot') this.scheduleBotThrow();
     else if (deadlineAt) this.setTimer('turn', timerSec! * 1000, () => this.onThrowTimeout());
@@ -609,12 +632,13 @@ export class MatchSession {
       bagsLeft: engine.next()!.bagsLeft[turn.team],
       points: provisional.points,
       rng: this.rng,
+      wind: relativeWind(this.wind, engine.next()!.fromEnd),
     });
     this.performThrow(turn, decision.gesture);
   }
 
   /** A human throws. The phone sends only the gesture; the server decides everything else. */
-  throw(playerId: string, gesture: ThrowGesture): void {
+  throw(playerId: string, gesture: ThrowGesture, release?: ReleaseInput): void {
     const player = this.requirePlayer(playerId);
     this.requirePhase('playing');
     const turn = this.turn;
@@ -623,7 +647,12 @@ export class MatchSession {
     }
     if (!isValidGesture(gesture)) throw new DomainError('bad_gesture', 'Throw values are out of range');
     this.touch();
-    this.performThrow(turn, gesture);
+    if (!release) {
+      this.performThrow(turn, gesture);
+      return;
+    }
+    const applied = applyRelease(gesture, release);
+    this.performThrow(turn, applied.gesture, { wobble: applied.wobble, effect: applied.effect, aimed: gesture });
   }
 
   private onThrowTimeout(): void {
@@ -640,7 +669,7 @@ export class MatchSession {
     this.afterEngineEvents(targetEnd, events, 1200);
   }
 
-  private performThrow(turn: Turn, gesture: ThrowGesture): void {
+  private performThrow(turn: Turn, gesture: ThrowGesture, release?: { wobble: number; effect: ReleaseEffect; aimed: ThrowGesture }): void {
     const engine = this.engine!;
     this.turn = null;
     this.clearTimer('turn');
@@ -656,6 +685,9 @@ export class MatchSession {
       boardBags,
       distanceIn: DISTANCE_IN[this.config.distance],
       seed,
+      wind: relativeWind(this.wind, upcoming.fromEnd),
+      gustiness: this.wind.gustiness,
+      ...(release ? { wobble: release.wobble } : {}),
     });
 
     const teamOfBag = (id: string): TeamId => {
@@ -698,6 +730,9 @@ export class MatchSession {
       holeEvents: sim.holeEvents,
       flightMs: sim.flightMs,
       durationMs: sim.durationMs,
+      wind: sim.wind,
+      /** What the flick did (null for bots and for phones that send no release). */
+      release: release ? { ...release.effect, aimed: release.aimed } : null,
       cues,
     });
     this.afterEngineEvents((1 - upcoming.fromEnd) as 0 | 1, events, sim.durationMs + this.timing.reactionMs);
@@ -919,6 +954,7 @@ export class MatchSession {
           targetEnd: (1 - next.fromEnd) as 0 | 1,
           throwNumber: next.throwNumber,
           bagsLeft: next.bagsLeft,
+          wind: relativeWind(this.wind, next.fromEnd),
         }
       : null;
     return {
@@ -946,6 +982,7 @@ export class MatchSession {
       winner: snap?.winner ?? null,
       winReason: this.phase === 'abandoned' ? 'abandoned' : (snap?.winReason ?? null),
       rematch: this.rematch ? { ...this.rematch, votes: { ...this.rematch.votes } } : null,
+      wind: this.windInning > 0 ? { ...this.wind } : null,
       ranked: this.ranked,
       ratings: this.ratingResult
         ? {
@@ -1118,6 +1155,8 @@ export class MatchSession {
       seatStats: this.seatStats,
       lastActivity: this.lastActivity,
       ranked: this.ranked,
+      wind: this.wind,
+      windInning: this.windInning,
     });
   }
 
@@ -1126,7 +1165,7 @@ export class MatchSession {
     if (snap.version !== 1) throw new Error(`Unknown snapshot version ${String(snap.version)}`);
     if (snap.phase === 'finished' || snap.phase === 'abandoned') throw new Error('Finished matches are not restored');
     const data = structuredClone(snap);
-    const session = new MatchSession({ ...opts, id: data.id, config: data.config, createdAt: data.createdAt, rematchOf: data.rematchOf, ranked: data.ranked ?? null });
+    const session = new MatchSession({ ...opts, id: data.id, config: { ...data.config, wind: data.config.wind ?? 'breezy' }, createdAt: data.createdAt, rematchOf: data.rematchOf, ranked: data.ranked ?? null });
     session.startedAt = data.startedAt;
     session.phase = data.phase;
     session.phaseDeadline = data.phaseDeadline;
@@ -1138,6 +1177,8 @@ export class MatchSession {
     session.seq = data.seq;
     session.seatStats = data.seatStats;
     session.lastActivity = data.lastActivity;
+    session.wind = data.wind ?? { ...CALM };
+    session.windInning = data.windInning ?? 0;
     for (const p of data.players) session.players.set(p.id, { ...p, connected: false });
     return session;
   }

@@ -8,6 +8,7 @@ import {
   slideDistance,
   type ThrowGesture,
 } from '../physics/throwSim.js';
+import { windDrift, type RelativeWind } from '../physics/wind.js';
 
 export type BotLevel = 'rookie' | 'regular' | 'pro';
 export const BOT_LEVELS: readonly BotLevel[] = ['rookie', 'regular', 'pro'];
@@ -22,6 +23,9 @@ export const BOT_ERROR_IN: Record<BotLevel, { x: number; y: number }> = {
 /** Chance of a wild throw (aiming error multiplied by SLIP_FACTOR). Real players are steady, then sometimes not. */
 export const BOT_SLIP_CHANCE: Record<BotLevel, number> = { rookie: 0.22, regular: 0.1, pro: 0.04 };
 const SLIP_FACTOR = 3;
+
+/** How well each level reads the wind: the share of the drift it aims off for. */
+export const BOT_WIND_READ: Record<BotLevel, number> = { rookie: 0.3, regular: 0.75, pro: 0.95 };
 
 export interface BotBagView {
   id: string;
@@ -40,6 +44,8 @@ export interface BotContext {
   /** Points each team would score if the inning ended now (raw, before cancellation). */
   points: Record<TeamId, number>;
   rng: Rng;
+  /** The wind as this bot feels it. Omit for calm. */
+  wind?: Pick<RelativeWind, 'cross' | 'along'>;
 }
 
 export type BotIntent = 'hole' | 'slide-hole' | 'block';
@@ -84,7 +90,10 @@ export function decideThrow(ctx: BotContext): BotDecision {
     arc = 0.4 + rng() * 0.1;
   }
 
-  const perfect = gestureToward(target, arc);
+  // Aim off into the wind, as much as this bot understands it.
+  const drift = ctx.wind ? windDrift(arc, ctx.wind) : { x: 0, y: 0 };
+  const read = BOT_WIND_READ[level];
+  const perfect = gestureToward({ x: target.x - drift.x * read, y: target.y - drift.y * read }, arc);
   const base = BOT_ERROR_IN[level];
   const k = rng() < BOT_SLIP_CHANCE[level] ? SLIP_FACTOR : 1;
   const err = { x: base.x * k, y: base.y * k };

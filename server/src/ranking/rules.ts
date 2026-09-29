@@ -11,6 +11,8 @@ export const rankedConfig = (mode: RankedMode): MatchConfig => ({
   throwTimerSec: 20,
   boardCam: true,
   tutorial: false,
+  // The same moderate breeze for every ranked match, so reading the wind is part of the skill.
+  wind: 'breezy',
 });
 
 /** How long a player who walks out of a ranked match must wait before queueing again. */

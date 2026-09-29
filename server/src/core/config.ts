@@ -13,6 +13,7 @@ export const matchConfigSchema = z
     throwTimerSec: z.union([z.literal(20), z.null()]),
     boardCam: z.boolean(),
     tutorial: z.boolean(),
+    wind: z.enum(['off', 'light', 'breezy', 'gusty']),
   })
   .strict()
   .partial();

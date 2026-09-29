@@ -20,7 +20,8 @@
 - **Ranked:** singles and duo teams, fixed rules (21, regulation, no bust or skunk, 20 s clock, all human), Elo ratings starting at 1200, parties for duos, walking out is a loss with a 10-minute wait, void if nobody had thrown.
 - **Leaderboards:** global singles and teams; 10 ranked games and activity in the last 90 days to appear; players can hide themselves.
 - **Voice:** Vivox with a table channel and a team channel, blocked players muted on the blocker's phone.
-- **Ads:** the phone shows them, the server sets the pacing, never during a match.
+- **Ads:** **AppLovin MAX**, the same account across every iPlay game. The phone shows them, the server sets the pacing, never during a match.
+- **Throwing:** line up with an aim line and landing ring, pull back for distance, flick for accuracy (no timing meter). Wind on by default (Breezy), always Breezy in ranked (`throwing-controls.md`).
 
 ### Accounts, data and safety (built without waiting on answers, all changeable)
 
@@ -41,5 +42,6 @@
 - **Hosting:** your Hetzner box, with the other iPlay games (see `hetzner-deploy.md`). Still open: which domain name, and where the off-box backups go.
 - **Ranking numbers:** the starting rating (1200), how fast ratings move (40 / 28 / 20), the matchmaking window, the leaver's 10-minute wait, the 3 / 6 rematch farming limits and the leaderboard rules (10 games, 90 days) are sensible first guesses. Watch real play and tune them (`server/src/ranking/`).
 - **Age check strength:** 18+ is a confirmation tick box. Decide with a lawyer whether your markets need more, and set the store age ratings to 17+ / Mature.
-- **Ad provider:** pick the SDK (for example AdMob or AppLovin MAX), and add the consent screen and ATT prompt.
+- **Throw feel:** the wind strength, the forgiving 3° straight zone, the push per degree and the shaky-arm timing are first guesses (`throwing-controls.md`). Tune them in the first greybox play test.
+- **Ads, still to do:** add the consent screen (EU/UK) and Apple's tracking prompt to the app with AppLovin MAX.
 - **Match history limit:** keep forever, or delete after N months.

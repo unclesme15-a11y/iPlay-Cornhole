@@ -95,13 +95,22 @@ After setup, each player picks a video character, then each team picks a bag col
 - **Play again:** after a match, every human gets 60 seconds to say yes or no. Everyone who says yes keeps their seat, character and bag color and skips the picks; anyone who says no (or nothing) is replaced by a bot.
 - **Stats** (games, wins, losses, leaves, throws, holes, woodies, fouls) are kept per account. Abandoned matches count for nobody.
 
+## Wind And The Throw **[iPlay]**
+
+It's an outdoor cookout, so there's wind. It matters.
+
+- Match Setup: **Wind Off / Light / Breezy / Gusty**, default **Breezy**. Ranked is always Breezy. The tutorial is calm.
+- A crosswind pushes the bag sideways; a tailwind carries it long, a headwind holds it up. High lobs (airmail) hang in the air and get pushed most; flat sliders the least, like real cornhole.
+- The wind belongs to the field: when you switch ends, a tailwind becomes a headwind. It shifts a little each inning, and each throw has a small gust on top.
+- You aim with a line and a landing ring, set distance by pulling the bag back, and your accuracy comes from how cleanly you flick (straight and brisk = pure). No timing meter. Full design: `throwing-controls.md`.
+
 ## Ranked Play **[iPlay]**
 
 Ranked is regulation cornhole with one fixed rule set, so a rating means the same thing for everyone.
 
 - **Rules:** play to 21, regulation distance, no bust, no skunk, 20-second throw clock. Every seat is a real person. No bots, no rematch button.
 - **Singles (1v1)** and **Teams (2v2 duos).** A duo is two people who chose each other with a party code. Duos have their own rating; a new duo starts at the average of its two members' singles ratings.
-- **Rating:** everyone starts at 1200. Beating a stronger opponent earns more than beating a weaker one. New players move fast (first 10 games are "placement"), then more slowly.
+- **Rating:** everyone starts at 1200 (the numbers are explained in `ratings-explained.md`). Beating a stronger opponent earns more than beating a weaker one. New players move fast (first 10 games are "placement"), then more slowly.
 - **Finding a match:** the search starts within ±100 rating points and widens the longer you wait, so you always get a game but close matches come first. People who blocked each other are never matched.
 - **Walking out:** leaving or dropping for 30 seconds is a forfeit, and no bot takes the seat. The leaver's team loses, and the leaver waits 10 minutes before queueing again. If it happens before anyone has thrown, the match is void and nobody's rating changes.
 - **No farming:** after 3 ranked matches against the same opponent(s) in 24 hours the points are halved, and from the 6th they stop.

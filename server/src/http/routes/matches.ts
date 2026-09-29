@@ -5,6 +5,7 @@ import { DomainError } from '../../core/errors.js';
 import { seatsFor } from '../../core/match.js';
 import type { SeatId } from '../../core/types.js';
 import type { MatchSession, SeatPlan } from '../../lobby/session.js';
+import { releaseSchema } from '../../physics/release.js';
 import type { Services } from '../../services.js';
 import type { Auth } from '../context.js';
 
@@ -27,6 +28,8 @@ const throwBody = z
     arc: z.number().finite(),
     spin: z.number().finite().default(0),
     leftHanded: z.boolean().optional(),
+    /** How the player flicked (recommended). Without it the throw is taken as a perfectly clean release. */
+    release: releaseSchema.optional(),
   })
   .strict();
 const eventsQuery = z.object({ since: z.coerce.number().int().min(0).default(0) });
@@ -148,7 +151,7 @@ export function registerMatchRoutes(app: FastifyInstance, services: Services, au
       arc: body.arc,
       spin: body.spin,
       ...(body.leftHanded !== undefined ? { leftHanded: body.leftHanded } : {}),
-    });
+    }, body.release);
     return { accepted: true, seq: session.seqNumber };
   });
 

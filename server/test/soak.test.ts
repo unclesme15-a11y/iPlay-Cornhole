@@ -37,7 +37,7 @@ function playMatch(opts: { seed: number; config: Partial<MatchConfig>; seats: Se
         .filter((b) => b.status === 'board' && b.x !== null && b.y !== null)
         .map((b) => ({ id: b.id, team: b.team, x: b.x!, y: b.y! }));
       const points = { A: 0, B: 0 };
-      const d = decideThrow({ level: opts.humanLevel, team: view.turn.team, boardBags: board, bagsLeft: view.turn.bagsLeft[view.turn.team], points, rng });
+      const d = decideThrow({ level: opts.humanLevel, team: view.turn.team, boardBags: board, bagsLeft: view.turn.bagsLeft[view.turn.team], points, rng, wind: view.turn.wind });
       session.throw(host.playerId, d.gesture);
     }
     sched.advance(700);

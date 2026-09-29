@@ -21,7 +21,11 @@ export interface MatchConfig {
   throwTimerSec: 20 | null;
   boardCam: boolean;
   tutorial: boolean;
+  /** How windy the cookout is. The tutorial is always calm. */
+  wind: WindSetting;
 }
+
+export type WindSetting = 'off' | 'light' | 'breezy' | 'gusty';
 
 export const DEFAULT_CONFIG: MatchConfig = {
   mode: '2v2',
@@ -32,6 +36,7 @@ export const DEFAULT_CONFIG: MatchConfig = {
   throwTimerSec: 20,
   boardCam: true,
   tutorial: false,
+  wind: 'breezy',
 };
 
 export interface BagRecord {

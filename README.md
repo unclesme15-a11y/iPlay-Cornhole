@@ -39,7 +39,8 @@ Separate repo for the iPlay cornhole game. It shares the broader iPlay identity 
 | **Ranked play:** matchmaking, duo parties, Elo ratings, forfeit/void rules | Done, tested |
 | **Global leaderboards** (singles and teams) | Done, tested |
 | **Voice chat** tokens (Vivox), table + team channels, block-list muting | Server done, tested. Unity side not started |
-| **Ad pacing** settings for the app | Done (the ad SDK itself is a phone-side job) |
+| **Ad pacing** settings for the app (AppLovin MAX) | Done (the ad SDK itself is a phone-side job) |
+| **Wind** (off/light/breezy/gusty, gusts, swaps with ends) and **flick accuracy** (push/pull, short-arm, shaky arm, spin) | Done, tested. Controls design in `docs/throwing-controls.md` |
 | **Hetzner deploy pack** (docker-compose, Caddy/nginx, deploy/backup/restore) | Written and validated, **not yet run on a real box** |
 | Unity client | Not started (build against `docs/api-contract.md`) |
 | Kling video plates and character clips | Not started (`artifacts/kling/cornhole-prompts.md`) |
@@ -50,7 +51,7 @@ Separate repo for the iPlay cornhole game. It shares the broader iPlay identity 
 - `deploy/`: run it on your Hetzner box (`docs/hetzner-deploy.md`).
 - `assets/`: sound effects (`audio/`), the iPlay mark for the bags (`logo/`), and the LED board spec (`board/`). Generated files are checked by tests.
 - `preview/`: template for the interactive board preview page.
-- `docs/api-contract.md`: **what the Unity client sends and receives.** `docs/operations.md`: **running, deploying and moderating the server.** `docs/data-and-privacy.md`: what is stored about people. `docs/game-rules.md`: rules contract. `docs/led-board-and-bags.md`: the board, sound and bags. `docs/visual-camera-plan.md`, `docs/multiplayer-plan.md`, `docs/characters.md`, `docs/roadmap.md`, `docs/open-decisions.md`.
+- `docs/api-contract.md`: **what the Unity client sends and receives.** `docs/operations.md`: **running, deploying and moderating the server.** `docs/data-and-privacy.md`: what is stored about people. `docs/game-rules.md`: rules contract. `docs/throwing-controls.md`: **how aiming, power, the flick and wind work.** `docs/ratings-explained.md`: the ranked numbers in plain words. `docs/led-board-and-bags.md`: the board, sound and bags. `docs/visual-camera-plan.md`, `docs/multiplayer-plan.md`, `docs/characters.md`, `docs/roadmap.md`, `docs/open-decisions.md`.
 - `artifacts/kling/cornhole-prompts.md`: Kling plate and clip shot list with prompts.
 
 ## Server

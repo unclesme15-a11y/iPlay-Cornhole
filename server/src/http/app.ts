@@ -18,6 +18,7 @@ import { BOT_LEVELS } from '../bots/botPolicy.js';
 import { NAME_MAX, NAME_MIN } from '../accounts/nameFilter.js';
 import { PROTOCOL_VERSION } from '../lobby/session.js';
 import { LED_BOARD, SOUNDS } from '../presentation/effects.js';
+import { THROWING_GUIDE } from '../physics/guide.js';
 import type { Services } from '../services.js';
 import { makeAuth } from './context.js';
 import { registerRealtime } from './realtime.js';
@@ -116,6 +117,7 @@ export async function buildApp(services: Services): Promise<BuiltApp> {
     },
     ranked: { modes: ['singles', 'teams'], playTo: 21, cooldownMinutes: 10 },
     terms: { currentVersion: config.TERMS_VERSION, minAge: 18 },
+    throwing: THROWING_GUIDE,
   }));
 
   registerAuthRoutes(app, services, auth);

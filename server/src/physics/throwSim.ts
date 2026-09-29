@@ -1,6 +1,7 @@
 import { BAG, BOARD } from '../core/constants.js';
 import { createRng, gaussian } from '../core/rng.js';
 import type { BagStatus, FoulReason } from '../core/types.js';
+import { gustedWind, windDrift, type RelativeWind } from './wind.js';
 
 /**
  * Server-authoritative bag physics.
@@ -46,6 +47,10 @@ export interface ThrowInput {
   seed: number;
   /** Multiplier on the server's random wobble. 1 = human default, 0 = perfectly repeatable. */
   wobble?: number;
+  /** The wind as this thrower feels it. Omit for no wind. */
+  wind?: RelativeWind;
+  /** How much this throw's gust can differ from `wind` (see `Wind.gustiness`). */
+  gustiness?: number;
 }
 
 export interface FlightSample {
@@ -83,6 +88,8 @@ export interface ThrowSimResult {
   holeEvents: HoleEvent[];
   flightMs: number;
   durationMs: number;
+  /** The wind this bag actually flew through (the shown wind plus this throw's gust), and how far it moved the bag. */
+  wind: { cross: number; along: number; driftX: number; driftY: number };
 }
 
 // --- tuning constants -------------------------------------------------------------------------
@@ -144,8 +151,14 @@ export function simulateThrow(input: ThrowInput): ThrowSimResult {
   const wobble = input.wobble ?? 1;
 
   const nominal = nominalLanding(g);
-  const lx = nominal.x + gaussian(rng) * WOBBLE_X * wobble;
-  const ly = nominal.y + gaussian(rng) * WOBBLE_Y * wobble;
+  const calmX = nominal.x + gaussian(rng) * WOBBLE_X * wobble;
+  const calmY = nominal.y + gaussian(rng) * WOBBLE_Y * wobble;
+  // The wind pushes the bag while it is in the air. It is drawn after the wobble, so a throw with
+  // no wind comes out exactly as it always did.
+  const felt = input.wind ? gustedWind(input.wind, input.gustiness ?? 0, rng) : { cross: 0, along: 0 };
+  const drift = windDrift(g.arc, felt);
+  const lx = calmX + drift.x;
+  const ly = calmY + drift.y;
   const landing = { x: round2(lx), y: round2(ly) };
 
   // ---- flight ----
@@ -159,10 +172,11 @@ export function simulateThrow(input: ThrowInput): ThrowSimResult {
   const samples = Math.max(2, Math.round(flightMs / (1000 / 30)));
   for (let i = 0; i <= samples; i++) {
     const u = i / samples;
+    // the wind bends the path more and more the longer the bag is up
     flight.push({
       t: Math.round(u * flightMs),
-      x: round2(originX + (lx - originX) * u),
-      y: round2(originY + (ly - originY) * u),
+      x: round2(originX + (calmX - originX) * u + drift.x * u * u),
+      y: round2(originY + (calmY - originY) * u + drift.y * u * u),
       z: round2(RELEASE_HEIGHT * (1 - u) + zLand * u + 4 * peak * u * (1 - u)),
     });
   }
@@ -172,6 +186,7 @@ export function simulateThrow(input: ThrowInput): ThrowSimResult {
     landing,
     flight,
     flightMs,
+    wind: { cross: round2(felt.cross), along: round2(felt.along), driftX: round2(drift.x), driftY: round2(drift.y) },
   };
 
   // Missed the board entirely (or hit the ground first): foul, bag removed, nothing else moves.

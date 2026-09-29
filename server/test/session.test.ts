@@ -304,7 +304,7 @@ describe('playing a match', () => {
   });
 
   it('a cornhole fires the ring-in sound and LED flash at the moment the bag drops in', () => {
-    const ctx = make({ throwSeed: holeSeed() });
+    const ctx = make({ throwSeed: holeSeed(), config: { wind: 'off' } });
     toPlaying(ctx, 'royal-blue');
     untilHumanTurn(ctx);
     ctx.session.throw(ctx.host.playerId, PERFECT);
