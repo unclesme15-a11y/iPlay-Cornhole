@@ -66,6 +66,27 @@ const envSchema = z
     /** Bump when the terms change: apps then ask players to accept again. */
     TERMS_VERSION: z.coerce.number().int().min(1).default(1),
 
+    /**
+     * Voice chat (Unity Vivox). Set all four or none. The same values can be shared with the other iPlay games
+     * (the IPLAY_VIVOX_* / IPLAY_UNITY_ENVIRONMENT_ID names are accepted too).
+     */
+    VIVOX_ISSUER: z.string().trim().min(1).optional(),
+    VIVOX_DOMAIN: z.string().trim().min(1).optional(),
+    VIVOX_SIGNING_KEY: z.string().trim().min(8).optional(),
+    VIVOX_UNITY_ENVIRONMENT_ID: z.string().trim().min(1).optional(),
+
+    /**
+     * Ads are the only income (nothing is sold). The phone shows them; these are the pacing rules it is told
+     * to follow. Ads never appear during a live match.
+     */
+    ADS_ENABLED: bool(false),
+    /** Show an interstitial after every Nth finished match. */
+    ADS_INTERSTITIAL_EVERY_N_MATCHES: z.coerce.number().int().min(1).max(50).default(3),
+    /** And never closer together than this. */
+    ADS_MIN_SECONDS_BETWEEN_INTERSTITIALS: z.coerce.number().int().min(30).max(3600).default(180),
+    /** A banner on menu screens (never on the throwing screen). */
+    ADS_MENU_BANNER: bool(true),
+
     /** Protects /admin. At least 32 characters. Leave unset to turn the admin API off. */
     ADMIN_TOKEN: z.string().min(32, 'ADMIN_TOKEN must be at least 32 characters').optional(),
     /** Start with new matches switched off (deploys, incidents). */
@@ -76,6 +97,10 @@ const envSchema = z
       if (!env.DATABASE_URL || !/^postgres(ql)?:\/\//.test(env.DATABASE_URL)) {
         ctx.addIssue({ code: 'custom', path: ['DATABASE_URL'], message: 'production needs a postgres:// DATABASE_URL' });
       }
+    }
+    const vivox = [env.VIVOX_ISSUER, env.VIVOX_DOMAIN, env.VIVOX_SIGNING_KEY, env.VIVOX_UNITY_ENVIRONMENT_ID];
+    if (vivox.some(Boolean) && !vivox.every(Boolean)) {
+      ctx.addIssue({ code: 'custom', path: ['VIVOX_ISSUER'], message: 'voice needs all of VIVOX_ISSUER, VIVOX_DOMAIN, VIVOX_SIGNING_KEY and VIVOX_UNITY_ENVIRONMENT_ID, or none of them' });
     }
     if (env.LATEST_CLIENT_VERSION && compareVersions(env.LATEST_CLIENT_VERSION, env.MIN_CLIENT_VERSION) < 0) {
       ctx.addIssue({ code: 'custom', path: ['LATEST_CLIENT_VERSION'], message: 'cannot be older than MIN_CLIENT_VERSION' });
@@ -97,7 +122,13 @@ export function compareVersions(a: string, b: string): number {
 
 /** Reads and validates environment variables. Throws with a readable message if any are bad. */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
-  const parsed = envSchema.safeParse(env);
+  // Share one Vivox setup with the other iPlay games: accept their variable names as a fallback.
+  const shared: NodeJS.ProcessEnv = { ...env };
+  shared.VIVOX_ISSUER ||= env.IPLAY_VIVOX_ISSUER;
+  shared.VIVOX_DOMAIN ||= env.IPLAY_VIVOX_DOMAIN;
+  shared.VIVOX_SIGNING_KEY ||= env.IPLAY_VIVOX_SIGNING_KEY;
+  shared.VIVOX_UNITY_ENVIRONMENT_ID ||= env.IPLAY_UNITY_ENVIRONMENT_ID;
+  const parsed = envSchema.safeParse(shared);
   if (!parsed.success) {
     const problems = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
     throw new Error(`Invalid configuration: ${problems}`);

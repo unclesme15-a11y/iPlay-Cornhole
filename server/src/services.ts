@@ -9,6 +9,7 @@ import type { Db } from './db/types.js';
 import { LiveMatchStore } from './lobby/persistence.js';
 import { RankedService, type RankedOptions } from './ranking/ranked.js';
 import { RatingsReader } from './ranking/reader.js';
+import { VoiceService } from './voice/service.js';
 import type { Scheduler } from './lobby/scheduler.js';
 import type { Timing } from './lobby/session.js';
 import { MatchRegistry, type LogFn } from './store/registry.js';
@@ -26,6 +27,7 @@ export interface Services {
   registry: MatchRegistry;
   ratings: RatingsReader;
   ranked: RankedService;
+  voice: VoiceService;
   log: LogFn;
 }
 
@@ -63,6 +65,7 @@ export function createServices(db: Db, scheduler: Scheduler, config: AppConfig, 
     ...over.registry,
   });
   registry.maintenance = config.MAINTENANCE;
+  const moderation = new ModerationService(db, now);
   const ratings = new RatingsReader(db, now);
   registry.onRatingsChanged = () => ratings.invalidate();
   const ranked = new RankedService(db, registry, ratings, scheduler, log, over.ranked);
@@ -80,12 +83,13 @@ export function createServices(db: Db, scheduler: Scheduler, config: AppConfig, 
       ...(over.appleKeys ? { appleKeys: over.appleKeys } : {}),
       ...(over.googleKeys ? { googleKeys: over.googleKeys } : {}),
     }),
-    moderation: new ModerationService(db, now),
+    moderation,
     history,
     persistence,
     registry,
     ratings,
     ranked,
+    voice: new VoiceService(config, moderation, now),
     log,
   };
 }

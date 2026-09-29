@@ -28,6 +28,7 @@ import { registerMatchRoutes } from './routes/matches.js';
 import { registerMeRoutes } from './routes/me.js';
 import { registerRankedRoutes } from './routes/ranked.js';
 import { registerSocialRoutes } from './routes/social.js';
+import { registerVoiceRoutes } from './routes/voice.js';
 import { registerVersionGate } from './version.js';
 
 export interface BuiltApp {
@@ -104,6 +105,17 @@ export async function buildApp(services: Services): Promise<BuiltApp> {
     },
     led: LED_BOARD,
     sounds: SOUNDS,
+    voice: { enabled: services.voice.enabled, provider: services.voice.enabled ? 'vivox' : null },
+    ads: {
+      enabled: config.ADS_ENABLED,
+      interstitialEveryNMatches: config.ADS_INTERSTITIAL_EVERY_N_MATCHES,
+      minSecondsBetweenInterstitials: config.ADS_MIN_SECONDS_BETWEEN_INTERSTITIALS,
+      menuBanner: config.ADS_MENU_BANNER,
+      /** Never show an ad while a match is being played (from the coin toss to the last bag). */
+      duringMatch: false,
+    },
+    ranked: { modes: ['singles', 'teams'], playTo: 21, cooldownMinutes: 10 },
+    terms: { currentVersion: config.TERMS_VERSION, minAge: 18 },
   }));
 
   registerAuthRoutes(app, services, auth);
@@ -111,6 +123,7 @@ export async function buildApp(services: Services): Promise<BuiltApp> {
   registerSocialRoutes(app, services, auth);
   registerMatchRoutes(app, services, auth);
   registerRankedRoutes(app, services, auth);
+  registerVoiceRoutes(app, services, auth);
   registerInviteRoutes(app, services);
   registerAdminRoutes(app, services);
   const realtime = registerRealtime(app, services);
