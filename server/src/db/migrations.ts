@@ -178,7 +178,7 @@ CREATE TABLE singles_ratings (
 );
 CREATE INDEX singles_ratings_rank_idx ON singles_ratings (rating DESC, games DESC);
 
--- One rating per pair of partners for 2v2. member_a is always the smaller id so a pair is one row.
+-- One rating per pair of partners for 2v2. member_a is the first of the two ids in plain string order, so a pair is one row.
 CREATE TABLE duo_ratings (
   duo_key text PRIMARY KEY,
   member_a text NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
@@ -190,7 +190,7 @@ CREATE TABLE duo_ratings (
   losses int NOT NULL DEFAULT 0,
   streak int NOT NULL DEFAULT 0,
   last_played_at timestamptz NOT NULL,
-  CHECK (member_a < member_b)
+  CHECK (member_a <> member_b)
 );
 CREATE INDEX duo_ratings_rank_idx ON duo_ratings (rating DESC, games DESC);
 CREATE INDEX duo_ratings_member_a_idx ON duo_ratings (member_a);
