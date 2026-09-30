@@ -37,8 +37,9 @@ describe('markdown for the legal pages', () => {
   });
 
   it('never lets markup or unsafe links through', () => {
-    const html = renderMarkdown('Hello <script>alert(1)</script> [x](javascript:alert(1)) [y](//evil.example) <img src=x onerror=alert(1)>\n\n| <b>c</b> |\n|---|\n| "q" |');
-    expect(html).not.toMatch(/<script|<img|<b>|href="javascript|href="\/\//);
+    const html = renderMarkdown('Hello <script>alert(1)</script> [x](javascript:alert(1)) [y](//evil.example) [z](/\\evil.example) <img src=x onerror=alert(1)>\n\n| <b>c</b> |\n|---|\n| "q" |');
+    expect(html).not.toMatch(/<script|<img|<b>|href="javascript|href="\/\/|href="\/\\/);
+    expect(renderMarkdown('[ok](/support)')).toBe('<p><a href="/support">ok</a></p>');
     expect(html).toContain('&lt;script&gt;');
     expect(html).toContain('&quot;q&quot;');
   });
@@ -109,6 +110,8 @@ describe('account deletion requests from the website', () => {
 
     const found = (await t.call(null, 'GET', '/admin/accounts?name=gone%20player', undefined, admin)).json().accounts;
     expect(found.map((a: { id: string }) => a.id)).toEqual([g.id]);
+    expect(Date.parse(found[0].lastSeenAt)).toBeGreaterThan(0); // staff check this before deleting (docs/operations.md)
+    expect(Date.parse((await t.call(null, 'GET', `/admin/accounts/${g.id}`, undefined, admin)).json().account.lastSeenAt)).toBeGreaterThan(0);
     expect((await t.call(null, 'POST', `/admin/accounts/${g.id}/delete`, {}, admin)).json()).toEqual({ deleted: true });
     expect((await t.call(g.token, 'GET', '/api/me')).statusCode).toBe(401);
     expect((await t.call(null, 'GET', `/admin/accounts/${g.id}`, undefined, admin)).statusCode).toBe(404);

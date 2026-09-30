@@ -161,7 +161,15 @@ curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: applicati
   -d '{"status":"done","note":"deleted"}' "$BASE/admin/deletion-requests/<requestId>"
 ```
 
-If two accounts share the name, write back and ask for the account id (it is in their data download). Handled requests are removed automatically after 90 days.
+**Check it is really theirs before deleting.** Account ids are not secret (opponents can see them), so anyone could ask to delete someone else's account. The safe rule:
+
+- Look at `lastSeenAt` (shown by both account lookups). **Played in the last 30 days?** Do not delete. Reply asking them to use Profile > Delete my account in the app: only the owner can do that, and it is instant.
+- **Not seen for 30 days or more?** Delete it. Nobody is using it, and that is exactly the case the web form exists for (lost phone, deleted app).
+- Two accounts with the same name: ask for the account id from their data download, or delete only the one that matches their details.
+
+Example: "Keisha" asks on the website. Her account was last seen 45 days ago, so you delete it and mark the request done. If it had been seen yesterday, you would reply "please delete it in the app under Profile", and mark the request `rejected` with that note.
+
+Handled requests are removed automatically after 90 days.
 
 ## Public pages
 

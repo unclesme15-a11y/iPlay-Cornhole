@@ -55,11 +55,19 @@ export function registerAdminRoutes(app: FastifyInstance, services: Services): v
       // Find accounts by display name (for deletion requests and reports that only give a name).
       admin.get('/accounts', async (req) => {
         const q = z.object({ name: z.string().trim().min(1).max(40) }).parse(req.query);
-        const rows = await services.db.query<{ id: string; display_name: string; is_guest: boolean; created_at: Date }>(
-          'SELECT id, display_name, is_guest, created_at FROM accounts WHERE lower(display_name) = lower($1) ORDER BY created_at DESC LIMIT 20',
+        const rows = await services.db.query<{ id: string; display_name: string; is_guest: boolean; created_at: Date; last_seen_at: Date }>(
+          'SELECT id, display_name, is_guest, created_at, last_seen_at FROM accounts WHERE lower(display_name) = lower($1) ORDER BY created_at DESC LIMIT 20',
           [q.name],
         );
-        return { accounts: rows.rows.map((r) => ({ id: r.id, displayName: r.display_name, isGuest: r.is_guest, createdAt: new Date(r.created_at).toISOString() })) };
+        return {
+          accounts: rows.rows.map((r) => ({
+            id: r.id,
+            displayName: r.display_name,
+            isGuest: r.is_guest,
+            createdAt: new Date(r.created_at).toISOString(),
+            lastSeenAt: new Date(r.last_seen_at).toISOString(),
+          })),
+        };
       });
 
       admin.get<{ Params: { id: string } }>('/accounts/:id', async (req) => {
@@ -67,7 +75,14 @@ export function registerAdminRoutes(app: FastifyInstance, services: Services): v
         if (!account) throw new DomainError('unknown_account', 'Account not found', 404);
         const reports = await services.db.query<{ n: number }>('SELECT count(*)::int AS n FROM reports WHERE reported_id = $1', [account.id]);
         return {
-          account: { ...publicAccount(account), status: account.status, banReason: account.banReason, bannedUntil: account.bannedUntil?.toISOString() ?? null, createdAt: account.createdAt.toISOString() },
+          account: {
+            ...publicAccount(account),
+            status: account.status,
+            banReason: account.banReason,
+            bannedUntil: account.bannedUntil?.toISOString() ?? null,
+            createdAt: account.createdAt.toISOString(),
+            lastSeenAt: new Date(account.lastSeenAt).toISOString(),
+          },
           stats: await services.history.stats(account.id),
           activeMatchId: services.registry.activeMatchOf(account.id)?.id ?? null,
           reportsAgainst: reports.rows[0]!.n,

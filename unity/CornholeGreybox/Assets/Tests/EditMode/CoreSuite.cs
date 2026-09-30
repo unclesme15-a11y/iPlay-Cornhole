@@ -658,6 +658,54 @@ namespace IPlay.Cornhole.Tests
                 Ck.False(off.ShouldShowMenuBanner);
             });
 
+            // ---- app error reports
+            add("error reports: repeats become one entry with a count, sent in one batch; failures are kept for later", () =>
+            {
+                var t = new FakeTransport();
+                t.On("POST /api/client-errors", 202, "{\"received\":2}");
+                var r = new ErrorReporter(new ApiClient(t, "http://x", new ClientInfo { Version = "1.0.0", Platform = "ios" }));
+                Ck.Eq(0, Ck.Run(r.FlushAsync()), "nothing to send");
+                for (var i = 0; i < 3; i++) r.Capture("NullReferenceException: boom", "CornholeApp.DrawResults ()\nUnityEngine.GUI.CallWindowDelegate ()");
+                r.Capture("KeyNotFoundException", null);
+                r.Capture("", "ignored");
+                Ck.Eq(2, r.Pending);
+                Ck.Eq(2, Ck.Run(r.FlushAsync()));
+                Ck.Eq(0, r.Pending);
+                var sent = MiniJson.ParseObject(t.BodiesSeen[0]);
+                var errors = (List<object>)sent["errors"];
+                Ck.Eq(2, errors.Count);
+                var first = (Dictionary<string, object>)errors[0];
+                Ck.Eq("NullReferenceException: boom", J.Str(first, "message"));
+                Ck.Eq(3, (int)J.Num(first, "count"));
+                Ck.Eq("1.0.0", t.HeadersSeen[0]["X-Client-Version"]);
+
+                t.FailWith = new Exception("offline");
+                r.Capture("Again", "X");
+                Ck.Eq(0, Ck.Run(r.FlushAsync()), "offline: nothing sent, nothing thrown");
+                Ck.Eq(1, r.Pending, "kept for later");
+                t.FailWith = null;
+                Ck.Eq(1, Ck.Run(r.FlushAsync()));
+            });
+
+            add("error reports: long text is clipped, at most 20 per batch and 50 different errors per session", () =>
+            {
+                var t = new FakeTransport();
+                t.On("POST /api/client-errors", 202, "{}");
+                var r = new ErrorReporter(new ApiClient(t, "http://x", null));
+                r.Capture(new string('m', 900), new string('s', 9000));
+                for (var i = 0; i < 80; i++) r.Capture("Error " + i, "at line " + i);
+                Ck.Eq(ErrorReporter.MaxPerSession, r.Seen, "capped per session");
+                Ck.Eq(20, Ck.Run(r.FlushAsync()), "one batch");
+                var e0 = (Dictionary<string, object>)((List<object>)MiniJson.ParseObject(t.BodiesSeen[0])["errors"])[0];
+                Ck.Eq(ErrorReporter.MaxMessage, J.Str(e0, "message").Length);
+                Ck.Eq(ErrorReporter.MaxStack, J.Str(e0, "stack").Length);
+                Ck.Eq(20, Ck.Run(r.FlushAsync()));
+                Ck.Eq(10, Ck.Run(r.FlushAsync()));
+                Ck.Eq(0, r.Pending);
+                r.Capture("Error 3", "at line 3"); // seen before: still reported again if it happens again
+                Ck.Eq(1, r.Pending);
+            });
+
             // ---- reconnect
             add("reconnect: waits 0.5, 1, 2, 4, then 8 seconds (with a little jitter) and resets", () =>
             {

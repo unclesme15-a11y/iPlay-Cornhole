@@ -9,7 +9,7 @@ A ready-to-use routine for keeping iPlay Cornhole safe. Apple and Google both ex
 | Open reports (`/admin/reports?status=open`) | Once a day | 24 hours from the report |
 | `underage` reports | Once a day, first | 24 hours |
 | Threats of violence or anything illegal | As soon as seen | Same day, and contact the police if someone is in danger |
-| Website deletion requests (`/admin/deletion-requests`) | Once a week | 30 days (the page promises this) |
+| Website deletion requests (`/admin/deletion-requests`) | Once a week; follow the "check it is really theirs" rule in `docs/operations.md` | 30 days (the page promises this) |
 | Emails to `SUPPORT_EMAIL` | Twice a week | 3 days |
 
 Example with your game: on Monday morning you open the report list and see two reports about "BagBoss77" for "harassment" from two different matches. You look up the account, see it has two reports and no earlier ban, give a 7-day ban with the reason "harassment in voice chat", and close both reports.

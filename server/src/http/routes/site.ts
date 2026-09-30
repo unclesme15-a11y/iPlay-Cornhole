@@ -94,7 +94,7 @@ function deletionPage(config: AppConfig, error?: string, values: Record<string, 
     'Delete my account',
     `<h1>Delete my iPlay Cornhole account</h1>
 <p><strong>Quickest way:</strong> in the app, open <em>Profile</em> and tap <em>Delete my account</em>. It happens straight away.</p>
-<p>If you no longer have the app, fill in this form and we will delete the account by hand within 30 days, then reply to you. Deleting removes your account, sign-in links, stats, ratings and blocks; in other players' match history your name becomes "Deleted player". What is kept and why is in the <a href="/privacy">privacy policy</a>.</p>
+<p>If you no longer have the app, fill in this form and we will delete the account by hand within 30 days, then reply to you. To protect players from someone deleting their account for them, an account that was played in the last 30 days can only be deleted from the app itself; in that case we will write back and tell you how. Deleting removes your account, sign-in links, stats, ratings and blocks; in other players' match history your name becomes "Deleted player". What is kept and why is in the <a href="/privacy">privacy policy</a>.</p>
 ${error ? `<p class="error" role="alert">${escapeHtml(error)}</p>` : ''}
 <form method="post" action="/delete-account">
 <label for="name">Your player name</label><input id="name" name="name" maxlength="40" required value="${v('name')}">

@@ -137,6 +137,20 @@ public static class LiveSuite
             Ck.Eq(21, J.Int(J.Obj(meta, "ranked"), "playTo"));
         });
 
+        add("live: the server takes the app's error reports, and /api/meta lists the public page addresses", () =>
+        {
+            var p = new Phone(url);
+            p.Start();
+            var r = new ErrorReporter(p.Api);
+            r.Capture("NullReferenceException: live test", "CornholeApp.Update ()");
+            r.Capture("NullReferenceException: live test", "CornholeApp.Update ()");
+            Ck.Eq(1, Ck.Run(r.FlushAsync()));
+            Ck.Eq(0, r.Pending);
+            var links = J.Obj(p.Session.Meta, "links");
+            Ck.True(J.Str(links, "privacy").EndsWith("/privacy"), "privacy link");
+            Ck.True(J.Str(links, "deleteAccount").EndsWith("/delete-account"), "deletion link");
+        });
+
         add("live: a throw played with the real controller, and every number the C# guide predicts matches what the server did", () =>
         {
             var p = new Phone(url);

@@ -23,6 +23,7 @@ iPlay Cornhole is for adults. **You must be 18 or older to play.** The game asks
 | **Bans:** the reason and the end date | Enforcing our rules | Until lifted, or until the account is deleted |
 | **Deletion requests from our website:** your player name, the contact you give us (usually an email), and anything else you write | To find and delete your account and tell you it is done | 90 days after we handle the request |
 | **Live match state** | Letting a match survive a server restart | Deleted when the match ends |
+| **Error reports from the app:** if something goes wrong in the app, the error text, where in the app it happened, and the app version and phone type (not who you are) | Fixing bugs | [30 days: the same as technical logs] |
 | **Technical logs:** your request address (IP) and what you asked the server, kept by our hosting | Security and debugging | [30 days: set this to what your host actually keeps] |
 
 We do **not** collect your email, phone number, real name, date of birth, address, precise location, contacts or payment details, and **the game has nothing to buy**.

@@ -90,6 +90,10 @@ Other players' account ids come from `view.seats[].accountId`.
 - `throwing`: every number needed to draw the aim line, landing ring, hole marks and shot picker exactly as the server computes them (see `docs/throwing-controls.md`).
 - `links: { privacy, terms, support, deleteAccount }`: the public pages this server hosts (see **Public pages** below).
 
+## App error reports
+
+`POST /api/client-errors` with `{ "errors": [{ "message", "stack"?, "count" }] }` (1 to 20 errors; message up to 500 characters, stack up to 4,000). No sign-in needed, 10 a minute per address, answers `202 { received }`. The server logs them (with the `X-Client-Version` / `X-Client-Platform` headers, nothing else about the player) and posts one alert per 10 minutes. The app's `ErrorReporter` sends these by itself.
+
 ## Public pages (HTML, not JSON)
 
 For people, not the app's code. Plain HTML with a strict security policy and no scripts.

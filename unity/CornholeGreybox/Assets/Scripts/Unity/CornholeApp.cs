@@ -26,6 +26,8 @@ public sealed partial class CornholeApp : MonoBehaviour
     private LocalSettings settings;
     private CueSounds sounds;
     private IKeyValueStore store;
+    private ErrorReporter errors;
+    private float nextErrorFlush;
     private ThrowGuide Guide { get { return account.Guide; } }
 
     // screen state
@@ -61,6 +63,9 @@ public sealed partial class CornholeApp : MonoBehaviour
         api = new ApiClient(new UnityHttpTransport(), server.BaseUrl, new ClientInfo { Version = NormalizeVersion(Application.version), Platform = Application.platform == RuntimePlatform.IPhonePlayer ? "ios" : "android" });
         // The login lives in the Keychain / Keystore; plain settings stay in PlayerPrefs.
         account = new AccountSession(api, new SecureStore());
+        // Exceptions that break a screen without crashing the app are sent to the server (and your alert webhook).
+        errors = new ErrorReporter(api);
+        Application.logMessageReceived += OnLogMessage;
         RegisterIdentityProviders();
         ranked = new RankedFlow(api);
         boards = new Leaderboards(api);
@@ -114,6 +119,26 @@ public sealed partial class CornholeApp : MonoBehaviour
         }
         UpdateAds();
         if (Input.GetKeyDown(KeyCode.Escape)) OnBackPressed();
+        if (Time.unscaledTime >= nextErrorFlush)
+        {
+            nextErrorFlush = Time.unscaledTime + 30f;
+            _ = errors.FlushAsync();
+        }
+    }
+
+    private void OnLogMessage(string message, string stackTrace, LogType type)
+    {
+        if (type == LogType.Exception || type == LogType.Error || type == LogType.Assert) errors.Capture(message, stackTrace);
+    }
+
+    private void OnApplicationPause(bool paused)
+    {
+        if (paused) _ = errors.FlushAsync(); // the phone may close the app while it is in the background
+    }
+
+    private void OnDestroy()
+    {
+        Application.logMessageReceived -= OnLogMessage;
     }
 
     private void OnGUI()

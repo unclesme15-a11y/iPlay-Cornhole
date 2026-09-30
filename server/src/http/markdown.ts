@@ -7,7 +7,8 @@
 export const escapeHtml = (s: string): string =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 
-const SAFE_URL = /^(https?:\/\/|mailto:|\/(?!\/))/i;
+// Same-site paths must not start with // or /\ (browsers read both as a link to another site).
+const SAFE_URL = /^(https?:\/\/|mailto:|\/(?![\/\\]))/i;
 
 function inline(text: string): string {
   // Code spans first, parked so their contents are not formatted.

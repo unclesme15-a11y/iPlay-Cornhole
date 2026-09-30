@@ -24,6 +24,7 @@ import { makeAuth } from './context.js';
 import { registerRealtime } from './realtime.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerAuthRoutes } from './routes/auth.js';
+import { registerClientErrorRoutes } from './routes/clientErrors.js';
 import { registerInviteRoutes } from './routes/invites.js';
 import { registerMatchRoutes } from './routes/matches.js';
 import { registerMeRoutes } from './routes/me.js';
@@ -137,6 +138,7 @@ export async function buildApp(services: Services): Promise<BuiltApp> {
   registerVoiceRoutes(app, services, auth);
   registerInviteRoutes(app, services);
   registerSiteRoutes(app, services);
+  registerClientErrorRoutes(app, services);
   registerAdminRoutes(app, services);
   const realtime = registerRealtime(app, services);
 

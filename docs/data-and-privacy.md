@@ -23,6 +23,7 @@ This is a plain map of the data the server holds, so you can write an accurate p
 | **Bans**: reason and end date | `accounts` | Enforcing bans | Until lifted or the account is deleted |
 | **Live matches** while running | `live_matches` | Surviving a server restart | Deleted when the match ends (and anything over 2 hours old at startup) |
 | **Website deletion requests**: the player name, the contact they typed (usually an email), and the optional account id and note | `deletion_requests` | Deleting an account for someone without the app, and replying to them | Removed 90 days after staff mark it handled |
+| **App error reports**: the error text, where in the app's code it happened, how many times, and the app version and platform (no account, no name) | server logs only | Finding and fixing bugs on real phones | Your log host's retention |
 | **Server logs** | your log host | Debugging | Your log host's retention. The `Authorization` header is never logged. |
 
 ## What the game does **not** store
