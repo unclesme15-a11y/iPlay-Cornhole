@@ -204,4 +204,24 @@ CREATE TABLE ranked_cooldowns (
 );
 `,
   },
+  {
+    version: 4,
+    name: 'account deletion requests from the website',
+    sql: `
+-- Google Play requires a web page where people can ask for their account to be deleted without the app.
+-- Staff handle each request by hand (admin API); handled requests are removed after 90 days.
+CREATE TABLE deletion_requests (
+  id text PRIMARY KEY,
+  created_at timestamptz NOT NULL,
+  display_name text NOT NULL,
+  contact text NOT NULL,
+  account_id text,
+  details text,
+  status text NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'done', 'rejected')),
+  handled_at timestamptz,
+  note text
+);
+CREATE INDEX deletion_requests_status_idx ON deletion_requests (status, created_at);
+`,
+  },
 ];

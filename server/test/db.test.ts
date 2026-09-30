@@ -17,12 +17,12 @@ describe.each(backends)('database ($name)', (backend) => {
 
   it('applies the schema, and applying it again does nothing', async () => {
     const db = await fresh({ migrate: false });
-    expect(await migrate(db)).toEqual({ applied: [1, 2, 3], current: 3 });
-    expect(await migrate(db)).toEqual({ applied: [], current: 3 });
+    expect(await migrate(db)).toEqual({ applied: [1, 2, 3, 4], current: 4 });
+    expect(await migrate(db)).toEqual({ applied: [], current: 4 });
     const tables = await db.query<{ table_name: string }>(
       "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name",
     );
-    for (const name of ['accounts', 'identities', 'sessions', 'matches', 'match_players', 'player_stats', 'live_matches', 'blocks', 'reports', 'schema_migrations']) {
+    for (const name of ['accounts', 'identities', 'sessions', 'matches', 'match_players', 'player_stats', 'live_matches', 'blocks', 'reports', 'deletion_requests', 'schema_migrations']) {
       expect(tables.rows.map((r) => r.table_name)).toContain(name);
     }
   });
@@ -116,7 +116,7 @@ describe.skipIf(!PG_URL)('real Postgres only', () => {
     const second = await connectDb(url.toString());
     const results = await Promise.all([migrate(t.db), migrate(second)]);
     await second.close();
-    expect(results.flatMap((r) => r.applied)).toEqual([1, 2, 3]); // exactly one of them applied everything
+    expect(results.flatMap((r) => r.applied)).toEqual([1, 2, 3, 4]); // exactly one of them applied everything
   });
 
   it('a name saved into match history at the very moment the account is deleted still gets anonymised', async () => {

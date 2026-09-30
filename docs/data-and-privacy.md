@@ -11,7 +11,7 @@ This is a plain map of the data the server holds, so you can write an accurate p
 | **Guest or full account** flag, created date, last seen | `accounts` | Account management | Until deleted |
 | **Apple / Google sign-in link**: only the provider's id for the person | `identities` | So the same person gets the same account on a new phone | Until deleted |
 | **Login sessions**: a hash of the token (never the token), when it was made and last used, the phone platform (`ios`/`android`) and app version | `sessions` | Keeping people signed in; support | 90 days after last use, or until logout/deletion |
-| **Match results**: who played, seats, scores, and per-player throws, holes, boards and fouls | `matches`, `match_players` | Match history and stats | Kept (see below) |
+| **Match results**: who played, seats, scores, and per-player throws, holes, boards and fouls | `matches`, `match_players` | Match history and stats | Kept forever by default; set `MATCH_HISTORY_DAYS` to delete older history automatically |
 | **Running totals**: games, wins, losses, leaves, throws, holes, boards, fouls | `player_stats` | The stats screen | Until the account is deleted |
 | **18+ confirmation** (the time they confirmed) and the **terms version** they accepted | `accounts` | Every iPlay game is for adults; proving they were asked | Until the account is deleted |
 | **Ranked ratings**: singles rating, and one rating per pair of partners (both account ids), with peak, wins, losses, streak, last played | `singles_ratings`, `duo_ratings` | Ranked play and leaderboards | Until the account is deleted (a duo's rating goes when either partner deletes) |
@@ -22,6 +22,7 @@ This is a plain map of the data the server holds, so you can write an accurate p
 | **Reports** a player filed: who, the match, the reason, an optional note (up to 500 characters) | `reports` | Moderation | Kept until deleted by staff; the reporter link is removed if the reporter deletes their account |
 | **Bans**: reason and end date | `accounts` | Enforcing bans | Until lifted or the account is deleted |
 | **Live matches** while running | `live_matches` | Surviving a server restart | Deleted when the match ends (and anything over 2 hours old at startup) |
+| **Website deletion requests**: the player name, the contact they typed (usually an email), and the optional account id and note | `deletion_requests` | Deleting an account for someone without the app, and replying to them | Removed 90 days after staff mark it handled |
 | **Server logs** | your log host | Debugging | Your log host's retention. The `Authorization` header is never logged. |
 
 ## What the game does **not** store

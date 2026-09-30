@@ -46,6 +46,9 @@ Everything has a safe default except the database in production.
 | `ADS_INTERSTITIAL_EVERY_N_MATCHES` | 3 | One interstitial per this many finished matches. |
 | `ADS_MIN_SECONDS_BETWEEN_INTERSTITIALS` | 180 | And never closer together than this (30 to 3600). |
 | `ADS_MENU_BANNER` | true | A banner on menu screens (never while playing). |
+| `SUPPORT_EMAIL` | none | Shown on `/support` and `/delete-account`. |
+| `LEGAL_DIR` | `../docs/legal` | Where `/privacy` and `/terms` are read from (`privacy-policy.md`, `terms.md`; the `-draft.md` files until those exist). The Docker setup mounts `docs/legal` here. |
+| `MATCH_HISTORY_DAYS` | 0 (forever) | Delete finished-match history older than this. Ratings and career stats are stored separately and stay. |
 
 An empty value (`FOO=` in an env file) counts as not set.
 
@@ -135,6 +138,33 @@ curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: applicati
 A banned person gets a clear "banned" message with the reason and end date on every call, and cannot sign in again. Temporary bans lift themselves. A ban follows the account, so a banned player can make a new guest account. Sign-ups are rate limited, and requiring Apple/Google (`ALLOW_GUESTS=false`) makes evasion harder.
 
 `GET /admin/status` shows live matches, accounts and open reports.
+
+The day-to-day routine (how often, how fast, what gets which ban) is in **`docs/moderation-routine.md`**.
+
+### Account deletion requests (from the website)
+
+People without the app ask at `https://your-domain/delete-account` (Google Play requires this page). Handle them within 30 days:
+
+```bash
+# what is waiting (oldest first)
+curl -H "Authorization: Bearer $ADMIN_TOKEN" "$BASE/admin/deletion-requests"
+
+# find the account: by the id they gave, or by name
+curl -H "Authorization: Bearer $ADMIN_TOKEN" "$BASE/admin/accounts?name=Keisha"
+
+# delete it (same as the in-app button: account, sign-ins, sessions, stats, ratings, blocks)
+curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" "$BASE/admin/accounts/<accountId>/delete"
+
+# mark the request done (or "rejected" if you could not find the account), then email them from SUPPORT_EMAIL
+curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' \
+  -d '{"status":"done","note":"deleted"}' "$BASE/admin/deletion-requests/<requestId>"
+```
+
+If two accounts share the name, write back and ask for the account id (it is in their data download). Handled requests are removed automatically after 90 days.
+
+## Public pages
+
+The server hosts the pages the app and store listings link to: **`/privacy`**, **`/terms`**, **`/support`** and **`/delete-account`**. `/privacy` and `/terms` are the Markdown files in `docs/legal`: once your lawyer has approved them, save them as `docs/legal/privacy-policy.md` and `docs/legal/terms.md` (the server uses those instead of the drafts, and stops warning at start-up), then `./deploy.sh --no-build`. The app links to these pages by itself.
 
 ## Hosting on your Hetzner box
 

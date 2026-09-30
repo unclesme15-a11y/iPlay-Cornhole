@@ -88,6 +88,18 @@ Other players' account ids come from `view.seats[].accountId`.
 - `ads: { enabled, interstitialEveryNMatches, minSecondsBetweenInterstitials, menuBanner, duringMatch: false }`: how the app should pace ads (see **Ads** below).
 - `ranked: { modes, playTo, cooldownMinutes }` and `terms: { currentVersion, minAge: 18 }`.
 - `throwing`: every number needed to draw the aim line, landing ring, hole marks and shot picker exactly as the server computes them (see `docs/throwing-controls.md`).
+- `links: { privacy, terms, support, deleteAccount }`: the public pages this server hosts (see **Public pages** below).
+
+## Public pages (HTML, not JSON)
+
+For people, not the app's code. Plain HTML with a strict security policy and no scripts.
+
+| Page | What it is |
+|---|---|
+| `GET /privacy`, `GET /terms` | The privacy policy and terms, from `docs/legal` (`privacy-policy.md` / `terms.md`, or the drafts until those exist) |
+| `GET /support` | Help and the support email (`SUPPORT_EMAIL`) |
+| `GET /delete-account`, `POST /delete-account` | Ask for an account to be deleted without the app (a form; 5 requests an hour per address). Staff handle requests with `/admin/deletion-requests` |
+| `GET /join/:code` | The invite page (see Invites) |
 
 ## Matches
 

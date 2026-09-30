@@ -62,6 +62,11 @@ public sealed class ServerSettings
         s.SupportUrl = J.Str(json, "supportUrl", "");
         s.IosStoreUrl = J.Str(json, "iosStoreUrl", "");
         s.AndroidStoreUrl = J.Str(json, "androidStoreUrl", "");
+        // Left empty, the links point at the pages the game server hosts itself.
+        var site = s.BaseUrl.TrimEnd('/');
+        if (s.TermsUrl.Length == 0) s.TermsUrl = site + "/terms";
+        if (s.PrivacyUrl.Length == 0) s.PrivacyUrl = site + "/privacy";
+        if (s.SupportUrl.Length == 0) s.SupportUrl = site + "/support";
         return s;
     }
 

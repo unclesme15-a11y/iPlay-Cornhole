@@ -61,6 +61,10 @@ services:
       DATABASE_URL: postgres://cornhole:${POSTGRES_PASSWORD}@postgres:5432/cornhole
       DATABASE_SSL: 'false'
       NODE_OPTIONS: --max-old-space-size=384
+      # /privacy and /terms are read from here (edit docs/legal, then ./deploy.sh --no-build)
+      LEGAL_DIR: /app/legal
+    volumes:
+      - ../docs/legal:/app/legal:ro
     ports:
       - '127.0.0.1:${APP_PORT:-3010}:3000'
     # A stop saves every live match; give it time (the server finishes in a second or two).

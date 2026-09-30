@@ -28,6 +28,7 @@ import { registerInviteRoutes } from './routes/invites.js';
 import { registerMatchRoutes } from './routes/matches.js';
 import { registerMeRoutes } from './routes/me.js';
 import { registerRankedRoutes } from './routes/ranked.js';
+import { registerSiteRoutes } from './routes/site.js';
 import { registerSocialRoutes } from './routes/social.js';
 import { registerVoiceRoutes } from './routes/voice.js';
 import { registerVersionGate } from './version.js';
@@ -117,6 +118,13 @@ export async function buildApp(services: Services): Promise<BuiltApp> {
     },
     ranked: { modes: ['singles', 'teams'], playTo: 21, cooldownMinutes: 10 },
     terms: { currentVersion: config.TERMS_VERSION, minAge: 18 },
+    /** The public pages this server hosts (the app's Profile > Help links). */
+    links: {
+      privacy: `${config.PUBLIC_BASE_URL.replace(/\/+$/, '')}/privacy`,
+      terms: `${config.PUBLIC_BASE_URL.replace(/\/+$/, '')}/terms`,
+      support: `${config.PUBLIC_BASE_URL.replace(/\/+$/, '')}/support`,
+      deleteAccount: `${config.PUBLIC_BASE_URL.replace(/\/+$/, '')}/delete-account`,
+    },
     throwing: THROWING_GUIDE,
   }));
 
@@ -127,6 +135,7 @@ export async function buildApp(services: Services): Promise<BuiltApp> {
   registerRankedRoutes(app, services, auth);
   registerVoiceRoutes(app, services, auth);
   registerInviteRoutes(app, services);
+  registerSiteRoutes(app, services);
   registerAdminRoutes(app, services);
   const realtime = registerRealtime(app, services);
 

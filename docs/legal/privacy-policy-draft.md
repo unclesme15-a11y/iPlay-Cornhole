@@ -16,11 +16,12 @@ iPlay Cornhole is for adults. **You must be 18 or older to play.** The game asks
 | **An account id** we make up | So the game knows who you are | Until you delete your account |
 | **Whether you signed in with Apple or Google.** If you do, we keep only the **id that Apple or Google gives us for you**. **We never read or keep your email address or your real name from them.** | So you get the same account on a new phone | Until you delete your account |
 | **When you confirmed you are 18+**, and which version of these terms you accepted | To show that everyone is asked, and to ask again if the terms change | Until you delete your account |
-| **Match results and game stats:** who played, scores, and your throws, cornholes, holes and fouls | Match history, stats, ratings | Match history is kept. If you delete your account, your name is replaced with "Deleted player" in other players' history |
+| **Match results and game stats:** who played, scores, and your throws, cornholes, holes and fouls | Match history, stats, ratings | Match history is kept [for N days / until you delete your account: match `MATCH_HISTORY_DAYS`]. If you delete your account, your name is replaced with "Deleted player" in other players' history |
 | **Your rating** (singles, and one for each partner you play ranked teams with), your best rating, wins, losses, and when you last played | Ranked play and leaderboards | Until you delete your account |
 | **Login sessions:** a scrambled copy of your login token, when it was made and last used, whether your phone is iOS or Android, and the app version | Keeping you signed in; fixing problems | 90 days after last use, or until you sign out or delete your account |
 | **Reports and blocks:** who you blocked, and reports you send (who, the match, the reason, and an optional note up to 500 characters) | Keeping players safe | Until deleted by us. If you delete your account, the link to you as the reporter is removed |
 | **Bans:** the reason and the end date | Enforcing our rules | Until lifted, or until the account is deleted |
+| **Deletion requests from our website:** your player name, the contact you give us (usually an email), and anything else you write | To find and delete your account and tell you it is done | 90 days after we handle the request |
 | **Live match state** | Letting a match survive a server restart | Deleted when the match ends |
 | **Technical logs:** your request address (IP) and what you asked the server, kept by our hosting | Security and debugging | [30 days: set this to what your host actually keeps] |
 
@@ -44,7 +45,7 @@ The game is free and earns money from **ads**, shown by **AppLovin MAX** and the
 
 ## 6. Your choices and rights
 
-- **Delete your account:** Profile > Delete my account. It immediately erases your account, sign-in links, sessions, stats, ratings and blocks.
+- **Delete your account:** Profile > Delete my account. It immediately erases your account, sign-in links, sessions, stats, ratings and blocks. No app? Ask at [your-domain]/delete-account and we will do it within 30 days.
 - **Get a copy of your data:** Profile > Download my data.
 - **Change your name** or **hide from the leaderboards** in your Profile.
 - Depending on where you live (for example the EEA, UK or California) you may have more rights, such as access, correction, deletion, objecting to processing, or complaining to a regulator. Contact us at [contact email] and we will help.

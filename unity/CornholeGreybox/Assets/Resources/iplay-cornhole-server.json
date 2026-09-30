@@ -1,8 +1,8 @@
 {
   "baseUrl": "http://127.0.0.1:3000",
-  "termsUrl": "https://iplay.example.com/cornhole/terms",
-  "privacyUrl": "https://iplay.example.com/cornhole/privacy",
-  "supportUrl": "https://iplay.example.com/support",
+  "termsUrl": "",
+  "privacyUrl": "",
+  "supportUrl": "",
   "iosStoreUrl": "",
   "androidStoreUrl": "",
   "googleWebClientId": "",

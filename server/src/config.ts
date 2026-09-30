@@ -91,6 +91,17 @@ const envSchema = z
     ADMIN_TOKEN: z.string().min(32, 'ADMIN_TOKEN must be at least 32 characters').optional(),
     /** Start with new matches switched off (deploys, incidents). */
     MAINTENANCE: bool(false),
+
+    // ---- public web pages (/privacy, /terms, /support, /delete-account)
+    /** Folder with privacy-policy.md and terms.md (the -draft.md versions are used until the final ones exist).
+     *  Default: ../docs/legal next to the server, or ./legal. The Docker setup mounts docs/legal there. */
+    LEGAL_DIR: z.string().trim().min(1).optional(),
+    /** Where players can write to you. Shown on the support and deletion pages. */
+    SUPPORT_EMAIL: z.string().trim().email().optional(),
+
+    // ---- data retention
+    /** Delete finished-match history older than this many days (0 = keep it forever). Ratings are separate and stay. */
+    MATCH_HISTORY_DAYS: z.coerce.number().int().min(0).max(36500).default(0),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production') {

@@ -51,7 +51,7 @@ export class TestEnv {
 
   async boot(opts: BootOptions = {}): Promise<Booted> {
     const db = this.db;
-    await db.exec('TRUNCATE accounts, matches, live_matches, reports RESTART IDENTITY CASCADE');
+    await db.exec('TRUNCATE accounts, matches, live_matches, reports, deletion_requests RESTART IDENTITY CASCADE');
     const scheduler = opts.scheduler ?? new ManualScheduler();
     const config: AppConfig = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', RATE_LIMIT_PER_MIN: '100000', ...opts.env });
     const services = createServices(db, scheduler, config, { persistDebounceMs: 10, ...opts.overrides });

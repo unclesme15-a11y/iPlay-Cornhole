@@ -40,7 +40,7 @@ The game has **live, unfiltered voice chat between strangers** and names typed b
 | A way to filter objectionable content | Display names are filtered (profanity, look-alike spellings, impersonation). Voice is not filtered, so there is muting and reporting instead |
 | A way to report offensive content, with timely responses | Report button on the results screen (harassment, cheating, inappropriate name, under 18, other); staff review through the admin API. **Write down how fast you answer** |
 | A way to block abusive users | Block on the results screen; blocked players are muted on the blocker's phone and are never matched with them |
-| Contact information published | `supportUrl` in the app (Profile > Help & support), plus the contact in the privacy policy and terms |
+| Contact information published | `https://your-domain/support` (Profile > Help & support in the app), plus the contact in the privacy policy and terms |
 | Terms that say no objectionable content and there will be consequences | `docs/legal/terms-draft.md` sections 3 and 4 |
 | Sign in with Apple if you offer Google | Both supported once the plugins are added (`docs/unity-client.md`) |
 | Account deletion inside the app | Profile > Delete my account (`DELETE /api/me`) |
@@ -48,7 +48,7 @@ The game has **live, unfiltered voice chat between strangers** and names typed b
 ## Google Play forms
 
 - **Data safety:** what the game collects is listed in `docs/data-and-privacy.md` and the privacy policy. In short: display name and account id (linked to the person, for app functionality); app activity such as match results; device or other ids (the advertising id) and approximate location from the IP, both for advertising; audio is handled live by Vivox and not stored by us. Data is encrypted in transit. Users can request deletion. **Confirm each answer against the form; the ad networks you enable in AppLovin MAX change the ad answers.**
-- **Account deletion web page:** Google requires a public web page where a person can ask for their account to be deleted without opening the app, and a link to it in the store form. The in-app deletion is built; **the web page is not** (a simple page with a contact address that handles the request by hand is enough to start).
+- **Account deletion web page:** Google requires a public web page where a person can ask for their account to be deleted without opening the app, and a link to it in the store form. Both are built: the in-app deletion, and the page at `https://your-domain/delete-account` (the server hosts it; staff handle requests with the admin API, `docs/operations.md`). Put that address in the form.
 - **Target audience:** 18+ only. **Ads:** yes, contains ads. **User-generated content:** yes.
 - **Content rating questionnaire:** answer the chat / user interaction questions honestly.
 

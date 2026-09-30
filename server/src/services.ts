@@ -92,7 +92,7 @@ export function createServices(db: Db, scheduler: Scheduler, config: AppConfig, 
     ratings,
     ranked,
     voice: new VoiceService(config, moderation, now),
-    janitor: new Janitor(db, scheduler, log),
+    janitor: new Janitor(db, scheduler, log, undefined, { matchHistoryDays: config.MATCH_HISTORY_DAYS }),
     log,
   };
 }

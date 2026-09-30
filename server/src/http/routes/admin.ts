@@ -8,6 +8,11 @@ import type { Services } from '../../services.js';
 const banBody = z.object({ reason: z.string().min(1).max(500), days: z.number().int().min(1).max(3650).nullable().optional() }).strict();
 const resolveBody = z.object({ status: z.enum(['resolved', 'dismissed']) }).strict();
 const maintenanceBody = z.object({ enabled: z.boolean() }).strict();
+const deletionUpdate = z.object({ status: z.enum(['done', 'rejected']), note: z.string().max(500).optional() }).strict();
+const deletionQuery = z.object({
+  status: z.enum(['open', 'done', 'rejected', 'all']).default('open'),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
 const reportsQuery = z.object({
   status: z.enum(['open', 'resolved', 'dismissed', 'all']).default('open'),
   limit: z.coerce.number().int().min(1).max(200).default(50),
@@ -45,6 +50,16 @@ export function registerAdminRoutes(app: FastifyInstance, services: Services): v
           accounts: accounts.rows[0]!.n,
           openReports: openReports.rows[0]!.n,
         };
+      });
+
+      // Find accounts by display name (for deletion requests and reports that only give a name).
+      admin.get('/accounts', async (req) => {
+        const q = z.object({ name: z.string().trim().min(1).max(40) }).parse(req.query);
+        const rows = await services.db.query<{ id: string; display_name: string; is_guest: boolean; created_at: Date }>(
+          'SELECT id, display_name, is_guest, created_at FROM accounts WHERE lower(display_name) = lower($1) ORDER BY created_at DESC LIMIT 20',
+          [q.name],
+        );
+        return { accounts: rows.rows.map((r) => ({ id: r.id, displayName: r.display_name, isGuest: r.is_guest, createdAt: new Date(r.created_at).toISOString() })) };
       });
 
       admin.get<{ Params: { id: string } }>('/accounts/:id', async (req) => {
@@ -93,6 +108,55 @@ export function registerAdminRoutes(app: FastifyInstance, services: Services): v
       });
 
       // Switch off new matches before a deploy so nobody is dropped into a server about to restart.
+      // Account deletion: requests from the website (/delete-account), and deleting an account by hand.
+      admin.get('/deletion-requests', async (req) => {
+        const q = deletionQuery.parse(req.query);
+        const rows = await services.db.query<{
+          id: string; created_at: Date; display_name: string; contact: string; account_id: string | null; details: string | null; status: string; handled_at: Date | null; note: string | null;
+        }>(
+          `SELECT id, created_at, display_name, contact, account_id, details, status, handled_at, note FROM deletion_requests
+           WHERE ($1 = 'all' OR status = $1) ORDER BY created_at ASC LIMIT $2`,
+          [q.status, q.limit],
+        );
+        return {
+          requests: rows.rows.map((r) => ({
+            id: r.id,
+            createdAt: new Date(r.created_at).toISOString(),
+            displayName: r.display_name,
+            contact: r.contact,
+            accountId: r.account_id,
+            details: r.details,
+            status: r.status,
+            handledAt: r.handled_at ? new Date(r.handled_at).toISOString() : null,
+            note: r.note,
+          })),
+        };
+      });
+
+      admin.post<{ Params: { id: string } }>('/deletion-requests/:id', async (req) => {
+        const body = deletionUpdate.parse(req.body);
+        const res = await services.db.query('UPDATE deletion_requests SET status = $2, note = $3, handled_at = $4 WHERE id = $1', [
+          req.params.id,
+          body.status,
+          body.note ?? null,
+          new Date(),
+        ]);
+        if (res.rowCount === 0) throw new DomainError('unknown_request', 'Deletion request not found', 404);
+        audit(req, 'deletion_request', { id: req.params.id, status: body.status });
+        return { id: req.params.id, status: body.status };
+      });
+
+      admin.post<{ Params: { id: string } }>('/accounts/:id/delete', async (req) => {
+        const account = await services.accounts.get(req.params.id);
+        if (!account) throw new DomainError('unknown_account', 'Account not found', 404);
+        services.registry.leaveAll(account.id);
+        services.ranked.forget(account.id);
+        await services.accounts.delete(account.id);
+        services.sessions.forget(account.id);
+        audit(req, 'delete_account', { accountId: account.id });
+        return { deleted: true };
+      });
+
       admin.post('/maintenance', async (req) => {
         const { enabled } = maintenanceBody.parse(req.body);
         services.registry.maintenance = enabled;
