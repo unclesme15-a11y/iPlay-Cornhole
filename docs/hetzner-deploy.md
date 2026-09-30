@@ -52,7 +52,7 @@ It builds the game, starts Postgres, starts the game, and waits until `http://12
 
 **Caddy** (gets the https certificate for you): add the block from `caddy-snippet.Caddyfile` to your Caddyfile with your domain, then reload Caddy.
 
-**nginx:** copy `nginx-snippet.conf`, change the domain, run `certbot --nginx -d cornhole.your-domain`, then `nginx -t && systemctl reload nginx`. The important parts are the **WebSocket lines** (a live match is one long connection) and `proxy_read_timeout 1h`.
+**nginx:** copy `nginx-snippet.conf`, change the domain, run `nginx -t && systemctl reload nginx`, then `certbot --nginx -d cornhole.your-domain` (certbot adds the https part itself). The important parts are the **WebSocket lines** (a live match is one long connection) and `proxy_read_timeout 1h`.
 
 **No web server at all yet?** Set `DOMAIN` in `.env` and run `docker compose --profile proxy up -d`. That starts a Caddy that opens ports 80 and 443 and gets the certificate itself.
 
@@ -115,6 +115,13 @@ Edit `.env`, then `./deploy.sh --no-build`:
 
 ## Limits worth knowing
 
-- **One game server runs all matches** (that's how the live matches stay simple and safe). One decent Hetzner box handles a lot, but it has **not been load-tested**, so measure before promising a number.
+- **One game server runs all matches** (that's how the live matches stay simple and safe). One decent Hetzner box handles a lot, and a load test ran 1,500 matches at once on about a third of one CPU core (`npm run loadtest`). Real players and networks differ, so watch it after launch.
 - The matchmaking queue and duo parties are in memory. A restart empties them; players tap search again.
-- This pack was validated (`docker compose config`, script syntax checks, the env example loads) but **not run**, because the machine it was written on had no Docker. Expect to fix a small thing or two on the first real run, and tell me what you see.
+- **How this pack was tested:** it was run for real in Docker (the same images, same compose file, same scripts):
+  - `./deploy.sh` from nothing: database up, tables made, ready in about 2 seconds.
+  - A redeploy in the middle of 20 live matches: all 20 came back, none lost a throw, and all carried on.
+  - Through the bundled Caddy: 60 requests during a deploy, **all answered** (Caddy holds them for the 2 seconds). HTTPS, the http-to-https redirect and live-match connections all work.
+  - The nginx snippet: nginx accepts it, and with a certificate added (as certbot does) it passes HTTPS and live-match connections through.
+  - `./backup.sh` then `./restore.sh`: an account made after the backup was gone after the restore, everything else was back.
+  - `--maintenance` and `--no-build`.
+- Not tested here: a real domain and Let's Encrypt certificate (needs your domain), and Hetzner's own firewall and backups (in their control panel).

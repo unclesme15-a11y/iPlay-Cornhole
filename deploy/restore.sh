@@ -17,4 +17,4 @@ docker compose exec -T postgres dropdb -U cornhole --if-exists --force cornhole
 docker compose exec -T postgres createdb -U cornhole cornhole
 docker compose exec -T postgres pg_restore -U cornhole -d cornhole --no-owner < "$FILE"
 docker compose up -d app
-echo "Restored. Matches that were live when the backup was taken are not brought back; players start fresh matches."
+echo "Restored. Matches that were live when the backup was taken come back as they were at that moment; anything played after it is gone."

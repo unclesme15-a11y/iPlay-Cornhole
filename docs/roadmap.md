@@ -45,7 +45,7 @@
 - Unity side of voice (log in to Vivox, join the table and team channels, mute the `mute` list, report button). The server side is done.
 - Pick the ad SDK; add the consent (EU/UK) and Apple tracking prompts.
 - Set store age ratings to 17+ / Mature.
-- Try the deploy pack on the real Hetzner box (it has only been validated, not run: the build machine had no Docker).
+- Run the deploy pack on the real Hetzner box (it has been run in Docker; your domain and certificate are the only new parts).
 - Monitoring and alerts on your host (`docs/operations.md` lists what to alert on).
 - Privacy policy, terms, and a process for reviewing reports (`docs/data-and-privacy.md`).
 - Push notifications for invites (optional).

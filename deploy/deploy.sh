@@ -40,7 +40,8 @@ docker compose up -d postgres
 if [ "$MAINT" = 1 ]; then echo "==> Maintenance on"; maintenance true; fi
 
 echo "==> Restarting the game (saves live matches, restores them in the new one)"
-docker compose up -d app
+# --force-recreate: restart even when the image did not change (for example with --no-build).
+docker compose up -d --force-recreate --no-deps app
 
 echo "==> Waiting for it to be ready"
 for i in $(seq 1 90); do

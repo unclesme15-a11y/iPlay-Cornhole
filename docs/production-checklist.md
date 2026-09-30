@@ -12,7 +12,7 @@ The game server, the rules, ranked play, leaderboards, voice, the deploy pack an
 
 ## B. Put the server on your Hetzner box
 
-Follow `docs/hetzner-deploy.md`. The pack was checked but **never run** (the machine it was written on had no Docker), so expect to fix a small thing.
+Follow `docs/hetzner-deploy.md`. The pack has been run for real in Docker (deploy, redeploy during 20 live matches, backup and restore, Caddy and nginx); only your domain and certificate are untested.
 
 - [ ] Fill in `deploy/.env` (database password, admin token, `PUBLIC_BASE_URL`, the Vivox values, ads, Apple/Google ids).
 - [ ] `./deploy.sh`, then point your web server at it (Caddy or nginx snippet).
@@ -70,5 +70,5 @@ Use two phones, ideally one iPhone and one Android.
 | **Capacity** | A load test: **1,500 matches at once used about 35% of one CPU core and 250 MB, and the server answered in under 0.1 seconds (99% of requests)** on a 4-core test machine | Good sign, not a guarantee. Your Hetzner box, real players and real networks differ. A single server holds all live matches |
 | The phone's brain (talking to the server, ranked flow, the throw maths) | 57 offline tests + 10 tests that drive the real server with the real client code | High |
 | **The Unity screens, touch input, Vivox and AppLovin code** | Compiled against stand-ins only; never run in Unity | **Low: expect small fixes on first open** |
-| **The Hetzner deploy pack** | Configuration and script syntax validated; never run | **Low until you run it once** |
+| **The Hetzner deploy pack** | Run for real in Docker: first deploy, a redeploy during 20 live matches (none lost), 60 requests through Caddy during a deploy (all answered), nginx, backup and restore | **High** (your domain's certificate is the only untested step) |
 | Sign in with Apple/Google, Vivox, AppLovin against the real services | Not possible from here | **Untested** |
