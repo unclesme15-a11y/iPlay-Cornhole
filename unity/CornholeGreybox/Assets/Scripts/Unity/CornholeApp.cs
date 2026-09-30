@@ -59,7 +59,9 @@ public sealed partial class CornholeApp : MonoBehaviour
         store = new PlayerPrefsStore();
         settings = new LocalSettings(store);
         api = new ApiClient(new UnityHttpTransport(), server.BaseUrl, new ClientInfo { Version = NormalizeVersion(Application.version), Platform = Application.platform == RuntimePlatform.IPhonePlayer ? "ios" : "android" });
-        account = new AccountSession(api, store);
+        // The login lives in the Keychain / Keystore; plain settings stay in PlayerPrefs.
+        account = new AccountSession(api, new SecureStore());
+        RegisterIdentityProviders();
         ranked = new RankedFlow(api);
         boards = new Leaderboards(api);
         ads = new AdPacer();
@@ -69,6 +71,17 @@ public sealed partial class CornholeApp : MonoBehaviour
         InitializeAds();
         Application.deepLinkActivated += OnDeepLink;
         OnDeepLink(Application.absoluteURL);
+    }
+
+    /// <summary>iPhone offers Sign in with Apple, Android offers Sign in with Google. A button only shows when the server
+    /// has that sign-in switched on too (APPLE_CLIENT_IDS / GOOGLE_CLIENT_IDS).</summary>
+    private void RegisterIdentityProviders()
+    {
+        IdentityProviders.Clear();
+        if (Application.platform == RuntimePlatform.IPhonePlayer && AppleSignInProvider.Available)
+            IdentityProviders.Add(new AppleSignInProvider());
+        if (Application.platform == RuntimePlatform.Android && !string.IsNullOrEmpty(server.GoogleWebClientId))
+            IdentityProviders.Add(new GoogleSignInProvider(server.GoogleWebClientId));
     }
 
     /// <summary>The server wants 1.2.3; Unity's version can be shorter (0.1).</summary>

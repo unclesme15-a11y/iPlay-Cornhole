@@ -49,7 +49,7 @@ Everything is in board coordinates, in inches. The far board is 24 inches wide a
 ## Setting it up (things that need you)
 
 ### 1. Open the project
-See `unity/CornholeGreybox/README.md`. Set `baseUrl` in `Assets/Resources/iplay-cornhole-server.json` to your real address (https). Commit the `.meta` files and `ProjectSettings` Unity creates.
+See `unity/CornholeGreybox/README.md`. Set `baseUrl` in `Assets/Resources/iplay-cornhole-server.json` to your real address (https). The first time the project opens, `Assets/Editor/IPlayProjectSetup.cs` sets the Player Settings for you (see 9). Commit the `.meta` files and `ProjectSettings` Unity creates.
 
 ### 2. Server address and cleartext
 Real builds must use **https** (iOS blocks plain http; Android does by default). For testing against a laptop over http, turn on Project Settings > Player > Other Settings > **Allow downloads over HTTP** for development builds only.
@@ -58,7 +58,7 @@ Real builds must use **https** (iOS blocks plain http; Android does by default).
 The same Unity project can serve every iPlay game.
 1. In the Unity Dashboard (cloud.unity.com), open the project's **Vivox** service and switch it on. Copy the **Issuer**, **Domain** and **Signing key**, plus the **Unity environment id**, into the server's `.env` (`VIVOX_ISSUER`, `VIVOX_DOMAIN`, `VIVOX_SIGNING_KEY`, `VIVOX_UNITY_ENVIRONMENT_ID`). If Street Dice already uses Vivox you can reuse the same four values.
 2. In the Unity Editor: Edit > Project Settings > Services > link the project. The app signs in to Unity Authentication anonymously (like Street Dice) so Vivox can give each phone an identity.
-3. **iOS:** add `NSMicrophoneUsageDescription` ("iPlay uses the microphone so you can talk to other players") in Player Settings. **Android:** the microphone permission is asked for at runtime (the code does it).
+3. The microphone text iPhones show, and Android's microphone permission, are added by the build scripts. The app asks for the permission when voice first starts.
 4. The server has to be started with the four `VIVOX_*` values, or voice is off.
 5. Test on two real phones. Vivox is unfiltered voice: the match screen already offers Report and Block, and blocked players are muted on the blocker's phone.
 
@@ -72,25 +72,39 @@ The same Unity project can serve every iPlay game.
 7. Every ad network you turn on inside MAX must be listed in your privacy policy and in the Apple and Google store forms.
 
 ### 5. Sign in with Apple and Google
-The server accepts both (set `APPLE_CLIENT_IDS`, `GOOGLE_CLIENT_IDS`). The phone needs a native plugin for each, because the system sign-in sheets are native:
-- Apple: the "Sign in with Apple" Unity plugin; Google: the Google Sign-In plugin for Unity.
-- Write a small class that derives from `IdentityProvider` (in `CornholeApp.Menu.cs`): `Name` is `"apple"` or `"google"`, and `SignInAsync()` shows the sheet and returns the token and the random nonce you gave it. Add it to `CornholeApp.IdentityProviders` at start-up. The Profile screen then shows the "Sign in with…" buttons by itself.
-- **Apple requires Sign in with Apple** if you offer Google. Guests can play without either.
-- The server has never talked to the real Apple/Google servers (it was tested with locally made keys). Test a real sign-in on a real phone before launch.
+**Built in, no plugins to buy or add.** iPhones offer **Sign in with Apple**; Android phones offer **Sign in with Google**. Guests can play without either. The code is our own: `Assets/Plugins/iOS/IPlayNative.mm` (Apple's AuthenticationServices), `Assets/Plugins/Android/IPlayNative.java` (Android's Credential Manager) and `Assets/Scripts/Unity/NativePlatform.cs`. The build scripts add the capability, frameworks and libraries.
+
+What you fill in (account paperwork):
+- **Apple:** in developer.apple.com, allow **Sign in with Apple** (and Associated Domains) for the app id. Server: `APPLE_CLIENT_IDS=com.iplay.cornhole`.
+- **Google:** in the Google Cloud console, make an OAuth client of type **Web application** and one of type **Android** (package `com.iplay.cornhole` and your signing key's SHA-1). Put the **Web** client id in the server (`GOOGLE_CLIENT_IDS`) and in `Assets/Resources/iplay-cornhole-server.json` as `googleWebClientId`.
+- Each button only shows when the server has that sign-in switched on, so leaving a value empty just hides it.
+
+Example with your game: Keisha plays as a guest on her iPhone, taps Profile > Sign in with Apple, and Apple's own sheet appears. The phone sends Apple's token to the server with a one-time random code (the nonce) so a stolen token cannot be reused, and her rating is now tied to her Apple ID.
+
+Worth knowing: an account made with Apple on an iPhone cannot be opened on Android (Android offers Google), and the other way round. Apple's rules are met because iPhones offer Apple's sign-in.
+
+The server has never talked to the real Apple/Google servers (it was tested with locally made keys). Test a real sign-in on a real phone before launch.
 
 ### 6. Invite links opening the app
-Friends' invite links look like `https://your-domain/join/ABCD2345`. To open the app directly: set `APPLE_TEAM_ID`, `IOS_BUNDLE_ID` and the Android values in the server `.env` (the server then serves the files iPhones and Androids check), and in Unity add the **Associated Domains** entitlement (iOS) and an **intent filter** (Android). The app already reads `Application.deepLinkActivated`.
+Friends' invite links look like `https://your-domain/join/ABCD2345`. To open the app directly, set `APPLE_TEAM_ID`, `IOS_BUNDLE_ID`, `ANDROID_PACKAGE` and `ANDROID_CERT_SHA256` in the server `.env` (the server then serves the files iPhones and Androids check). **The app side is done by the build scripts**: `IPlayIosBuild.cs` adds Associated Domains for the https domain in `baseUrl`, and `IPlayAndroidBuild.cs` adds the Android intent filters (the https link, verified, and `iplaycornhole://join/CODE`). The app reads the link through `Application.deepLinkActivated`.
 
 ### 7. Keep the login safe
-The session token is saved in `PlayerPrefs` (plain text on the phone). That is fine for a first release, but the better home is the iOS Keychain / Android Keystore: swap `PlayerPrefsStore` for a secure-storage plugin (it is one small class implementing `IKeyValueStore`).
+**Done.** The login lives in the **iOS Keychain** or, on Android, encrypted with a key held in the **Android Keystore** (`SecureStore` in `NativePlatform.cs`). Logins saved by older test builds in PlayerPrefs are moved over the first time they are read. Deleting the app signs the player out, as people expect (iPhones keep Keychain items after an uninstall, so a fresh install clears them). Settings like sound stay in PlayerPrefs.
 
 ### 8. Screen shape
-**Decided: landscape**, same as Street Dice. `CornholeApp` locks auto-rotation to landscape left/right at start. In Player Settings set Default Orientation to Auto Rotation with only Landscape Left and Landscape Right ticked, so the splash screen matches. The flick is still a swipe up the screen; the throw code does not care about the screen shape.
+**Decided: landscape**, same as Street Dice. The project setup script sets Player Settings to landscape left/right only (so the splash screen matches), and `CornholeApp` locks it again at start. The flick is still a swipe up the screen; the throw code does not care about the screen shape.
 
 ### 9. Build settings
-Bundle id (for example `com.iplay.cornhole`), version (`Application.version` becomes the app version the server checks; use `1.0.0` style), IL2CPP, ARM64, minimum iOS/Android versions as for Street Dice.
+**Set for you** by `Assets/Editor/IPlayProjectSetup.cs` the first time the project opens (and again from the menu **iPlay > Apply project settings**): app id `com.iplay.cornhole` (change `bundleId` in `iplay-cornhole-server.json` first if you want another), version `1.0.0`, landscape, IL2CPP, 64-bit Android, Android 7.0+ and iOS 15+, the microphone text, and the `iplaycornhole://` link scheme.
+
+When you build:
+- **iPhone:** `IPlayIosBuild.cs` adds Sign in with Apple, Associated Domains, the frameworks, and answers Apple's encryption question ("no special encryption") in Info.plist, so uploads don't stop to ask.
+- **Android:** `IPlayAndroidBuild.cs` adds Google's sign-in libraries, the invite-link filters and the microphone permission.
+- You still choose the signing (Apple Team in Xcode, your Android keystore in Publishing Settings) and raise the version numbers for each store upload.
 
 ## How it was checked
 
 - The brain: **57 tests that need nothing but mono**, and **10 more that drive a real server**: sign-in, the 18+ refusal, the wind maths matching the server's physics to the hundredth of an inch, a whole ranked search between two "phones", a 2v2 duo party, voice tokens, blocking, leaderboards, and deleting an account. Run them with `unity/CornholeGreybox/Tools/CoreTests/run-core-tests.sh` (add `--live http://127.0.0.1:3000` for the real-server ones).
-- The plain stage (screens, touches, Vivox, ads): **compiled against Unity's real engine API** (reference assemblies, `Tools/UnityStubs/check-unity-layer.sh`), and against stand-ins for Vivox and AppLovin, whose packages could not be downloaded here. That found real mistakes (a name clash with Unity's own `Screen`). **It has never been run in Unity.** Expect small fixes on the first open.
+- The plain stage (screens, touches, Vivox, ads): **compiled against Unity's real engine API** (reference assemblies, `Tools/UnityStubs/check-unity-layer.sh`) as the Editor, an iPhone build and an Android build, and against stand-ins for Vivox and AppLovin, whose packages could not be downloaded here. That found real mistakes (a name clash with Unity's own `Screen`). **It has never been run in Unity.** Expect small fixes on the first open.
+- The build scripts (`Assets/Editor`): compiled against Unity's real Editor API; the Android manifest and Gradle changes are **run** on a Unity 6-shaped project and checked (twice, to prove repeating a build is safe). The Xcode part is compiled against stand-ins for Unity's Xcode API.
+- The native plugins (`Tools/NativeChecks/check-native.sh`): the Android code compiles against the **real Android 14 framework** (Google's sign-in library is stubbed; its download host was blocked here); the iPhone code passes clang with ARC and all warnings on, against stand-in Apple headers. **Neither has run on a phone.** Sign-in and the Keychain/Keystore need the real-phone test in the checklist.

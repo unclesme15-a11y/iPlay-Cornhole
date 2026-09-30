@@ -4,5 +4,8 @@
   "privacyUrl": "https://iplay.example.com/cornhole/privacy",
   "supportUrl": "https://iplay.example.com/support",
   "iosStoreUrl": "",
-  "androidStoreUrl": ""
+  "androidStoreUrl": "",
+  "googleWebClientId": "",
+  "bundleId": "com.iplay.cornhole",
+  "deepLinkScheme": "iplaycornhole"
 }

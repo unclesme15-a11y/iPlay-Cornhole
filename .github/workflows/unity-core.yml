@@ -43,6 +43,9 @@ jobs:
       - name: the Unity layer still compiles (real UnityEngine API, Vivox/AppLovin stand-ins)
         working-directory: unity/CornholeGreybox/Tools/UnityStubs
         run: ./check-unity-layer.sh && ./check-unity-layer.sh ads
+      - name: the phone-native plugins compile (Android with javac, iOS with clang)
+        working-directory: unity/CornholeGreybox/Tools/NativeChecks
+        run: ./check-native.sh
       - name: start the real server
         working-directory: server
         env:

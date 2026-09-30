@@ -45,6 +45,8 @@ Two ways, the same tests:
   ```
   The live run needs a server started with `TRUST_PROXY=true`, a high `RATE_LIMIT_PER_MIN`, `ADS_ENABLED=true` and the
   four `VIVOX_*` settings; see the top of `Tools/CoreTests/Program.cs`.
+- `Tools/NativeChecks/check-native.sh` compiles the phone-native plugins (Android with javac against the real Android 14
+  framework; iOS with clang and ARC).
 - `Tools/UnityStubs/check-unity-layer.sh` compiles the Unity-facing scripts against **Unity's real engine API** (reference
   assemblies from NuGet) and stand-ins for Vivox and AppLovin (`ServiceStubs.cs`), whose packages could not be downloaded here.
 

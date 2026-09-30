@@ -33,10 +33,7 @@ public sealed class UnityHttpTransport : IHttpTransport
     }
 }
 
-/// <summary>
-/// Saved choices and the session token, in PlayerPrefs. That is readable by anyone with the phone's files, so before
-/// launch consider moving the token to the iOS Keychain / Android Keystore (see docs/unity-client.md).
-/// </summary>
+/// <summary>Saved choices (sound, voice...) in PlayerPrefs. The login itself goes in <see cref="SecureStore"/>.</summary>
 public sealed class PlayerPrefsStore : IKeyValueStore
 {
     public string Get(string key) { return PlayerPrefs.HasKey(key) ? PlayerPrefs.GetString(key) : null; }
@@ -49,6 +46,8 @@ public sealed class ServerSettings
 {
     public string BaseUrl = "http://127.0.0.1:3000";
     public string TermsUrl = "", PrivacyUrl = "", SupportUrl = "", IosStoreUrl = "", AndroidStoreUrl = "";
+    /// <summary>The "Web application" OAuth client id from the Google Cloud console (Android sign-in asks for a token for it).</summary>
+    public string GoogleWebClientId = "";
 
     public static ServerSettings Load()
     {
@@ -58,6 +57,7 @@ public sealed class ServerSettings
         var json = MiniJson.ParseObject(asset.text);
         s.BaseUrl = J.Str(json, "baseUrl", s.BaseUrl);
         s.TermsUrl = J.Str(json, "termsUrl", "");
+        s.GoogleWebClientId = J.Str(json, "googleWebClientId", "");
         s.PrivacyUrl = J.Str(json, "privacyUrl", "");
         s.SupportUrl = J.Str(json, "supportUrl", "");
         s.IosStoreUrl = J.Str(json, "iosStoreUrl", "");
