@@ -55,7 +55,7 @@ Use two phones, ideally one iPhone and one Android.
 
 ## G. Decisions only you can make
 
-- [ ] **Portrait or landscape** (the throw is a swipe up the screen).
+- [x] **Landscape** (decided; in Player Settings tick only Landscape Left and Right).
 - [ ] Which of the **three ring-in sounds** to keep (`npm run preview` in `server/` plays them).
 - [ ] Whether to **tune** the ranking numbers before launch (`docs/ratings-explained.md`), or wait for real games.
 - [ ] How long to keep **match history** (kept forever today; a limit is not built).

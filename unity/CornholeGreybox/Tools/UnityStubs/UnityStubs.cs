@@ -49,7 +49,8 @@ namespace UnityEngine
         public static float realtimeSinceStartup { get { return 0; } }
         public static double realtimeSinceStartupAsDouble { get { return 0; } }
     }
-    public static class Screen { public static int width { get { return 1280; } } public static int height { get { return 720; } } }
+    public enum ScreenOrientation { Portrait, LandscapeLeft, LandscapeRight, AutoRotation }
+    public static class Screen { public static int width { get { return 1280; } } public static int height { get { return 720; } } public static ScreenOrientation orientation { get; set; } public static bool autorotateToPortrait { get; set; } public static bool autorotateToPortraitUpsideDown { get; set; } public static bool autorotateToLandscapeLeft { get; set; } public static bool autorotateToLandscapeRight { get; set; } }
     public enum KeyCode { Escape }
     public enum TouchPhase { Began, Moved, Stationary, Ended, Canceled }
     public struct Touch { public Vector2 position; public TouchPhase phase; }

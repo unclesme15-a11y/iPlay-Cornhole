@@ -54,7 +54,7 @@ Already made: the game-show ring-in (three versions to choose from), bag thud, g
 
 ## Decisions only you can make
 
-- **Portrait or landscape.**
+- ~~Portrait or landscape.~~ **Decided: landscape.** Every plate, clip and menu is made 16:9.
 - **Which ring-in sound** (three are ready; the preview page plays them: `npm run preview` in `server/`).
 - **Which video tool** per clip type after the side-by-side test.
 - **A vector version of the iPlay mark** for the final bag print.

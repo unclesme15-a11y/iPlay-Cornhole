@@ -4,7 +4,7 @@ The phone side of the game. **All the game logic is already here and tested; the
 player can do works with plain dark menus and a top-down board, so the final art (Kling plates, the first-person hand,
 bags, LED board, crowd) can be added on top through one hook (`MatchPresenter`) without touching the logic.
 
-- Unity **6000.4** (same as Street Dice), landscape or portrait (the layout adapts).
+- Unity **6000.4** (same as Street Dice), **landscape only** (decided; the code locks it).
 - It talks to the server in `../../server` (`../../docs/api-contract.md`). The server decides every result; the phone
   only sends the swipe.
 

@@ -85,7 +85,7 @@ Friends' invite links look like `https://your-domain/join/ABCD2345`. To open the
 The session token is saved in `PlayerPrefs` (plain text on the phone). That is fine for a first release, but the better home is the iOS Keychain / Android Keystore: swap `PlayerPrefsStore` for a secure-storage plugin (it is one small class implementing `IKeyValueStore`).
 
 ### 8. Screen shape
-The layout adapts to portrait or landscape. **Decision for you:** Street Dice is landscape; a cornhole flick (swiping up the screen) feels natural in portrait. Pick one in Player Settings, and lock it. The throw code doesn't care.
+**Decided: landscape**, same as Street Dice. `CornholeApp` locks auto-rotation to landscape left/right at start. In Player Settings set Default Orientation to Auto Rotation with only Landscape Left and Landscape Right ticked, so the splash screen matches. The flick is still a swipe up the screen; the throw code does not care about the screen shape.
 
 ### 9. Build settings
 Bundle id (for example `com.iplay.cornhole`), version (`Application.version` becomes the app version the server checks; use `1.0.0` style), IL2CPP, ARM64, minimum iOS/Android versions as for Street Dice.

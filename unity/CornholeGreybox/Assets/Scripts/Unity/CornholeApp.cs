@@ -49,6 +49,12 @@ public sealed partial class CornholeApp : MonoBehaviour
     private void Awake()
     {
         Application.targetFrameRate = 60;
+        // Landscape only (the owner's decision): either way up, never portrait. Player Settings should say the same.
+        Screen.autorotateToPortrait = false;
+        Screen.autorotateToPortraitUpsideDown = false;
+        Screen.autorotateToLandscapeLeft = true;
+        Screen.autorotateToLandscapeRight = true;
+        Screen.orientation = ScreenOrientation.AutoRotation;
         server = ServerSettings.Load();
         store = new PlayerPrefsStore();
         settings = new LocalSettings(store);
