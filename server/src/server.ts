@@ -52,10 +52,11 @@ export async function startServer(
   }
   db.onOwnershipLost(() => {
     log('error', 'lost ownership of live matches: another server may take over, shutting down');
+    services?.alerts.send('ownership', 'Lost the database lock and shut down. If it does not come back by itself, check the database and restart it.');
     (opts.onOwnershipLost ?? (() => process.exit(1)))();
   });
 
-  let services: Services;
+  let services: Services | undefined;
   let built: BuiltApp;
   try {
     await migrate(db);
@@ -63,7 +64,11 @@ export async function startServer(
     built = await buildApp(services);
     logger = (level, message, data) => built.app.log[level]({ ...data }, message);
 
-    await services.registry.restoreAll();
+    const { restored, discarded } = await services.registry.restoreAll();
+    services.alerts.send(
+      'start',
+      `Server started (live matches restored: ${restored}${discarded ? `, discarded: ${discarded}` : ''}). One of these per deploy is normal; several in a row means it keeps crashing.`,
+    );
     services.ranked.start();
     services.janitor.start();
     if (opts.listen !== false) await built.app.listen({ port: config.PORT, host: config.HOST });

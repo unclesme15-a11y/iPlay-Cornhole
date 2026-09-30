@@ -13,6 +13,7 @@ import { RatingsReader } from './ranking/reader.js';
 import { VoiceService } from './voice/service.js';
 import type { Scheduler } from './lobby/scheduler.js';
 import type { Timing } from './lobby/session.js';
+import { Alerts, type FetchLike } from './alerts.js';
 import { MatchRegistry, type LogFn } from './store/registry.js';
 
 export interface Services {
@@ -30,6 +31,7 @@ export interface Services {
   ranked: RankedService;
   voice: VoiceService;
   janitor: Janitor;
+  alerts: Alerts;
   log: LogFn;
 }
 
@@ -44,12 +46,22 @@ export interface ServiceOverrides {
   persistDebounceMs?: number;
   registry?: { finishedTtlMs?: number; idleTtlMs?: number; sweepEveryMs?: number };
   ranked?: RankedOptions;
+  /** Replaces fetch for the alert webhook (tests). */
+  alertFetch?: FetchLike;
 }
 
 /** Builds every service on top of one database and one clock. Used by the server and by tests. */
 export function createServices(db: Db, scheduler: Scheduler, config: AppConfig, over: ServiceOverrides = {}): Services {
   const now = (): number => scheduler.now();
-  const log: LogFn = over.log ?? (() => undefined);
+  const baseLog: LogFn = over.log ?? (() => undefined);
+  const alerts = new Alerts(config.ALERT_WEBHOOK_URL, `iPlay Cornhole ${config.PUBLIC_BASE_URL}`, over.alertFetch, Date.now, (error) =>
+    baseLog('warn', 'could not send an alert', { error: String(error) }),
+  );
+  // Anything logged as an error also goes to the alert webhook (if one is set).
+  const log: LogFn = (level, message, data) => {
+    baseLog(level, message, data);
+    if (level === 'error') alerts.send(`error:${message}`, `Error: ${message}`);
+  };
   const history = new MatchHistory(db);
   const persistence = new LiveMatchStore(db, scheduler, {
     debounceMs: over.persistDebounceMs ?? 250,
@@ -93,6 +105,7 @@ export function createServices(db: Db, scheduler: Scheduler, config: AppConfig, 
     ranked,
     voice: new VoiceService(config, moderation, now),
     janitor: new Janitor(db, scheduler, log, undefined, { matchHistoryDays: config.MATCH_HISTORY_DAYS }),
+    alerts,
     log,
   };
 }

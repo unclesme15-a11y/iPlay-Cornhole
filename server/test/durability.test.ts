@@ -374,16 +374,28 @@ describe('a real server stopping and starting again', () => {
     await handle.db.query(`INSERT INTO live_matches (id, phase, state) VALUES ('OLDVER22', 'playing', '{"version":99}'::jsonb)`);
     await handle.db.query(`INSERT INTO live_matches (id, phase, state) VALUES ('LIAR3333', 'playing', (SELECT jsonb_set(state, '{id}', '"SOMEONEE"') FROM live_matches WHERE id = $1))`, [good.id]);
     const errors: string[] = [];
-    const two = await startServer(config(), {
+    const alerts: string[] = [];
+    const two = await startServer(config({ ALERT_WEBHOOK_URL: 'https://hooks.slack.com/services/x' }), {
       db: handle.db,
       scheduler: new ManualScheduler(sched.now()),
-      overrides: { timing: FAST, persistDebounceMs: 10, log: (level, message) => level === 'error' && errors.push(message) },
+      overrides: {
+        timing: FAST,
+        persistDebounceMs: 10,
+        log: (level, message) => level === 'error' && errors.push(message),
+        alertFetch: async (_url, init) => {
+          alerts.push(JSON.parse(init.body).text);
+          return { ok: true, status: 204 };
+        },
+      },
     });
     running.push(two);
     expect(two.services.registry.size).toBe(1);
     expect(two.services.registry.get(good.id)).toBeDefined();
     expect((await handle.db.query<{ id: string }>('SELECT id FROM live_matches ORDER BY id')).rows.map((r) => r.id)).toEqual([good.id]);
     expect(errors.filter((m) => m.includes('could not restore'))).toHaveLength(3); // every bad row was reported
+    // the owner hears about it: one "could not restore" alert (the other two are held back and counted) and the restart
+    expect(alerts.filter((a) => a.includes('could not restore'))).toHaveLength(1);
+    expect(alerts.some((a) => a.includes('Server started (live matches restored: 1, discarded: 3)'))).toBe(true);
   });
 
   it('restoring twice does not duplicate anything', async () => {

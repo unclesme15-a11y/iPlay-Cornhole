@@ -99,6 +99,10 @@ const envSchema = z
     /** Where players can write to you. Shown on the support and deletion pages. */
     SUPPORT_EMAIL: z.string().trim().email().optional(),
 
+    /** A Discord or Slack webhook address. The server posts there on serious errors, restarts, new reports and
+     *  website deletion requests (each kind at most once per 10 minutes). */
+    ALERT_WEBHOOK_URL: z.string().url().optional(),
+
     // ---- data retention
     /** Delete finished-match history older than this many days (0 = keep it forever). Ratings are separate and stay. */
     MATCH_HISTORY_DAYS: z.coerce.number().int().min(0).max(36500).default(0),

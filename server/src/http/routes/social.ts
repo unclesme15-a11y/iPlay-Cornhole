@@ -43,6 +43,7 @@ export function registerSocialRoutes(app: FastifyInstance, services: Services, a
       matchId: body.matchId,
       note: body.note,
     });
+    services.alerts.send(body.reason === 'underage' ? 'report-underage' : 'report', `New player report (${body.reason}). Review: GET /admin/reports`);
     return reply.status(201).send({ reportId: report.id, status: report.status });
   });
 }

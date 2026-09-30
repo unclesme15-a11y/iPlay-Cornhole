@@ -165,6 +165,7 @@ ${contactLine(config)}
           [randomUUID(), new Date(), f.name, f.contact, f.accountId || null, f.details || null],
         );
         req.log.info({ deletionRequest: true }, 'account deletion request received');
+        services.alerts.send('deletion', 'New account deletion request from the website. Review: GET /admin/deletion-requests');
       }
       return send(
         reply,

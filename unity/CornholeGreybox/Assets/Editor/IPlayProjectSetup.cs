@@ -8,7 +8,7 @@ using UnityEngine;
 /// landscape only, IL2CPP, 64-bit Android, the app id, the microphone text, the invite-link scheme and the minimum
 /// phone versions. It runs once by itself the first time the project is opened (it leaves a mark in
 /// ProjectSettings/IPlaySetup.done), and again whenever you choose iPlay > Apply project settings.
-/// The values come from Assets/Resources/iplay-cornhole-server.json ("bundleId", "deepLinkScheme").
+/// The values come from Assets/Resources/iplay-cornhole-server.json ("bundleId", "deepLinkScheme", "appleTeamId").
 /// </summary>
 [InitializeOnLoad]
 public static class IPlayProjectSetup
@@ -50,11 +50,18 @@ public static class IPlayProjectSetup
         PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
         PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel24;
         PlayerSettings.Android.forceInternetPermission = true;
+        EditorUserBuildSettings.buildAppBundle = true; // Google Play only takes App Bundles (.aab)
 
         // iOS: 15.0+, the microphone text Apple shows before voice chat, the invite-link scheme.
         PlayerSettings.iOS.targetOSVersionString = "15.0";
         PlayerSettings.iOS.microphoneUsageDescription = MicrophoneText;
         PlayerSettings.iOS.iOSUrlSchemes = new[] { cfg.deepLinkScheme };
+        if (!string.IsNullOrEmpty(cfg.appleTeamId))
+        {
+            // Xcode then signs with your team automatically.
+            PlayerSettings.iOS.appleDeveloperTeamID = cfg.appleTeamId;
+            PlayerSettings.iOS.appleEnableAutomaticSigning = true;
+        }
 
         AssetDatabase.SaveAssets();
         Debug.Log("iPlay: project settings applied (app id " + cfg.bundleId + ", landscape, IL2CPP, invite scheme " + cfg.deepLinkScheme + "://).");
@@ -68,6 +75,7 @@ public sealed class IPlayBuildConfig
     public string baseUrl = "";
     public string bundleId = "com.iplay.cornhole";
     public string deepLinkScheme = "iplaycornhole";
+    public string appleTeamId = "";
 
     public const string Path = "Assets/Resources/iplay-cornhole-server.json";
 

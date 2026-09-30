@@ -7,5 +7,6 @@
   "androidStoreUrl": "",
   "googleWebClientId": "",
   "bundleId": "com.iplay.cornhole",
-  "deepLinkScheme": "iplaycornhole"
+  "deepLinkScheme": "iplaycornhole",
+  "appleTeamId": ""
 }

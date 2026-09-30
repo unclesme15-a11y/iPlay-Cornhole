@@ -46,6 +46,7 @@ Everything has a safe default except the database in production.
 | `ADS_INTERSTITIAL_EVERY_N_MATCHES` | 3 | One interstitial per this many finished matches. |
 | `ADS_MIN_SECONDS_BETWEEN_INTERSTITIALS` | 180 | And never closer together than this (30 to 3600). |
 | `ADS_MENU_BANNER` | true | A banner on menu screens (never while playing). |
+| `ALERT_WEBHOOK_URL` | none | A Discord or Slack webhook. Serious errors, restarts, new reports and website deletion requests are posted there (each kind at most every 10 minutes, no player details). |
 | `SUPPORT_EMAIL` | none | Shown on `/support` and `/delete-account`. |
 | `LEGAL_DIR` | `../docs/legal` | Where `/privacy` and `/terms` are read from (`privacy-policy.md`, `terms.md`; the `-draft.md` files until those exist). The Docker setup mounts `docs/legal` here. |
 | `MATCH_HISTORY_DAYS` | 0 (forever) | Delete finished-match history older than this. Ratings and career stats are stored separately and stay. |

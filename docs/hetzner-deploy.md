@@ -46,6 +46,14 @@ Then:
 
 It builds the game, starts Postgres, starts the game, and waits until `http://127.0.0.1:3010/ready` says yes. Test it from the box: `curl http://127.0.0.1:3010/api/meta`.
 
+Then, once:
+
+```bash
+sudo ./setup-host.sh --firewall
+```
+
+It installs the nightly backup (03:17), makes Docker start when the box boots, and sets the firewall to SSH (the port you are connected on), 80 and 443. It never touches your web server or your other games, is safe to run again, and `--dry-run` shows what it would do first. Leave out `--firewall` if you already use Hetzner's Cloud Firewall. At the end it lists the few things only you can do.
+
 ## Point your web server at it
 
 **Domain first:** make a DNS record (an "A record") for `cornhole.your-domain` pointing at the box's IP.
@@ -72,9 +80,16 @@ Live matches are saved when the old server stops and picked up by the new one, s
 ./backup.sh            # a backup right now, into deploy/backups (keeps the newest 14)
 ```
 
-Run it every night: `crontab -e` and add `17 3 * * * /opt/iplay-cornhole/deploy/backup.sh >> /var/log/cornhole-backup.log 2>&1`.
+`setup-host.sh` runs it every night. Each backup is checked (Postgres reads the file back) before it counts.
 
-**A backup on the same disk doesn't survive losing the server.** Also copy `deploy/backups` somewhere else: a Hetzner Storage Box (`rsync -a deploy/backups/ uXXXX@uXXXX.your-storagebox.de:cornhole/`) or `rclone` to cloud storage. Also turn on Hetzner's own server backups (a few euros a month), which cover everything at once.
+**A backup on the same disk doesn't survive losing the server.** Put a Hetzner Storage Box in `.env` and every backup is copied there too:
+
+```bash
+BACKUP_RSYNC_TARGET=u123456@u123456.your-storagebox.de:cornhole/
+BACKUP_SSH_PORT=23
+```
+
+Run `sudo ./setup-host.sh` again: it makes an SSH key and prints it; add it to the Storage Box once (Hetzner console, or `ssh-copy-id -p 23 -s u123456@u123456.your-storagebox.de`), then `./backup.sh` to test. Also turn on Hetzner's own server backups (a few euros a month), which cover everything at once. If a backup or the copy ever fails and `ALERT_WEBHOOK_URL` is set, you get a message.
 
 To put a backup back (this **replaces** the database, so it asks you to type RESTORE):
 
@@ -86,11 +101,7 @@ Try a restore once on a spare machine **before** you need it. A backup you have 
 
 ## Firewall
 
-Only three doors should be open to the internet: **22 (SSH), 80 and 443**.
-
-```bash
-ufw allow OpenSSH && ufw allow 80,443/tcp && ufw enable
-```
+Only three doors should be open to the internet: **SSH, 80 and 443**. `sudo ./setup-host.sh --firewall` does it (keeping the SSH port you are connected on, so you can't lock yourself out).
 
 Postgres is not published to the host at all, and the game is bound to `127.0.0.1`, so neither can be reached from outside even if the firewall is wrong. (Docker skips `ufw` for ports it publishes to the world, which is why this pack never does that.)
 
@@ -102,7 +113,9 @@ docker compose ps                   # is everything running and healthy?
 curl -s http://127.0.0.1:3010/ready # ready + how many live matches
 ```
 
-Set an uptime check (for example UptimeRobot, free) on `https://cornhole.your-domain/ready`. It goes red if the database is down. Other alerts worth having are listed in `operations.md`.
+Set an uptime check (for example UptimeRobot, free) on `https://cornhole.your-domain/ready`. It goes red if the database is down.
+
+**Alerts to your phone:** make a webhook in a Discord channel (Channel settings > Integrations > Webhooks) or in Slack, and put its address in `.env` as `ALERT_WEBHOOK_URL`. The server then posts there when something serious goes wrong, when it (re)starts, when a player files a report, and when someone asks to delete their account on the website. Each kind is sent at most once every 10 minutes, and messages never include player details. Example with your game: at 2 a.m. the database disk fills up; you get "Error: could not save match history" in your Discord instead of finding out from angry players.
 
 ## Turning things on
 

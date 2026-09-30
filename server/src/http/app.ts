@@ -73,6 +73,7 @@ export async function buildApp(services: Services): Promise<BuiltApp> {
       return reply.status(status).send({ error: { code: (error as { code?: string }).code ?? 'bad_request', message: (error as Error).message } });
     }
     request.log.error({ err: error }, 'unhandled error');
+    services.alerts.send('error:unhandled', `Unexpected error on ${request.method} ${request.routeOptions?.url ?? request.url.split('?')[0]}: ${(error as Error).message}`);
     return reply.status(500).send({ error: { code: 'internal', message: 'Something went wrong' } });
   });
 

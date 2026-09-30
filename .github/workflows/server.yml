@@ -3,9 +3,9 @@ name: server
 on:
   push:
     branches: [main]
-    paths: ['server/**', 'deploy/**', 'assets/**', 'docs/api-contract.md', '.github/workflows/server.yml']
+    paths: ['server/**', 'deploy/**', 'assets/**', 'docs/api-contract.md', 'docs/legal/**', '.github/workflows/server.yml']
   pull_request:
-    paths: ['server/**', 'deploy/**', 'assets/**', 'docs/api-contract.md', '.github/workflows/server.yml']
+    paths: ['server/**', 'deploy/**', 'assets/**', 'docs/api-contract.md', 'docs/legal/**', '.github/workflows/server.yml']
 
 jobs:
   check:
@@ -57,4 +57,20 @@ jobs:
           sed -i 's/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci/' .env
           docker compose config --quiet
           docker compose --profile proxy config --quiet
-          for f in deploy.sh backup.sh restore.sh; do bash -n "$f"; done
+          for f in deploy.sh backup.sh restore.sh setup-host.sh; do bash -n "$f"; done
+      # ...and must actually work: deploy, public pages, redeploy, backup, restore (as on the Hetzner box)
+      - name: run the deploy pack for real
+        working-directory: deploy
+        run: |
+          sed -i "s/^ADMIN_TOKEN=.*/ADMIN_TOKEN=$(openssl rand -hex 32)/" .env
+          ./deploy.sh
+          for p in /ready /api/meta /privacy /terms /support /delete-account; do curl -fsS -o /dev/null "http://127.0.0.1:3010$p"; done
+          ./deploy.sh --no-build
+          ./backup.sh
+          echo RESTORE | ./restore.sh "$(ls -1t backups/*.dump | head -1)"
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:3010/ready && break; sleep 1; done
+          ./setup-host.sh --dry-run
+      - name: logs if it failed
+        if: failure()
+        working-directory: deploy
+        run: docker compose logs --tail 200
