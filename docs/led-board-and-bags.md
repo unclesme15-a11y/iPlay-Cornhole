@@ -39,12 +39,12 @@ Strobing faster than three flashes a second can trigger seizures in people with 
 
 `assets/audio/cornhole-hit.wav` is an **original** game-show style ring-in: a short buzzer punch, then a bright two-note bell going up (E then B). It is built from scratch in code (`server/tools/sfx.ts`), so there is nothing to license. It is not the audio from any TV show, which is someone else's copyrighted recording.
 
-There are two alternates so you can pick the feel you want:
+**Chosen: the two-bell ding (`cornhole-hit-alt-ding.wav`).** The other two are kept in case you change your mind:
 
 | File | Sound |
 |------|-------|
-| `cornhole-hit.wav` (default) | Buzzer punch, then two bells |
-| `cornhole-hit-alt-ding.wav` | Two bells only, no buzzer |
+| `cornhole-hit.wav` | Buzzer punch, then two bells |
+| `cornhole-hit-alt-ding.wav` (**chosen**) | Two bells only, no buzzer |
 | `cornhole-hit-alt-buzz.wav` | Longer buzzer with one bell on top |
 
 `bag-thud.wav` plays when a bag lands on the board and `ground-thud.wav` when it hits the grass.

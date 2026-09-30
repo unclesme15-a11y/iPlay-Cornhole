@@ -56,7 +56,7 @@ Use two phones, ideally one iPhone and one Android.
 ## G. Decisions only you can make
 
 - [x] **Landscape** (decided; in Player Settings tick only Landscape Left and Right).
-- [ ] Which of the **three ring-in sounds** to keep (`npm run preview` in `server/` plays them).
+- [x] **Ring-in sound: the two-bell ding** (decided).
 - [ ] Whether to **tune** the ranking numbers before launch (`docs/ratings-explained.md`), or wait for real games.
 - [ ] How long to keep **match history** (kept forever today; a limit is not built).
 

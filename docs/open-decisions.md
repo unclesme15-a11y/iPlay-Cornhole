@@ -40,7 +40,7 @@
 
 ## Still Open
 
-- **Sound choice:** audition the three hole sounds in the preview page and pick one.
+- ~~Sound choice~~ **Decided: the two-bell ding** (`cornhole-hit-alt-ding.wav`).
 - **Vector logo:** get an SVG/vector version of the iPlay mark for the final bag print.
 - **Video AI:** Kling as the main tool, with a quick side-by-side test against Veo 3.1 and Seedance 2.0 using the same Plate 1 before generating the full clip set.
 - **Hosting:** your Hetzner box, with the other iPlay games (see `hetzner-deploy.md`). Still open: which domain name, and where the off-box backups go.

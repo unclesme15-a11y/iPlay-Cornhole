@@ -67,8 +67,8 @@ export interface SoundInfo {
 export const SOUNDS: readonly SoundInfo[] = [
   {
     id: 'cornhole_hit',
-    file: 'assets/audio/cornhole-hit.wav',
-    description: 'Game-show ring-in: buzzer punch into a bright two-note bell. Plays when a bag goes in the hole.',
+    file: 'assets/audio/cornhole-hit-alt-ding.wav',
+    description: 'Game-show ring-in: a bright two-note bell, no buzzer. Plays when a bag goes in the hole.',
   },
   { id: 'bag_thud', file: 'assets/audio/bag-thud.wav', description: 'Bag landing on the board.' },
   { id: 'ground_thud', file: 'assets/audio/ground-thud.wav', description: 'Bag hitting the grass (foul).' },

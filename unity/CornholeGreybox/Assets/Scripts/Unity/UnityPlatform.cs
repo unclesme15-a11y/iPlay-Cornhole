@@ -78,7 +78,7 @@ public sealed class CueSounds
     private readonly AudioSource source;
     public bool Enabled = true;
     /// <summary>Which of the three ring-in sounds to use: "" (the main one), "_alt_ding" or "_alt_buzz".</summary>
-    public string RingInVariant = "";
+    public string RingInVariant = "_alt_ding"; // the owner's pick: two bells, no buzzer
 
     public CueSounds(GameObject host)
     {
