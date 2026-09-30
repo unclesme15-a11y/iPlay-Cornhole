@@ -45,13 +45,14 @@ Two ways, the same tests:
   ```
   The live run needs a server started with `TRUST_PROXY=true`, a high `RATE_LIMIT_PER_MIN`, `ADS_ENABLED=true` and the
   four `VIVOX_*` settings; see the top of `Tools/CoreTests/Program.cs`.
-- `Tools/UnityStubs/check-unity-layer.sh` compiles the Unity-facing scripts against stand-ins for the Unity, Vivox and
-  AppLovin APIs. That catches mistakes in our code; it cannot prove the stand-ins match the real APIs.
+- `Tools/UnityStubs/check-unity-layer.sh` compiles the Unity-facing scripts against **Unity's real engine API** (reference
+  assemblies from NuGet) and stand-ins for Vivox and AppLovin (`ServiceStubs.cs`), whose packages could not be downloaded here.
 
 ## What has and has not been checked
 
 - **Checked:** the whole core (JSON, API client, session, socket, match picture, throw maths, ranked, voice grants, ads pacing, replay)
   passes 54 offline tests, and 10 more drive a real server (sign-in, wind physics parity, ranked matchmaking, a 2v2 duo, voice
   tokens, blocking, leaderboards, account deletion).
-- **Compiled only against stand-ins, never run:** everything in `Assets/Scripts/Unity` (screens, touch input, Vivox, ads). There was no
-  Unity Editor where this was written. Expect small fixes on first open, especially the Vivox and AppLovin calls.
+- **Compiled, never run:** everything in `Assets/Scripts/Unity` (screens, touch input, Vivox, ads). The engine calls compile against
+  Unity's real API; the Vivox and AppLovin calls only against stand-ins. There was no Unity Editor where this was written, so
+  expect small fixes on first open, most likely in the Vivox and AppLovin calls.

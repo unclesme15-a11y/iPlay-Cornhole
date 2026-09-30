@@ -40,7 +40,7 @@ jobs:
       - name: offline core tests
         working-directory: unity/CornholeGreybox/Tools/CoreTests
         run: ./run-core-tests.sh
-      - name: the Unity layer still compiles (against stand-in APIs)
+      - name: the Unity layer still compiles (real UnityEngine API, Vivox/AppLovin stand-ins)
         working-directory: unity/CornholeGreybox/Tools/UnityStubs
         run: ./check-unity-layer.sh && ./check-unity-layer.sh ads
       - name: start the real server
