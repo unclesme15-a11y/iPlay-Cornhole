@@ -38,21 +38,24 @@
 - [x] Ad pacing settings for the app.
 - [x] Hetzner deploy pack: docker-compose, Caddy and nginx, deploy, backup and restore scripts (`docs/hetzner-deploy.md`).
 
-## Before launch (not built yet)
+## Production readiness (DONE)
 
-- Real-device test of Sign in with Apple and Google, and of invite links opening in the app.
-- **Load test** to find how many concurrent matches one server handles.
-- Unity side of voice (log in to Vivox, join the table and team channels, mute the `mute` list, report button). The server side is done.
-- Pick the ad SDK; add the consent (EU/UK) and Apple tracking prompts.
-- Set store age ratings to 17+ / Mature.
-- Run the deploy pack on the real Hetzner box (it has been run in Docker; your domain and certificate are the only new parts).
-- Monitoring and alerts on your host (`docs/operations.md` lists what to alert on).
-- Privacy policy, terms, and a process for reviewing reports (`docs/data-and-privacy.md`).
-- Push notifications for invites (optional).
+- [x] Load test: 1,500 matches at once on about a third of one CPU core.
+- [x] Unity side of voice (Vivox), ads (AppLovin MAX, consent via its Terms and Privacy flow), and native Sign in with Apple / Google with the login in the Keychain / Keystore.
+- [x] Build scripts: Player Settings, Xcode capabilities, Android libraries and invite-link filters.
+- [x] Deploy pack run for real in Docker; one-command host setup; checked, off-box backups; alerts to Discord/Slack; app error reports.
+- [x] Public pages: privacy, terms, support, and the account-deletion form Google Play requires; a moderation routine.
+
+## Before launch (yours: see `docs/production-checklist.md`)
+
+- Sign-ups and keys, the lawyer's pass on the privacy policy and terms, and putting the server on the Hetzner box.
+- The first real-device test: sign-in, invite links, voice, ranked, ads, reconnects, and the feel of the throw.
+- Store age ratings 17+ / Mature, TestFlight and Play internal testing.
+- Push notifications for invites (optional, later).
 
 ## Phase 3: Unity Greybox (logic DONE; needs its first open in Unity, see `docs/unity-client.md`)
 
-- [x] Sign-in flow: guest first, then "add Apple/Google". `GET /api/me` at launch to rejoin a match. (Apple/Google need their phone plugins.)
+- [x] Sign-in flow: guest first, then "add Apple/Google" (native, built in). `GET /api/me` at launch to rejoin a match.
 - [x] Swipe throw: drag to aim, pull back, flick; wind badge; shot picker; aim helper (casual only); throw clock.
 - [x] Match Setup screen, HUD, results with the rating change, rematch, report and block.
 - [x] Reconnect handling: on close code 1012, reconnect and resume (`resync` rule in the contract).

@@ -38,11 +38,14 @@ Separate repo for the iPlay cornhole game. It shares the broader iPlay identity 
 | **Adults-only (18+)**, terms version, leaderboard opt-out | Done, tested |
 | **Ranked play:** matchmaking, duo parties, Elo ratings, forfeit/void rules | Done, tested |
 | **Global leaderboards** (singles and teams) | Done, tested |
-| **Voice chat** tokens (Vivox), table + team channels, block-list muting | Server done, tested. Unity side not started |
-| **Ad pacing** settings for the app (AppLovin MAX) | Done (the ad SDK itself is a phone-side job) |
+| **Voice chat** (Vivox), table + team channels, block-list muting | Server done, tested; Unity side built (compiled, not yet run on a phone) |
+| **Ads** (AppLovin MAX): server pacing and the Unity side | Done; the SDK install and keys are yours (`docs/production-checklist.md`) |
 | **Wind** (off/light/breezy/gusty, gusts, swaps with ends) and **flick accuracy** (push/pull, short-arm, shaky arm, spin) | Done, tested. Controls design in `docs/throwing-controls.md` |
-| **Hetzner deploy pack** (docker-compose, Caddy/nginx, deploy/backup/restore) | Written and validated, **not yet run on a real box** |
-| **Unity client** (`unity/CornholeGreybox`): all the logic (server client, sign-in, 18+ gate, ranked, parties, leaderboards, voice, ads, throwing) + plain menus and a top-down board | Logic tested (57 offline + 10 against a real server). The Unity screens have never been opened in Unity. See `docs/unity-client.md` |
+| **Hetzner deploy pack** (docker-compose, Caddy/nginx, deploy/backup/restore, one-command host setup) | **Run for real in Docker** (redeploy during live matches, backup, off-box copy, restore); CI runs it on every change |
+| **Public pages**: privacy, terms, support, account-deletion form (Google Play) | Done, tested |
+| **Alerts** to Discord/Slack (errors, restarts, reports, deletion requests) and **app error reports** | Done, tested |
+| **Sign in with Apple / Google** on the phone, login kept in the Keychain / Keystore, build scripts for iPhone and Android | Built and compiled; needs the first real-phone test |
+| **Unity client** (`unity/CornholeGreybox`): all the logic (server client, sign-in, 18+ gate, ranked, parties, leaderboards, voice, ads, throwing) + plain menus and a top-down board | Logic tested (59 offline + 11 against a real server); compiled against Unity's real API for Editor, iPhone and Android; native sign-in and secure storage built. The Unity screens have never been opened in Unity. See `docs/unity-client.md` |
 | Kling video plates and character clips | Not started (`artifacts/kling/cornhole-prompts.md`) |
 
 ## Repo Map
@@ -52,7 +55,7 @@ Separate repo for the iPlay cornhole game. It shares the broader iPlay identity 
 - `assets/`: sound effects (`audio/`), the iPlay mark for the bags (`logo/`), and the LED board spec (`board/`). Generated files are checked by tests.
 - `preview/`: template for the interactive board preview page.
 - `docs/api-contract.md`: **what the Unity client sends and receives.** `docs/operations.md`: **running, deploying and moderating the server.** `docs/data-and-privacy.md`: what is stored about people. `docs/game-rules.md`: rules contract. `docs/throwing-controls.md`: **how aiming, power, the flick and wind work.** `docs/ratings-explained.md`: the ranked numbers in plain words. `docs/led-board-and-bags.md`: the board, sound and bags. `docs/visual-camera-plan.md`, `docs/multiplayer-plan.md`, `docs/characters.md`, `docs/roadmap.md`, `docs/open-decisions.md`.
-- `docs/production-checklist.md`: **everything left that needs you** (accounts, keys, real-device tests, legal, stores). `docs/unity-client.md`: the phone app and how the art plugs in. `docs/visuals-todo.md`: the visuals still to make. `docs/store-listing.md`, `docs/legal/`: store answers and draft privacy policy and terms. `docs/hetzner-deploy.md`, `docs/ratings-explained.md`.
+- `docs/production-checklist.md`: **everything left that needs you** (sign-ups and keys, legal, putting it on your box, the visuals, the first real-phone test). `docs/moderation-routine.md`: handling reports. `docs/unity-client.md`: the phone app and how the art plugs in. `docs/visuals-todo.md`: the visuals still to make. `docs/store-listing.md`, `docs/legal/`: store answers and draft privacy policy and terms. `docs/hetzner-deploy.md`, `docs/ratings-explained.md`.
 - `unity/CornholeGreybox/`: the Unity client (logic tested; plain menus; art plugs in via `MatchPresenter`).
 - `artifacts/kling/cornhole-prompts.md`: Kling plate and clip shot list with prompts.
 

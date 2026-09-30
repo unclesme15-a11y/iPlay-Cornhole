@@ -11,7 +11,10 @@
 - **Wagers:** none, ever. **Nothing is for sale**; the only income is ads, never shown during a match.
 - **Repo:** its own repo (`iPlay-Cornhole`). Done.
 - **Bag logo:** the iPlay "i▶" mark, extracted from the app icon (`assets/logo/`).
-- **Hole sound:** an original game-show ring-in (not the TV show's audio), with two alternates to pick from.
+- **Hole sound:** an original game-show ring-in (not the TV show's audio): **the two-bell ding** (`cornhole-hit-alt-ding.wav`).
+- **Screen:** landscape only, like Street Dice.
+- **Sign-in per phone:** iPhones offer Sign in with Apple, Android phones offer Sign in with Google; guests on both.
+- **Ranking numbers:** launch with the current values and tune from real games.
 - **Flash speed:** capped at 3 flashes a second, with a reduced-motion version.
 
 ### Idle players (built)
@@ -36,16 +39,13 @@
 - **Leaving:** leaving mid-match hands the seat to a bot for good. Dropping out for 30 seconds does the same, but you get the seat back if you return in time.
 - **Names:** 3 to 20 characters, filtered for profanity and impersonation; one change every 7 days.
 - **Restarts:** live matches are saved and restored. One server runs the matches at a time.
-- **Match history:** kept indefinitely; a deleted account's name is replaced by "Deleted player".
+- **Match history:** kept indefinitely by default (`MATCH_HISTORY_DAYS` can limit it); a deleted account's name is replaced by "Deleted player".
+- **Account deletion without the app:** a web form at `/delete-account`; accounts played in the last 30 days are only deleted from the app (so nobody can delete someone else's).
 
-## Still Open
+## Still Open (yours: paperwork, visuals, or the phone test)
 
-- ~~Sound choice~~ **Decided: the two-bell ding** (`cornhole-hit-alt-ding.wav`).
-- **Vector logo:** get an SVG/vector version of the iPlay mark for the final bag print.
-- **Video AI:** Kling as the main tool, with a quick side-by-side test against Veo 3.1 and Seedance 2.0 using the same Plate 1 before generating the full clip set.
-- **Hosting:** your Hetzner box, with the other iPlay games (see `hetzner-deploy.md`). Still open: which domain name, and where the off-box backups go.
-- **Ranking numbers:** the starting rating (1200), how fast ratings move (40 / 28 / 20), the matchmaking window, the leaver's 10-minute wait, the 3 / 6 rematch farming limits and the leaderboard rules (10 games, 90 days) are sensible first guesses. Watch real play and tune them (`server/src/ranking/`).
-- **Age check strength:** 18+ is a confirmation tick box. Decide with a lawyer whether your markets need more, and set the store age ratings to 17+ / Mature.
-- **Throw feel:** the wind strength, the forgiving 3° straight zone, the push per degree and the shaky-arm timing are first guesses (`throwing-controls.md`). Tune them in the first greybox play test.
-- **Ads, still to do:** add the consent screen (EU/UK) and Apple's tracking prompt to the app with AppLovin MAX.
-- **Match history limit:** keep forever, or delete after N months.
+- **Vector logo:** an SVG/vector version of the iPlay mark for the final bag print (visuals).
+- **Video AI:** Kling as the main tool, with a quick side-by-side test against Veo 3.1 and Seedance 2.0 using the same Plate 1 before generating the full clip set (visuals).
+- **Domain name and Storage Box** for the Hetzner box (sign-ups).
+- **Age check strength and match-history limit:** decide with a lawyer (the setting for history exists).
+- **Throw feel:** the wind strength, the 3° straight zone, the push per degree and the shaky-arm timing are first guesses (`throwing-controls.md`). Tune them in the first real-phone test.

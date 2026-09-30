@@ -53,7 +53,7 @@ Two ways, the same tests:
 ## What has and has not been checked
 
 - **Checked:** the whole core (JSON, API client, session, socket, match picture, throw maths, ranked, voice grants, ads pacing, replay)
-  passes 54 offline tests, and 10 more drive a real server (sign-in, wind physics parity, ranked matchmaking, a 2v2 duo, voice
+  passes 59 offline tests, and 11 more drive a real server (sign-in, error reports, wind physics parity, ranked matchmaking, a 2v2 duo, voice
   tokens, blocking, leaderboards, account deletion).
 - **Compiled, never run:** everything in `Assets/Scripts/Unity` (screens, touch input, Vivox, ads). The engine calls compile against
   Unity's real API; the Vivox and AppLovin calls only against stand-ins. There was no Unity Editor where this was written, so
