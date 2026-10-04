@@ -97,8 +97,8 @@ s += [P('<b>The logo.</b> The image above is the real iPlay app icon: a dark bru
         'This is <b>the</b> iPlay mark. Whenever an image includes the logo, use this exact mark. Never redesign, restyle or re-letter it.')]
 s += [Spacer(1, 8), P('Contents', 'h2')]
 toc = ['1. The game in one page', '2. The iPlay look (brand rules)', '3. The world: the park cookout scene', '4. Cameras and what is video vs. 3D',
-       '5. The characters', '6. The board', '7. The bags', '8. The iPlay nameplate (all iPlay games)',
-       '9. Rules for every image', '10. Image list and prompts: board, bags, nameplate', '11. What is already decided']
+       '5. The characters', '6. The board', '7. The bags', '8. The title logo and the iPlay nameplate',
+       '9. Rules for every image', '10. The image list, one image at a time', '11. What is already decided']
 s += [P('<br/>'.join(toc))]
 s += [PageBreak()]
 
@@ -192,7 +192,7 @@ s += [P('A premium, regulation cornhole board, iPlay-branded, that looks complet
         '<b>thin LED strips</b> down both long sides, along the front edge and in a ring around the hole, and the iPlay mark and nameplate on the deck.')]
 s += [table([
     ['Part', 'Real-world spec'],
-    ['Deck', '24 x 48 in, deep glossy black, clear coat. iPlay mark printed large in cyan on the lower half of the deck.'],
+    ['Deck', '24 x 48 in, deep glossy black, clear coat. The iPLAY CORNHOLE title logo (section 8) printed large on the lower half of the deck.'],
     ['Hole', '6 in across, centred 9 in from the back (top) edge. Metal trim ring with a thin gold inner edge.'],
     ['Frame', 'About 3.5 in thick (2x4), brushed dark gunmetal, thin gold pinstripe accents.'],
     ['Height', 'Back about 12 in off the ground, front about 3 in (the deck slopes toward the thrower).'],
@@ -216,7 +216,8 @@ s += bullets([
     '<b>Size and weight:</b> 6 x 6 in, about 16 oz, resin-filled, so they slump and sag over the board when they land.',
     '<b>Two sides:</b> smooth heavy <b>duck-cloth canvas</b> (slides) on one side, <b>suede</b> (grips) on the other.',
     '<b>Border:</b> double-stitched seam all round.',
-    '<b>Logo:</b> the iPlay mark screen-printed in the centre, about 3.4 in wide. <b>White mark on dark bags, black mark on light bags.</b>',
+    '<b>Logo:</b> the regular iPlay mark (the i and the play button from the app icon, without the square tile) screen-printed in the centre, about 3.4 in wide. <b>No words or lettering on the bags.</b> <b>White mark on dark bags, black mark on light bags.</b>',
+    '<b>Weight:</b> real tournament bags that lie fairly flat and drape. Never puffy pillows. The suede side is the same color as the front.',
     '<b>Team B</b> bags also get a <b>stitched X</b> across the front, so color-blind players can tell the teams apart.',
 ])
 s += [P('The 12 team colors', 'h2')]
@@ -225,14 +226,23 @@ s += [swatches([('Black', '#1B1B1B'), ('White', '#F4F4F2'), ('Red', '#C8102E'), 
 s += [P('White mark on: black, red, kelly green, royal blue, purple, hot pink, teal, maroon. Black mark on: white, yellow, orange, sky blue.', 'small')]
 
 # ---------------- 8
-s += [P('8. The iPlay nameplate (every iPlay game)', 'h1')]
-s += [P('<b>One brand plate shared by all iPlay games</b>, so the brand reads the same everywhere. In Cornhole it sits on the board\'s front apron and under the logo on the deck. '
-        'In Street Dice and future games it appears on menus, loading screens and wherever the brand shows.')]
+s += [P('8. The title logo and the iPlay nameplate', 'h1')]
+s += [P('The play button carved into the P', 'h2')]
+s += [P('<b>The signature idea of the brand: the play button from the app icon is carved into the bowl of the letter P.</b> The P stays a P; the glowing cyan play triangle sits inside it, as if cut into the metal. It appears in both the title logo and the nameplate.')]
+s += [P('Title logo: iPLAY CORNHOLE', 'h2')]
+tl = Image(ROOT + '/docs/art-briefs/reference/title-logo-approved-direction.png', width=3.3 * inch, height=2.2 * inch)
+s += [Table([[tl, [P('<b>Approved direction.</b> "iPLAY" over "CORNHOLE" in chunky hand-brushed graffiti lettering of brushed silver metal with thick polished gold edges and a soft cyan glow. The play button carved into the P. The O of CORNHOLE is a glowing cyan cornhole hole. Cyan and gold paint splash behind.', 'small'), Spacer(1, 4),
+          P('<b>For the final version:</b> clean, readable letters with the exact spelling (lowercase i, then PLAY; CORNHOLE). <b>No bags, pillows or other objects</b> in the logo. Used on the board deck, the app icon/splash, menus and the store.', 'small')]]],
+               colWidths=[3.45 * inch, 3.45 * inch], style=TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP')]))]
+s += [P('The iPlay nameplate (every iPlay game)', 'h2')]
+np_img = Image(ROOT + '/docs/art-briefs/reference/nameplate-round1.png', width=6.9 * inch, height=6.9 * inch * 198 / 805)
+s += [np_img, Spacer(1, 4)]
+s += [P('<b>One brand plate shared by all iPlay games.</b> In Cornhole it sits on the board\'s front apron; in Street Dice and future games it appears on menus, loading screens and wherever the brand shows. '
+        'The round-1 image above is the approved look, <b>with one change: the word reads "iPlay" and the play button is carved into the bowl of the P</b> (in the image the triangle replaced the P).')]
 s += bullets([
-    'A slim horizontal plate, about <b>4 to 1</b> wide, in the same dark brushed gunmetal as the app icon. Bevelled edges and a thin polished gold rim.',
-    'On the left, the iPlay mark glowing cyan. Next to it, the word <b>iPlay</b> in clean, bold, modern lettering (spelled exactly: lower-case i, capital P).',
-    'A <b>custom audio waveform</b> runs the full width behind the lettering. It looks etched into the metal and lit from inside: cyan in the middle, blending to warm gold toward both ends.',
-    'The waveform will be rebuilt as an exact vector shape so it is identical in every game and can pulse with sound. Images of it are a <b>design target</b>; three style options are requested in section 10.',
+    'A slim horizontal plate, about <b>4 to 1</b>, dark brushed gunmetal like the app icon, bevelled edges, a thin polished gold rim, a small brass screw at each end.',
+    'The word <b>iPlay</b> (lowercase i, capital P, lowercase lay) in the centre: the i and the carved play button glow cyan; "lay" is brushed silver.',
+    '<b>Waveform: option 2, the sound meter.</b> Thin vertical bars mirrored top and bottom on both sides of the word, glowing cyan near the word and fading to warm gold toward the ends. It will be rebuilt as an exact shape in code so it is identical in every game and can bounce with sound.',
 ])
 
 # ---------------- 9
@@ -249,83 +259,23 @@ s += [prompt('Add to the end of every texture sheet prompt',
              'The texture fills the whole square edge to edge and tiles seamlessly.')]
 s += bullets([
     '<b>Logo images:</b> the real iPlay icon is attached. Use that exact mark. Never invent or restyle a logo.',
-    '<b>Lettering:</b> the only words that may appear are "iPlay" (exact spelling) and, where asked, "CORNHOLE". No other text.',
+    '<b>Lettering:</b> the only words that may appear are <b>iPLAY CORNHOLE</b> (title logo) and <b>iPlay</b> (nameplate), spelled exactly. No other text, and no words on the bags.',
     '<b>Textures:</b> square, the largest size available, PNG. Fabrics in neutral mid-gray (the game tints them into team colors).',
     '<b>Realism:</b> real materials, real scale, real wear. No cartoon, no illustration style, no plastic look.',
     '<b>Consistency:</b> the board, bags and plate must match sections 6 to 8 in every image.',
 ])
 
 # ---------------- 10
-s += [PageBreak(), P('10. Image list and prompts: board, bags, nameplate', 'h1')]
-s += [P('<b>Order:</b> first the three hero looks (A1, B1, C1) and the waveform options (C4) to agree the design; then the texture sheets. File names are what to call each image.')]
-s += [P('A. The board', 'h2')]
-s += [table([
-    ['#', 'Image', 'Kind', 'File name'],
-    ['A1', 'The finished board, hero view', 'Look reference', 'board-ref-hero.png'],
-    ['A2', 'The board from straight above', 'Look reference', 'board-ref-top.png'],
-    ['A3', 'Glossy black deck surface', 'Texture', 'board-deck-albedo.png'],
-    ['A4', 'Brushed dark gunmetal frame', 'Texture', 'board-frame-metal.png'],
-    ['A5', 'Frosted LED diffuser strip, lights off', 'Texture', 'board-led-diffuser.png'],
-    ['A6', 'Scuff and bag-rub wear (black and white)', 'Texture', 'board-deck-wear.png'],
-    ['A7', 'Metal and gold trim ring around the hole', 'Texture', 'board-hole-trim.png'],
-    ['A8', 'Deck artwork (logo and nameplate) alone', 'Transparent decal', 'board-deck-decal.png'],
-    ['A9', 'Underside, legs and hinge hardware', 'Texture', 'board-underside.png'],
-], [0.4 * inch, 3.3 * inch, 1.3 * inch, 1.9 * inch])]
-s += [Spacer(1, 6)]
-s += [prompt('A1. Board hero (attach the logo)',
- 'Photorealistic product photo of a premium regulation cornhole board, 24 by 48 inches, at a sunny summer park cookout, three-quarter view from the front at waist height. '
- 'Deep glossy black deck with a clear-coat shine reflecting the sky, one 6-inch hole near the top. Frame of brushed dark gunmetal like the attached app icon, with thin cyan LED strips glowing softly along both long sides, the front edge, and in a ring around the hole. '
- 'The attached iPlay logo printed large on the lower half of the deck in glowing cyan, with a slim brushed-metal "iPlay" nameplate across the front apron. Gold pinstripe edge accents. '
- 'Real wood and metal detail, slight dust and bag-rub wear on the deck, natural daylight, shallow depth of field. Use this exact logo, do not redesign it.')]
-s += [prompt('A2. Board from above (attach the logo)',
- 'Same board as before, viewed perfectly straight down from above, flat orthographic, the whole board filling the frame vertically, even lighting, no perspective, no shadows. '
- 'Shows the exact layout: hole near the top, logo on the lower half, LED strips down both sides and in a ring around the hole, metal frame around the edge. Use this exact logo.')]
-s += [prompt('A3. Deck surface', 'Close-up of a deep glossy black painted wood surface with a thick clear coat: very fine orange-peel texture in the lacquer, faint wood grain barely visible under the paint, a few microscopic dust specks. [texture rule]')]
-s += [prompt('A4. Brushed metal', 'Close-up of dark gunmetal brushed aluminium, fine straight horizontal brush lines, subtle variation, matching the attached iPlay app icon\'s metal. [texture rule]')]
-s += [prompt('A5. LED diffuser', 'Close-up of a frosted white polycarbonate LED strip diffuser with the lights switched off, milky and translucent, faint dot pattern of the LEDs underneath, thin aluminium channel edges along the top and bottom. Wide strip filling the square, tiles left to right. [texture rule]')]
-s += [prompt('A6. Wear map', 'Grayscale texture map: pure black background with soft white streaks and smudges where cornhole bags slide up a board toward the hole, light scuffs and faint dust. Mostly black; the wear is subtle. [texture rule]')]
-s += [prompt('A7. Hole trim', 'Close-up of a polished dark metal ring trim with a thin gold inner edge, the kind set around a hole in a premium board. Straight down, the ring centred and filling the square, pure black in the middle. Even lighting, no shadows, no perspective.')]
-s += [prompt('A8. Deck artwork (attach the logo and the approved nameplate)', 'The deck artwork alone for a cornhole board, on a transparent background: the attached iPlay logo large and centred, glowing cyan with a soft halo, and the iPlay nameplate below it. Flat graphic, no board, no perspective, no shadows. Use this exact logo.')]
-s += [prompt('A9. Underside', 'Close-up of the raw underside of a cornhole board: sanded birch plywood with dark gunmetal folding-leg hardware and a black hinge bracket in one corner. Straight down, even lighting, no shadows, no perspective.')]
-
-s += [P('B. The bags', 'h2')]
-s += [table([
-    ['#', 'Image', 'Kind', 'File name'],
-    ['B1', 'The bags, hero view', 'Look reference', 'bag-ref-hero.png'],
-    ['B2', 'Duck-cloth fabric (slide side), neutral gray', 'Texture', 'bag-duck-albedo.png'],
-    ['B3', 'Suede (grip side), neutral gray', 'Texture', 'bag-suede-albedo.png'],
-    ['B4', 'Stitched border seam', 'Texture strip', 'bag-stitch-strip.png'],
-    ['B5', 'Screen-print ink grain (black and white)', 'Texture', 'bag-print-grain.png'],
-    ['B6', 'One bag laid flat, both faces', 'Look reference', 'bag-ref-flat.png'],
-], [0.4 * inch, 3.3 * inch, 1.3 * inch, 1.9 * inch])]
-s += [Spacer(1, 6)]
-s += [prompt('B1. Bags hero (attach the logo)',
- 'Photorealistic product photo of four premium regulation cornhole bags, 6 by 6 inches, resting slumped on a glossy black cornhole board deck at a summer park. '
- 'Two cobalt blue bags with the attached iPlay logo screen-printed in white in the centre, two bright yellow bags with the same logo printed in black, and the yellow ones also have a stitched X across the front. '
- 'Heavy duck-cloth canvas, double-stitched edges, resin-filled so they sag naturally over the board. One bag flipped to show its suede underside. Natural daylight, shallow depth of field. Use this exact logo, do not redesign it.')]
-s += [prompt('B2. Duck cloth', 'Close-up of heavy cotton duck canvas fabric, tight even weave clearly visible, mid neutral gray (no color cast), slightly worn and soft. [texture rule]')]
-s += [prompt('B3. Suede', 'Close-up of microsuede fabric, short soft nap with gentle directional shading where it has been brushed, mid neutral gray (no color cast). [texture rule]')]
-s += [prompt('B4. Stitch strip', 'Close-up of a double row of heavy stitching along the folded seam of a canvas bag, neutral gray fabric with slightly lighter thread, running straight left to right across the middle of the square, tiles left to right. [texture rule]')]
-s += [prompt('B5. Print grain', 'Grayscale texture map of screen-printed ink on canvas: white ink with tiny cracks, slight fabric weave showing through, small worn patches, on black. [texture rule]')]
-s += [prompt('B6. Flat bag (attach the logo)', 'Photorealistic photo of one cobalt blue cornhole bag laid perfectly flat, shown twice side by side: the duck-cloth front with the attached iPlay logo screen-printed in white, and the suede back. Straight down, even lighting, no shadows, white background. Use this exact logo.')]
-
-s += [P('C. The iPlay nameplate', 'h2')]
-s += [table([
-    ['#', 'Image', 'Kind', 'File name'],
-    ['C1', 'The nameplate, hero view', 'Look reference', 'nameplate-ref-hero.png'],
-    ['C2', 'The nameplate flat, front-on (master layout)', 'Look reference', 'nameplate-ref-flat.png'],
-    ['C3', 'The plate metal with no lettering or waveform', 'Texture', 'nameplate-metal.png'],
-    ['C4', 'Three waveform style options', 'Look reference', 'nameplate-waveform-options.png'],
-], [0.4 * inch, 3.3 * inch, 1.3 * inch, 1.9 * inch])]
-s += [Spacer(1, 6)]
-s += [prompt('C1. Nameplate hero (attach the logo)',
- 'Photorealistic close-up of a premium slim horizontal brand nameplate, about 4 to 1 wide, mounted on the front of a glossy black cornhole board. Dark gunmetal brushed metal like the attached app icon, bevelled edges, a thin polished gold rim. '
- 'On the left, the attached iPlay logo glowing cyan; next to it the word "iPlay" in clean bold modern lettering. A smooth audio sound waveform runs the full width of the plate behind the lettering, etched into the metal and glowing iPlay cyan from inside, blending into warm gold toward both ends. '
- 'Subtle reflections, real machined detail, outdoor daylight. Use this exact logo, do not redesign it.')]
-s += [prompt('C2. Nameplate flat', 'The same nameplate, perfectly front-on, flat orthographic, filling the frame left to right, even lighting, no perspective, no shadows, on a pure black background. Exact spelling "iPlay".')]
-s += [prompt('C3. Plate metal', 'Close-up of dark gunmetal brushed metal with fine horizontal brush lines and a very slight satin sheen, matching the attached app icon. [texture rule]')]
-s += [prompt('C4. Waveform options', 'Three different glowing audio waveform designs stacked on a black background, each a single horizontal line the full width: 1) a smooth flowing wave that swells in the middle, '
- '2) a spiky sound-meter waveform of thin vertical bars, mirrored top and bottom, 3) a soft layered waveform of three overlapping translucent lines. Each glows cyan in the middle, fading to gold at both ends. Flat, no perspective, no text.')]
+s += [PageBreak(), P('10. The image list, one image at a time', 'h1')]
+s += [prompt('How to deliver the images',
+ '<b>ONE image per reply.</b> Never a collage, grid, contact sheet or several items in one picture. Every image is its own separate file at full resolution. '
+ 'Make only the image asked for, then stop. "next" means make the next one on the list; "redo" means make the same one again with the notes given. '
+ 'Images marked TEXTURE follow the texture rule in section 9.')]
+import re as _re
+_md = open(ROOT + '/docs/art-briefs/02-gpt-session-round2.md').read()
+for _m in _re.finditer(r'^> \*\*(\d+)\. ([^*]+?)\*\* (.+)$', _md, _re.M):
+    _txt = _re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', _m.group(3))
+    s += [prompt(f'{_m.group(1)}. {_m.group(2).rstrip(".")}', _txt)]
 
 # ---------------- 11
 s += [P('11. What is already decided', 'h1')]
@@ -337,7 +287,9 @@ s += [table([
     ['Bag colors', '12-color palette, first come first served, no two teams share a color.'],
     ['Hole sound', 'An original two-bell game-show ring-in (already made).'],
     ['Light safety', 'LED bursts capped at 3 flashes a second; a soft-glow version for players who turn on "reduce motion".'],
-    ['Logo', 'The iPlay app-icon mark on the board deck, the bags and the nameplate.'],
+    ['Title logo', 'iPLAY CORNHOLE graffiti metal lettering with the play button carved into the P (section 8). On the deck, splash, menus and store.'],
+    ['Nameplate', 'iPlay with the play button carved into the P; sound-meter waveform (option 2).'],
+    ['Bags', 'The regular iPlay mark only (no words); realistic flat tournament bags.'],
     ['Money', 'No wagers ever, nothing for sale; ads only, never during a match.'],
     ['Video tool', 'Kling for the plates and character clips (a side-by-side test with other tools first).'],
 ], [1.3 * inch, 5.6 * inch])]

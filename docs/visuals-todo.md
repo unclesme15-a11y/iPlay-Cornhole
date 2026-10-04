@@ -30,7 +30,7 @@ At least 4 men and 4 women, ages 30 to 50, summer outfits (`docs/characters.md`)
 | Piece | What |
 |---|---|
 | **First-person hand** | Only the hand and part of the palm at the bottom of the screen; three skin shades like Street Dice; left- and right-handed; the pull-back and flick animation; the tremble when held too long. Hooks: `OnAimChanged` |
-| **Bags** | See `docs/art-briefs/01-board-bags-nameplate.md`. 3D bag with the **iPlay "i▶" mark** (files in `assets/logo`); 12 team colors; slick side / sticky side look. Hook: `OnReplayFrame` |
+| **Bags** | See `docs/art-briefs/02-gpt-session-round2.md` (locked decisions) and `01-board-bags-nameplate.md`. 3D bag with the **iPlay "i▶" mark** (files in `assets/logo`); 12 team colors; slick side / sticky side look. Hook: `OnReplayFrame` |
 | **The LED board** | See `docs/art-briefs/01-board-bags-nameplate.md`. The custom board with LED strips down the sides (`docs/led-board-and-bags.md`): the flash burst on a cornhole, the soft pulse on a score, the victory pattern. Hook: `OnCue`. Respect the 3-flashes-a-second limit and the softer glow for "reduce motion" |
 | **Aim guide** | The aim line, the landing ring and the hole marks (one mark is the hole's width, 6 in), the wind streamer on the far board, the wind badge. Numbers come from `GET /api/meta` |
 | **Wind in the world** | Streamers, trees, tablecloths moving with the wind. Hook: `OnWind` |

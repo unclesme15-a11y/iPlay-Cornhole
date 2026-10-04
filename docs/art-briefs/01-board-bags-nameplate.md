@@ -1,5 +1,7 @@
 # Art Brief 1: The Board, The Bags, And The iPlay Nameplate
 
+> **Updated by round 1 review:** the title logo (play button carved into the P), the nameplate wording, waveform option 2 and the bag logo are now locked in `02-gpt-session-round2.md`. Where the two differ, brief 2 wins.
+
 The first in-Unity art: the iPlay-branded cornhole board, the iPlay-branded bags, and **the iPlay nameplate**, a brand piece every iPlay game shares. The goal is as close to real life as a phone can show.
 
 ## How real-looking 3D works (read this first)
