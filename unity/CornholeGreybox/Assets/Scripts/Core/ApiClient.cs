@@ -212,7 +212,13 @@ namespace IPlay.Cornhole
         public Task<Dictionary<string, object>> PartyLeave() { return SendAsync("DELETE", "/api/parties/me"); }
 
         // ---------------------------------------------------------------- leaderboards
-        public Task<Dictionary<string, object>> Leaderboard(string mode, int limit = 50, int offset = 0) { return SendAsync("GET", "/api/leaderboards/" + mode + "?limit=" + limit + "&offset=" + offset); }
+        /// <summary>season: a finished season's final board; null for the current season.</summary>
+        public Task<Dictionary<string, object>> Leaderboard(string mode, int limit = 50, int offset = 0, int? season = null)
+        {
+            return SendAsync("GET", "/api/leaderboards/" + mode + "?limit=" + limit + "&offset=" + offset + (season.HasValue ? "&season=" + season.Value : ""));
+        }
+        public Task<Dictionary<string, object>> Seasons() { return SendAsync("GET", "/api/seasons"); }
+        public Task<Dictionary<string, object>> MySeasons() { return SendAsync("GET", "/api/me/seasons"); }
         public Task<Dictionary<string, object>> LeaderboardMe(string mode) { return SendAsync("GET", "/api/leaderboards/" + mode + "/me"); }
 
         // ---------------------------------------------------------------- voice

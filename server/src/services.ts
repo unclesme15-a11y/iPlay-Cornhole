@@ -14,6 +14,7 @@ import { VoiceService } from './voice/service.js';
 import type { Scheduler } from './lobby/scheduler.js';
 import type { Timing } from './lobby/session.js';
 import { Alerts, type FetchLike } from './alerts.js';
+import { SeasonService } from './ranking/seasons.js';
 import { MatchRegistry, type LogFn } from './store/registry.js';
 
 export interface Services {
@@ -29,6 +30,7 @@ export interface Services {
   registry: MatchRegistry;
   ratings: RatingsReader;
   ranked: RankedService;
+  seasons: SeasonService;
   voice: VoiceService;
   janitor: Janitor;
   alerts: Alerts;
@@ -83,6 +85,16 @@ export function createServices(db: Db, scheduler: Scheduler, config: AppConfig, 
   const ratings = new RatingsReader(db, now);
   registry.onRatingsChanged = () => ratings.invalidate();
   const ranked = new RankedService(db, registry, ratings, scheduler, log, over.ranked);
+  const seasons = new SeasonService(
+    db,
+    scheduler,
+    { firstStart: new Date(`${config.SEASON_ONE_START}T00:00:00Z`), lengthMonths: config.SEASON_LENGTH_MONTHS, keep: config.SEASON_SOFT_RESET },
+    log,
+  );
+  seasons.onSeasonClosed = (s) => {
+    ratings.invalidate();
+    alerts.send('season', `${s.name} ended: final standings saved and ratings soft-reset. The next season has started.`);
+  };
   return {
     db,
     config,
@@ -103,6 +115,7 @@ export function createServices(db: Db, scheduler: Scheduler, config: AppConfig, 
     registry,
     ratings,
     ranked,
+    seasons,
     voice: new VoiceService(config, moderation, now),
     janitor: new Janitor(db, scheduler, log, undefined, { matchHistoryDays: config.MATCH_HISTORY_DAYS }),
     alerts,

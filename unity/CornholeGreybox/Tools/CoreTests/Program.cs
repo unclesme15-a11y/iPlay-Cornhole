@@ -137,6 +137,20 @@ public static class LiveSuite
             Ck.Eq(21, J.Int(J.Obj(meta, "ranked"), "playTo"));
         });
 
+        add("live: leaderboards say which season it is, and the season list answers", () =>
+        {
+            var p = new Phone(url);
+            p.Start();
+            var boards = new Leaderboards(p.Api);
+            var page = Ck.Run(boards.PageAsync("singles"));
+            Ck.NotNull(page.Season, "season on the board");
+            Ck.True(page.Season.Current);
+            Ck.True(page.Season.EndsAt > page.Season.StartsAt, "season has a length");
+            var seasons = Ck.Run(boards.SeasonsAsync());
+            Ck.Eq(page.Season.Number, seasons.Key.Number);
+            Ck.NotNull(Ck.Run(boards.MySeasonsAsync()), "my history (empty for a new player)");
+        });
+
         add("live: the server takes the app's error reports, and /api/meta lists the public page addresses", () =>
         {
             var p = new Phone(url);
@@ -176,6 +190,7 @@ public static class LiveSuite
                 // aim off into the wind, the way a player would using the hole marks
                 var arc = guide.Shot("airmail").Arc;
                 var shownCross = model.Turn.Wind.Cross;
+                var shownMph = model.Turn.Wind.Mph; // read now: the turn is over once the result arrives
                 var drift = guide.WindDrift(arc, model.Turn.Wind.Cross, model.Turn.Wind.Along);
                 var hole = new Point2(0, 39);
                 var aim = guide.AimForX(hole.X - drift.X);
@@ -202,8 +217,9 @@ public static class LiveSuite
                 var predicted = guide.WindDrift(arc, result.WindCross, result.WindAlong);
                 Ck.Near(predicted.X, result.DriftX, 0.011, "drift x");
                 Ck.Near(predicted.Y, result.DriftY, 0.011, "drift y");
-                // the gust is close to the wind that was shown (gusty = up to about 30% speed and 0.1 rad swing per sigma)
-                Ck.True(Math.Abs(result.WindCross - shownCross) < 12, "gust stays near the shown wind");
+                // the gust stays near the wind that was shown. The server caps a gust at 2.5 sigma: gusty (0.3) means speed x0.25..x1.75
+                // and up to 0.2625 rad of swing, so the crosswind can move by at most |1.75 at 0.2625 rad - 1| = 0.826 x the wind speed.
+                Ck.True(Math.Abs(result.WindCross - shownCross) <= shownMph * 0.83 + 0.05, "gust stays within the server's cap");
                 // the release verdict is what the C# preview says
                 var preview = guide.PreviewRelease(cmd.Release);
                 Ck.Eq(preview.Verdict, result.Release.Verdict);
@@ -220,7 +236,10 @@ public static class LiveSuite
                 Ck.Near(cmd.Aim, result.Release.AimedAim, 1e-9);
                 Ck.Near(cmd.Power, result.Release.AimedPower, 1e-9);
                 Ck.True(result.Flight.Count > 5 && result.Cues.Count > 0, "animation frames and cues arrived");
-                Ck.Eq("board", model.Board.ContainsKey(result.BagId) ? model.Board[result.BagId].Status : result.Status == "hole" ? "board" : "gone");
+                // the phone's picture of the board matches what the server says happened to the bag, whatever the outcome
+                // (on the board, in the hole, or off on the grass: a gusty airmail aimed at the hole can do any of them)
+                if (result.Status == "ground") Ck.False(model.Board.ContainsKey(result.BagId), "a bag on the grass is not on the board");
+                else Ck.Eq(result.Status, model.Board[result.BagId].Status, "bag status on the phone");
             }
             finally
             {

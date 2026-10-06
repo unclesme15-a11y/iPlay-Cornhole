@@ -243,13 +243,33 @@ public sealed partial class CornholeApp
     private int boardOffset;
     private BoardPage boardPage;
     private List<MyStanding> boardMine;
+    /// <summary>Null = the current season; a number = that finished season's final board.</summary>
+    private int? boardSeason;
+    private SeasonInfo lastFinishedSeason;
 
-    private void OpenLeaderboards() { boardOffset = 0; boardPage = null; boardMine = null; Go(Page.Leaderboards); _ = Do(LoadBoard); }
+    private void OpenLeaderboards() { boardOffset = 0; boardPage = null; boardMine = null; boardSeason = null; Go(Page.Leaderboards); _ = Do(LoadSeasonsAndBoard); }
+
+    private async Task LoadSeasonsAndBoard()
+    {
+        var seasons = await boards.SeasonsAsync();
+        lastFinishedSeason = seasons.Value.Count > 0 ? seasons.Value[0] : null;
+        await LoadBoard();
+    }
 
     private async Task LoadBoard()
     {
-        boardPage = await boards.PageAsync(boardMode, boardOffset, 25);
-        boardMine = await boards.MineAsync(boardMode);
+        boardPage = await boards.PageAsync(boardMode, boardOffset, 25, boardSeason);
+        // "Where am I" only makes sense on the live board
+        boardMine = boardSeason.HasValue ? null : await boards.MineAsync(boardMode);
+    }
+
+    private string SeasonLine()
+    {
+        var s = boardPage != null ? boardPage.Season : null;
+        if (s == null) return "";
+        if (!s.Current) return s.Name.ToUpperInvariant() + "  ·  FINAL STANDINGS";
+        var days = s.DaysLeft(DateTime.UtcNow.AddMilliseconds(account.ServerClockOffsetMs));
+        return s.Name.ToUpperInvariant() + "  ·  " + (days == 0 ? "LAST DAY" : days + (days == 1 ? " DAY LEFT" : " DAYS LEFT"));
     }
 
     private void DrawLeaderboards()
@@ -260,7 +280,19 @@ public sealed partial class CornholeApp
         if (UiKit.Button(new Rect(x, 90f, w / 2f - 8f, 50f), "SINGLES", !busy, boardMode == "singles", Theme.BodySize)) { boardMode = "singles"; boardOffset = 0; _ = Do(LoadBoard); }
         if (UiKit.Button(new Rect(x + w / 2f + 8f, 90f, w / 2f - 8f, 50f), "TEAMS", !busy, boardMode == "teams", Theme.BodySize)) { boardMode = "teams"; boardOffset = 0; _ = Do(LoadBoard); }
 
-        var y = 150f;
+        var y = 146f;
+        UiKit.Text(new Rect(x, y, w * 0.65f, 32f), SeasonLine(), Theme.SmallSize + 2, TextAnchor.MiddleLeft, Theme.GoldLight);
+        if (lastFinishedSeason != null)
+        {
+            var label = boardSeason.HasValue ? "This season >" : "Last season >";
+            if (UiKit.Link(new Rect(x + w * 0.65f, y - 6f, w * 0.35f, 44f), label, Theme.SmallSize + 2))
+            {
+                boardSeason = boardSeason.HasValue ? (int?)null : lastFinishedSeason.Number;
+                boardOffset = 0;
+                _ = Do(LoadBoard);
+            }
+        }
+        y += 36f;
         if (boardMine != null)
         {
             var mineText = boardMine.Count == 0

@@ -298,7 +298,7 @@ export class AccountService {
     const account = await this.get(id);
     if (!account) throw new DomainError('unknown_account', 'Account not found', 404);
     const q = this.db;
-    const [identities, stats, matches, blocks, reports, singles, duos, cooldown] = await Promise.all([
+    const [identities, stats, matches, blocks, reports, singles, duos, cooldown, seasons] = await Promise.all([
       q.query('SELECT provider, created_at FROM identities WHERE account_id = $1', [id]),
       q.query('SELECT games, wins, losses, leaves, throws, holes, boards, fouls FROM player_stats WHERE account_id = $1', [id]),
       q.query(
@@ -315,6 +315,12 @@ export class AccountService {
         [id],
       ),
       q.query('SELECT until, reason FROM ranked_cooldowns WHERE account_id = $1', [id]),
+      q.query(
+        `SELECT season, mode, rank, rating, peak, games, wins, losses,
+                CASE WHEN mode = 'teams' THEN CASE WHEN member_a = $1 THEN member_b ELSE member_a END END AS partner_id
+           FROM season_results WHERE member_a = $1 OR member_b = $1 ORDER BY season DESC, mode`,
+        [id],
+      ),
     ]);
     return {
       exportedAt: new Date(this.now()).toISOString(),
@@ -332,6 +338,7 @@ export class AccountService {
       stats: stats.rows[0] ?? null,
       ratings: { singles: singles.rows[0] ?? null, teams: duos.rows },
       rankedCooldown: cooldown.rows[0] ?? null,
+      seasonResults: seasons.rows,
       matches: matches.rows,
       blockedPlayers: blocks.rows,
       reportsFiled: reports.rows,

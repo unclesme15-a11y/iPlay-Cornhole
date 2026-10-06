@@ -118,7 +118,7 @@ export async function buildApp(services: Services): Promise<BuiltApp> {
       /** Never show an ad while a match is being played (from the coin toss to the last bag). */
       duringMatch: false,
     },
-    ranked: { modes: ['singles', 'teams'], playTo: 21, cooldownMinutes: 10 },
+    ranked: { modes: ['singles', 'teams'], playTo: 21, cooldownMinutes: 10, season: services.seasons.current() },
     terms: { currentVersion: config.TERMS_VERSION, minAge: 18 },
     /** The public pages this server hosts (the app's Profile > Help links). */
     links: {

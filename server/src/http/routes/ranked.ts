@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { DomainError } from '../../core/errors.js';
 import type { Party } from '../../ranking/ranked.js';
+import { ACTIVE_WINDOW_MS, MIN_GAMES_FOR_BOARD } from '../../ranking/reader.js';
 import type { Services } from '../../services.js';
 import type { Auth } from '../context.js';
 
@@ -9,6 +11,8 @@ const joinPartyBody = z.object({ code: z.string().min(4).max(12) }).strict();
 const boardQuery = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).max(100_000).default(0),
+  /** A finished season's final board (leave out for the current season). */
+  season: z.coerce.number().int().min(1).max(100_000).optional(),
 });
 const modeParam = z.enum(['singles', 'teams']);
 
@@ -73,8 +77,39 @@ export function registerRankedRoutes(app: FastifyInstance, services: Services, a
     await auth.require(req);
     const mode = modeParam.parse(req.params.mode);
     const q = boardQuery.parse(req.query);
+    const current = services.seasons.current();
+    if (q.season !== undefined && q.season !== current.number) {
+      // a finished season: its saved final standings
+      const past = await services.seasons.standings(mode, q.season, q.limit, q.offset);
+      if (!past) throw new DomainError('unknown_season', 'That season has not finished (or does not exist)', 404);
+      return {
+        mode,
+        season: { ...past.season, current: false },
+        entries: past.entries.map((e) => ({ ...e, streak: 0 })),
+        total: past.total,
+        minGames: MIN_GAMES_FOR_BOARD,
+        activeDays: ACTIVE_WINDOW_MS / (24 * 3600_000),
+        offset: q.offset,
+        limit: q.limit,
+        next: q.offset + past.entries.length < past.total ? q.offset + q.limit : null,
+      };
+    }
     const page = await services.ratings.top(mode, q.limit, q.offset);
-    return { ...page, offset: q.offset, limit: q.limit, next: q.offset + page.entries.length < page.total ? q.offset + q.limit : null };
+    return {
+      ...page,
+      season: { ...current, current: true },
+      offset: q.offset,
+      limit: q.limit,
+      next: q.offset + page.entries.length < page.total ? q.offset + q.limit : null,
+    };
+  });
+
+  // The current season and every finished one (public, so the app can show it before sign-in too).
+  app.get('/api/seasons', async () => ({ current: services.seasons.current(), past: await services.seasons.past() }));
+
+  app.get('/api/me/seasons', async (req) => {
+    const account = await auth.require(req);
+    return { results: await services.seasons.mine(account.id) };
   });
 
   app.get<{ Params: { mode: string } }>('/api/leaderboards/:mode/me', async (req) => {

@@ -368,6 +368,50 @@ namespace IPlay.Cornhole
         public int Total, MinGames, ActiveDays;
         public int? Next;
         public List<BoardEntry> Entries = new List<BoardEntry>();
+        /// <summary>Which season this board is (null if the server does not send one).</summary>
+        public SeasonInfo Season;
+    }
+
+    /// <summary>A ranked season. Seasons last a few months; at the end the board is saved and ratings soft-reset.</summary>
+    public sealed class SeasonInfo
+    {
+        public int Number;
+        public string Name;
+        public DateTime StartsAt, EndsAt;
+        /// <summary>True for the season being played now (false for a finished season's final board).</summary>
+        public bool Current;
+
+        public static SeasonInfo From(Dictionary<string, object> d, bool current)
+        {
+            if (d == null) return null;
+            return new SeasonInfo
+            {
+                Number = J.Int(d, "number"),
+                Name = J.Str(d, "name", "Season " + J.Int(d, "number")),
+                StartsAt = ParseTime(J.Str(d, "startsAt")),
+                EndsAt = ParseTime(J.Str(d, "endsAt")),
+                Current = J.Has(d, "current") ? J.Bool(d, "current") : current,
+            };
+        }
+
+        /// <summary>Whole days left in the season (0 on the last day).</summary>
+        public int DaysLeft(DateTime nowUtc) { return Math.Max(0, (int)Math.Floor((EndsAt - nowUtc).TotalDays)); }
+
+        private static DateTime ParseTime(string s)
+        {
+            DateTime t;
+            return DateTime.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out t) ? t : DateTime.MinValue;
+        }
+    }
+
+    /// <summary>How a player finished a past season.</summary>
+    public sealed class MySeasonResult
+    {
+        public int Season;
+        public string Name, Mode, PartnerName;
+        public int? Rank;
+        public int Rating, Games, Wins, Losses;
     }
 
     public sealed class MyStanding
@@ -384,14 +428,44 @@ namespace IPlay.Cornhole
         private readonly ApiClient api;
         public Leaderboards(ApiClient api) { this.api = api; }
 
-        public async Task<BoardPage> PageAsync(string mode, int offset = 0, int limit = 50)
+        /// <summary>season: a finished season's final board; leave null for the current season.</summary>
+        public async Task<BoardPage> PageAsync(string mode, int offset = 0, int limit = 50, int? season = null)
         {
-            var d = await api.Leaderboard(mode, limit, offset).ConfigureAwait(false);
+            var d = await api.Leaderboard(mode, limit, offset, season).ConfigureAwait(false);
             var page = new BoardPage { Mode = mode, Total = J.Int(d, "total"), MinGames = J.Int(d, "minGames"), ActiveDays = J.Int(d, "activeDays") };
+            page.Season = SeasonInfo.From(J.Obj(d, "season"), !season.HasValue);
             if (J.Has(d, "next")) page.Next = J.Int(d, "next");
             var entries = J.Arr(d, "entries");
             if (entries != null) foreach (var e in entries) page.Entries.Add(BoardEntry.From(e));
             return page;
+        }
+
+        /// <summary>The current season and the finished ones (newest first).</summary>
+        public async Task<KeyValuePair<SeasonInfo, List<SeasonInfo>>> SeasonsAsync()
+        {
+            var d = await api.Seasons().ConfigureAwait(false);
+            var past = new List<SeasonInfo>();
+            var arr = J.Arr(d, "past");
+            if (arr != null) foreach (var s in arr) past.Add(SeasonInfo.From(s as Dictionary<string, object>, false));
+            return new KeyValuePair<SeasonInfo, List<SeasonInfo>>(SeasonInfo.From(J.Obj(d, "current"), true), past);
+        }
+
+        public async Task<List<MySeasonResult>> MySeasonsAsync()
+        {
+            var d = await api.MySeasons().ConfigureAwait(false);
+            var list = new List<MySeasonResult>();
+            var arr = J.Arr(d, "results");
+            if (arr != null)
+                foreach (var o in arr)
+                {
+                    var r = o as Dictionary<string, object>;
+                    var m = new MySeasonResult { Season = J.Int(r, "season"), Name = J.Str(r, "name"), Mode = J.Str(r, "mode"), Rating = J.Int(r, "rating"), Games = J.Int(r, "games"), Wins = J.Int(r, "wins"), Losses = J.Int(r, "losses") };
+                    if (J.Has(r, "rank")) m.Rank = J.Int(r, "rank");
+                    var partner = J.Obj(r, "partner");
+                    if (partner != null) m.PartnerName = J.Str(partner, "displayName");
+                    list.Add(m);
+                }
+            return list;
         }
 
         public async Task<List<MyStanding>> MineAsync(string mode)

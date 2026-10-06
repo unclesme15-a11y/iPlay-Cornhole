@@ -224,4 +224,50 @@ CREATE TABLE deletion_requests (
 CREATE INDEX deletion_requests_status_idx ON deletion_requests (status, created_at);
 `,
   },
+  {
+    version: 5,
+    name: 'ranked seasons',
+    sql: `
+-- One row per season. closed_at is set when its standings have been saved and ratings soft-reset.
+CREATE TABLE seasons (
+  number int PRIMARY KEY,
+  starts_at timestamptz NOT NULL,
+  ends_at timestamptz NOT NULL,
+  closed_at timestamptz
+);
+
+-- Final standings of each finished season: everyone who played that season (rank is null if they did not qualify).
+-- Names are copied at the time, so the board stays as it was; a deleted account becomes "Deleted player".
+CREATE TABLE season_results (
+  season int NOT NULL REFERENCES seasons(number),
+  mode text NOT NULL CHECK (mode IN ('singles', 'teams')),
+  entry_key text NOT NULL,
+  member_a text REFERENCES accounts(id) ON DELETE SET NULL,
+  name_a text NOT NULL,
+  member_b text REFERENCES accounts(id) ON DELETE SET NULL,
+  name_b text,
+  rank int,
+  rating int NOT NULL,
+  peak int NOT NULL,
+  games int NOT NULL,
+  wins int NOT NULL,
+  losses int NOT NULL,
+  PRIMARY KEY (season, mode, entry_key)
+);
+CREATE INDEX season_results_board_idx ON season_results (season, mode, rank);
+CREATE INDEX season_results_member_a_idx ON season_results (member_a);
+CREATE INDEX season_results_member_b_idx ON season_results (member_b);
+
+CREATE FUNCTION anonymise_season_results() RETURNS trigger AS $$
+BEGIN
+  UPDATE season_results SET name_a = 'Deleted player' WHERE member_a = OLD.id;
+  UPDATE season_results SET name_b = 'Deleted player' WHERE member_b = OLD.id;
+  RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER accounts_anonymise_seasons BEFORE DELETE ON accounts
+  FOR EACH ROW EXECUTE FUNCTION anonymise_season_results();
+`,
+  },
 ];

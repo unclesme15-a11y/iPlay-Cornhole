@@ -71,6 +71,7 @@ export async function startServer(
     );
     services.ranked.start();
     services.janitor.start();
+    services.seasons.start();
     if (opts.listen !== false) await built.app.listen({ port: config.PORT, host: config.HOST });
   } catch (error) {
     // Don't leave the database connection (and the ownership lock) hanging if start-up fails part-way.
@@ -88,6 +89,7 @@ export async function startServer(
       services.registry.maintenance = true; // nobody can start a match on a server that is going away
       services.ranked.stop();
       services.janitor.stop();
+      services.seasons.stop();
       built.closeSockets();
       await services.registry.shutdown();
       await built.app.close();

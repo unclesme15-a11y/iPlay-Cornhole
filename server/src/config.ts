@@ -103,6 +103,14 @@ const envSchema = z
      *  website deletion requests (each kind at most once per 10 minutes). */
     ALERT_WEBHOOK_URL: z.string().url().optional(),
 
+    // ---- ranked seasons
+    /** When season 1 starts (a date, UTC). */
+    SEASON_ONE_START: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'use YYYY-MM-DD').default('2026-10-01'),
+    /** How long a season lasts, in months. */
+    SEASON_LENGTH_MONTHS: z.coerce.number().int().refine((n) => [1, 2, 3, 4, 6, 12].includes(n), 'use 1, 2, 3, 4, 6 or 12').default(3),
+    /** At a season reset, how much of each rating's distance from 1200 is kept (0 = everyone back to 1200, 1 = no reset). */
+    SEASON_SOFT_RESET: z.coerce.number().min(0).max(1).default(0.5),
+
     // ---- data retention
     /** Delete finished-match history older than this many days (0 = keep it forever). Ratings are separate and stay. */
     MATCH_HISTORY_DAYS: z.coerce.number().int().min(0).max(36500).default(0),

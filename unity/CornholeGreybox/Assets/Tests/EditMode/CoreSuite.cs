@@ -658,6 +658,36 @@ namespace IPlay.Cornhole.Tests
                 Ck.False(off.ShouldShowMenuBanner);
             });
 
+            // ---- seasons
+            add("seasons: the board says which season and how long is left; past boards and my history parse", () =>
+            {
+                var t = new FakeTransport();
+                t.On("GET /api/leaderboards/singles", 200, @"{""entries"":[],""total"":0,""minGames"":10,""activeDays"":90,""next"":null,
+                    ""season"":{""number"":3,""name"":""Season 3"",""startsAt"":""2027-04-01T00:00:00.000Z"",""endsAt"":""2027-07-01T00:00:00.000Z"",""current"":true}}");
+                t.On("GET /api/seasons", 200, @"{""current"":{""number"":3,""name"":""Season 3"",""startsAt"":""2027-04-01T00:00:00.000Z"",""endsAt"":""2027-07-01T00:00:00.000Z""},
+                    ""past"":[{""number"":2,""name"":""Season 2"",""startsAt"":""2027-01-01T00:00:00.000Z"",""endsAt"":""2027-04-01T00:00:00.000Z""},{""number"":1,""name"":""Season 1"",""startsAt"":""2026-10-01T00:00:00.000Z"",""endsAt"":""2027-01-01T00:00:00.000Z""}]}");
+                t.On("GET /api/me/seasons", 200, @"{""results"":[{""season"":2,""name"":""Season 2"",""mode"":""teams"",""rank"":4,""rating"":1450,""games"":20,""wins"":13,""losses"":7,""partner"":{""accountId"":""b"",""displayName"":""Dre""}},
+                    {""season"":2,""name"":""Season 2"",""mode"":""singles"",""rank"":null,""rating"":1310,""games"":6,""wins"":3,""losses"":3,""partner"":null}]}");
+                var boards = new Leaderboards(new ApiClient(t, "http://x", null));
+                var page = Ck.Run(boards.PageAsync("singles"));
+                Ck.Eq(3, page.Season.Number);
+                Ck.True(page.Season.Current, "live board");
+                Ck.Eq(30, page.Season.DaysLeft(new DateTime(2027, 5, 31, 23, 0, 0, DateTimeKind.Utc)));
+                Ck.Eq(0, page.Season.DaysLeft(new DateTime(2027, 6, 30, 12, 0, 0, DateTimeKind.Utc)), "last day");
+                Ck.Eq(0, page.Season.DaysLeft(new DateTime(2027, 8, 1, 0, 0, 0, DateTimeKind.Utc)), "never negative");
+                Ck.Run(boards.PageAsync("singles", 0, 25, 2));
+                Ck.Eq("GET /api/leaderboards/singles?limit=25&offset=0&season=2", t.Log[t.Log.Count - 1]);
+                var seasons = Ck.Run(boards.SeasonsAsync());
+                Ck.Eq(3, seasons.Key.Number);
+                Ck.Eq(2, seasons.Value.Count);
+                Ck.Eq(2, seasons.Value[0].Number, "newest finished first");
+                Ck.False(seasons.Value[0].Current);
+                var mine = Ck.Run(boards.MySeasonsAsync());
+                Ck.Eq(4, mine[0].Rank.Value);
+                Ck.Eq("Dre", mine[0].PartnerName);
+                Ck.False(mine[1].Rank.HasValue, "played but did not qualify");
+            });
+
             // ---- app error reports
             add("error reports: repeats become one entry with a count, sent in one batch; failures are kept for later", () =>
             {
