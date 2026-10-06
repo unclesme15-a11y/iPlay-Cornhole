@@ -3,6 +3,8 @@
 #   cp .env.example .env   (fill it in)
 #   ./deploy.sh
 #
+# Staging (a separate test copy on the same box): every script takes --staging. See docs/hetzner-deploy.md.
+#
 # The game listens on 127.0.0.1 only. Your existing web server (Caddy or nginx, see the
 # snippets next to this file) sends https://cornhole.your-domain to it. No ports are opened
 # to the internet by this file. If the box has no web server yet, start the bundled Caddy:
@@ -22,7 +24,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: cornhole
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (or .env.staging)}
       POSTGRES_DB: cornhole
     # Small and polite: leaves room for the other games on this box.
     command: >
@@ -51,7 +53,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    env_file: .env
+    # .env for production, .env.staging for staging (deploy/lib.sh sets ENV_FILE)
+    env_file: ${ENV_FILE:-.env}
     environment:
       NODE_ENV: production
       PORT: '3000'

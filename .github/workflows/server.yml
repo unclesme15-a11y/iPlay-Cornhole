@@ -70,6 +70,14 @@ jobs:
           echo RESTORE | ./restore.sh "$(ls -1t backups/*.dump | head -1)"
           for i in $(seq 1 60); do curl -fsS http://127.0.0.1:3010/ready && break; sleep 1; done
           ./setup-host.sh --dry-run
+          # staging: a second copy beside production, then promote it
+          cp .env.example .env.staging
+          sed -i 's/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=cistaging/' .env.staging
+          ./deploy.sh --staging
+          curl -fsS http://127.0.0.1:3011/ready
+          curl -fsS http://127.0.0.1:3010/ready
+          ./deploy.sh --promote
+          docker compose -p iplay-cornhole-staging --env-file .env.staging ps
       - name: logs if it failed
         if: failure()
         working-directory: deploy

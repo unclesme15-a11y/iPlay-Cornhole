@@ -21,3 +21,7 @@ coverage/
 preview/board-preview.html
 .data/
 deploy/backups/
+
+# staging copy (deploy/lib.sh)
+deploy/.env.staging
+deploy/backups-staging/

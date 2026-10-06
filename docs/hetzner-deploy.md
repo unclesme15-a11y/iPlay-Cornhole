@@ -137,4 +137,5 @@ Edit `.env`, then `./deploy.sh --no-build`:
   - The nginx snippet: nginx accepts it, and with a certificate added (as certbot does) it passes HTTPS and live-match connections through.
   - `./backup.sh` then `./restore.sh`: an account made after the backup was gone after the restore, everything else was back.
   - `--maintenance` and `--no-build`.
+  - **Staging beside production:** both running at once with separate databases (an account made on staging never appeared in production), production data copied into staging without touching production, `--promote` putting the exact staging build live, and the one-line rollback.
 - Not tested here: a real domain and Let's Encrypt certificate (needs your domain), and Hetzner's own firewall and backups (in their control panel).

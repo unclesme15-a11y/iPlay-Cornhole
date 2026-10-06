@@ -3,6 +3,7 @@
 # and copy them off this box if BACKUP_RSYNC_TARGET is set in .env.
 #
 #   ./backup.sh            one backup now
+#   ./backup.sh --staging  a backup of the staging copy (into ./backups-staging, never copied off the box)
 #   ./setup-host.sh        installs the nightly run (03:17) for you
 #
 # Off-box copy (a backup on the same disk does not survive losing the server). With a Hetzner Storage Box:
@@ -12,7 +13,7 @@
 # If anything fails and ALERT_WEBHOOK_URL is set, a message goes there too.
 set -euo pipefail
 cd "$(dirname "$0")"
-[ -f .env ] && { set -a; . ./.env; set +a; }
+. ./lib.sh
 
 KEEP="${KEEP:-14}"
 DIR="${BACKUP_DIR:-./backups}"
@@ -25,17 +26,17 @@ alert() {
   [ -n "${ALERT_WEBHOOK_URL:-}" ] || return 0
   local key=text
   case "$ALERT_WEBHOOK_URL" in *discord.com/api/webhooks/*|*discordapp.com/api/webhooks/*) key=content ;; esac
-  local msg="[iPlay Cornhole backup] $1"
+  local msg="[iPlay Cornhole ${ENVIRONMENT} backup] $1"
   msg="${msg//\\/\\\\}"; msg="${msg//\"/\\\"}"
   curl -fsS -m 10 -H 'content-type: application/json' -d "{\"$key\":\"$msg\"}" "$ALERT_WEBHOOK_URL" >/dev/null 2>&1 || true
 }
 trap 'rm -f "$OUT.partial"; alert "Backup FAILED on $(hostname) at line $LINENO. Run deploy/backup.sh by hand to see why."' ERR
 
 # -Fc is a compressed format that pg_restore can load into an empty database
-docker compose exec -T postgres pg_dump -U cornhole -d cornhole -Fc > "$OUT.partial"
+dc exec -T postgres pg_dump -U cornhole -d cornhole -Fc > "$OUT.partial"
 [ -s "$OUT.partial" ] || { rm -f "$OUT.partial"; alert "Backup was empty on $(hostname); something is wrong."; exit 1; }
 # Prove the file is a complete, readable backup (pg_restore reads its table of contents).
-docker compose exec -T postgres pg_restore --list < "$OUT.partial" > /dev/null
+dc exec -T postgres pg_restore --list < "$OUT.partial" > /dev/null
 mv "$OUT.partial" "$OUT"
 echo "Wrote $OUT ($(du -h "$OUT" | cut -f1))"
 
