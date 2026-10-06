@@ -90,6 +90,7 @@ export async function startServer(
       services.ranked.stop();
       services.janitor.stop();
       services.seasons.stop();
+      services.push.close();
       built.closeSockets();
       await services.registry.shutdown();
       await built.app.close();

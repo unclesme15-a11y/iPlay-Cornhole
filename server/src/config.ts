@@ -103,6 +103,23 @@ const envSchema = z
      *  website deletion requests (each kind at most once per 10 minutes). */
     ALERT_WEBHOOK_URL: z.string().url().optional(),
 
+    // ---- push notifications (both optional; set a platform's keys to switch it on)
+    /** Apple: the APNs key from developer.apple.com (Keys > +, Apple Push Notifications service). */
+    APNS_KEY_ID: z.string().trim().min(1).optional(),
+    /** The .p8 key's contents. Line breaks may be written as \\n. */
+    APNS_PRIVATE_KEY: z.string().trim().min(1).optional(),
+    /** Defaults to APPLE_TEAM_ID. */
+    APNS_TEAM_ID: z.string().trim().min(1).optional(),
+    /** Defaults to IOS_BUNDLE_ID. */
+    APNS_BUNDLE_ID: z.string().trim().min(1).optional(),
+    /** true for development builds (Xcode); false for TestFlight and the App Store. */
+    APNS_SANDBOX: bool(false),
+    APNS_HOST: z.string().url().optional(),
+    /** Google: the Firebase service account JSON (the file's contents, or a path to it). */
+    FCM_SERVICE_ACCOUNT: z.string().trim().min(1).optional(),
+    FCM_SEND_URL: z.string().url().optional(),
+    FCM_TOKEN_URL: z.string().url().optional(),
+
     // ---- ranked seasons
     /** When season 1 starts (a date, UTC). */
     SEASON_ONE_START: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'use YYYY-MM-DD').default('2026-10-01'),
@@ -124,6 +141,9 @@ const envSchema = z
     const vivox = [env.VIVOX_ISSUER, env.VIVOX_DOMAIN, env.VIVOX_SIGNING_KEY, env.VIVOX_UNITY_ENVIRONMENT_ID];
     if (vivox.some(Boolean) && !vivox.every(Boolean)) {
       ctx.addIssue({ code: 'custom', path: ['VIVOX_ISSUER'], message: 'voice needs all of VIVOX_ISSUER, VIVOX_DOMAIN, VIVOX_SIGNING_KEY and VIVOX_UNITY_ENVIRONMENT_ID, or none of them' });
+    }
+    if ((env.APNS_KEY_ID || env.APNS_PRIVATE_KEY) && !(env.APNS_KEY_ID && env.APNS_PRIVATE_KEY && (env.APNS_TEAM_ID || env.APPLE_TEAM_ID) && (env.APNS_BUNDLE_ID || env.IOS_BUNDLE_ID))) {
+      ctx.addIssue({ code: 'custom', path: ['APNS_KEY_ID'], message: 'iPhone push needs APNS_KEY_ID, APNS_PRIVATE_KEY, a team id (APNS_TEAM_ID or APPLE_TEAM_ID) and a bundle id (APNS_BUNDLE_ID or IOS_BUNDLE_ID)' });
     }
     if (env.LATEST_CLIENT_VERSION && compareVersions(env.LATEST_CLIENT_VERSION, env.MIN_CLIENT_VERSION) < 0) {
       ctx.addIssue({ code: 'custom', path: ['LATEST_CLIENT_VERSION'], message: 'cannot be older than MIN_CLIENT_VERSION' });

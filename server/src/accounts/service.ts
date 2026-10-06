@@ -298,7 +298,7 @@ export class AccountService {
     const account = await this.get(id);
     if (!account) throw new DomainError('unknown_account', 'Account not found', 404);
     const q = this.db;
-    const [identities, stats, matches, blocks, reports, singles, duos, cooldown, seasons] = await Promise.all([
+    const [identities, stats, matches, blocks, reports, singles, duos, cooldown, seasons, pushDevices, pushSettings] = await Promise.all([
       q.query('SELECT provider, created_at FROM identities WHERE account_id = $1', [id]),
       q.query('SELECT games, wins, losses, leaves, throws, holes, boards, fouls FROM player_stats WHERE account_id = $1', [id]),
       q.query(
@@ -321,6 +321,8 @@ export class AccountService {
            FROM season_results WHERE member_a = $1 OR member_b = $1 ORDER BY season DESC, mode`,
         [id],
       ),
+      q.query('SELECT platform, app_version, created_at, updated_at FROM push_devices WHERE account_id = $1', [id]),
+      q.query('SELECT push_settings FROM accounts WHERE id = $1', [id]),
     ]);
     return {
       exportedAt: new Date(this.now()).toISOString(),
@@ -339,6 +341,8 @@ export class AccountService {
       ratings: { singles: singles.rows[0] ?? null, teams: duos.rows },
       rankedCooldown: cooldown.rows[0] ?? null,
       seasonResults: seasons.rows,
+      // the push token itself is left out: it is a delivery address, not information about the person
+      pushNotifications: { devices: pushDevices.rows, settings: pushSettings.rows[0]?.push_settings ?? {} },
       matches: matches.rows,
       blockedPlayers: blocks.rows,
       reportsFiled: reports.rows,

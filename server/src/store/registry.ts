@@ -51,6 +51,8 @@ export class MatchRegistry {
   onRankedForfeit: ((accountId: string) => void) | null = null;
   /** Called after a ranked result changed ratings (leaderboards should refresh). */
   onRatingsChanged: (() => void) | null = null;
+  /** A player dropped out of a match being played (push notifications use it). */
+  onPlayerAway: ((session: MatchSession, playerId: string) => void) | null = null;
 
   constructor(opts: RegistryOptions) {
     this.sched = opts.scheduler;
@@ -84,6 +86,7 @@ export class MatchRegistry {
       onChange: (s) => this.persistence?.markDirty(s),
       onEnded: (s) => this.handleEnded(s),
       createRematch: (old, seed) => this.createRematch(old, seed),
+      onPlayerAway: (s, playerId) => this.onPlayerAway?.(s, playerId),
     };
   }
 
@@ -185,10 +188,25 @@ export class MatchRegistry {
       }
     }
     const summary = session.summary();
-    if (summary && this.history) void this.recordWithRetry(summary, 0, session);
+    if (summary && this.history) this.track(this.recordWithRetry(summary, 0, session));
+  }
+
+  /** Match results being saved right now, and ones waiting to retry (by match code). */
+  private readonly saving = new Set<Promise<void>>();
+  private readonly retrying = new Map<string, { summary: MatchSummary; session: MatchSession; cancel: () => void }>();
+
+  private track(p: Promise<void>): void {
+    this.saving.add(p);
+    void p.finally(() => this.saving.delete(p));
+  }
+
+  /** Resolves when no match result is being saved (tests, and shutdown). */
+  async historyIdle(): Promise<void> {
+    while (this.saving.size > 0) await Promise.allSettled([...this.saving]);
   }
 
   private async recordWithRetry(summary: MatchSummary, attempt: number, session: MatchSession): Promise<void> {
+    this.retrying.delete(summary.code);
     try {
       const result = await this.history!.recordMatch(summary);
       if (summary.ranked && !result.duplicate) {
@@ -202,7 +220,8 @@ export class MatchRegistry {
         return;
       }
       this.log('warn', 'saving match history failed, will retry', { code: summary.code, attempt, error: String(error) });
-      this.sched.after(attempt === 0 ? 2000 : 10_000, () => void this.recordWithRetry(summary, attempt + 1, session));
+      const cancel = this.sched.after(attempt === 0 ? 2000 : 10_000, () => this.track(this.recordWithRetry(summary, attempt + 1, session)));
+      this.retrying.set(summary.code, { summary, session, cancel });
     }
   }
 
@@ -268,6 +287,16 @@ export class MatchRegistry {
     }
     await this.persistence?.flushAll();
     this.persistence?.freeze();
+    // Finish saving match results before the database closes. One waiting to retry gets a last try now; if that
+    // fails too, its whole result is logged (as when retries run out) so it can be added by hand.
+    // First let saves already running finish: one that fails now schedules a retry, which the loop must see.
+    await this.historyIdle();
+    for (const [code, r] of [...this.retrying]) {
+      r.cancel();
+      this.retrying.delete(code);
+      this.track(this.recordWithRetry(r.summary, 2, r.session));
+    }
+    await this.historyIdle();
   }
 
   /** Save everything that is waiting to be saved. Call before the process exits. */

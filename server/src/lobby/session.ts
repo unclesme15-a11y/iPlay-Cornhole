@@ -97,6 +97,8 @@ export interface SessionHooks {
   onEnded?: (session: MatchSession) => void;
   /** Start a rematch. Returns the new match's id, or throws a DomainError if it can't be made. */
   createRematch?: (session: MatchSession, seed: RematchSeed) => string;
+  /** A player's connection dropped while the match was being played (not at a server restart). */
+  onPlayerAway?: (session: MatchSession, playerId: string) => void;
 }
 
 /** Plain JSON copy of a live match, enough to bring it back after a server restart. */
@@ -808,6 +810,7 @@ export class MatchSession {
       }
     } else if (this.phase !== 'finished' && this.phase !== 'abandoned' && this.phase !== 'lobby') {
       this.armGrace(player);
+      this.hooks.onPlayerAway?.(this, playerId);
     }
     this.emit('seats', { seats: this.seatsView() });
     this.checkAbandon();
@@ -1289,6 +1292,15 @@ export class MatchSession {
 
   get currentPhase(): Phase {
     return this.phase;
+  }
+
+  /** Is this player's phone connected right now? */
+  isConnected(playerId: string): boolean {
+    return this.players.get(playerId)?.connected === true;
+  }
+
+  get isRanked(): boolean {
+    return this.ranked !== null;
   }
 
   get isOver(): boolean {

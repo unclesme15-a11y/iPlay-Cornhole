@@ -270,4 +270,23 @@ CREATE TRIGGER accounts_anonymise_seasons BEFORE DELETE ON accounts
   FOR EACH ROW EXECUTE FUNCTION anonymise_season_results();
 `,
   },
+  {
+    version: 6,
+    name: 'push notifications',
+    sql: `
+-- Phones that can receive push notifications. A token is one app install; it follows whoever is signed in on it.
+CREATE TABLE push_devices (
+  token text PRIMARY KEY,
+  account_id text NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  platform text NOT NULL CHECK (platform IN ('ios', 'android')),
+  app_version text,
+  created_at timestamptz NOT NULL,
+  updated_at timestamptz NOT NULL
+);
+CREATE INDEX push_devices_account_idx ON push_devices (account_id);
+
+-- Which kinds of notification a player wants ({"match": false} switches one off; missing means on).
+ALTER TABLE accounts ADD COLUMN push_settings jsonb NOT NULL DEFAULT '{}'::jsonb;
+`,
+  },
 ];

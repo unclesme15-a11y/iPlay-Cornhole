@@ -213,7 +213,7 @@ describe('a whole match over HTTP', () => {
 
     // The result is saved: history and running totals
     await t.services.persistence.idle();
-    await new Promise((r) => setTimeout(r, 200));
+    await t.services.registry.historyIdle();
     const me = (await t.call(host.token, 'GET', '/api/me')).json();
     expect(me.activeMatchId).toBeNull();
     expect(me.stats.games).toBe(1);

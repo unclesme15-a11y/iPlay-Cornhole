@@ -53,6 +53,8 @@ export const ratingWindow = (waitedMs: number): number => Math.min(800, 100 + 50
  */
 export class RankedService {
   private readonly queue = new Map<string, Entry>(); // by account id (both members of a duo point at one entry)
+  /** A ranked match was made (push notifications use it). */
+  onMatched: ((accountIds: string[], matchId: string, mode: RankedMode) => void) | null = null;
   private readonly matched = new Map<string, { matchId: string; mode: RankedMode; at: number }>();
   private readonly expired = new Map<string, { mode: RankedMode; at: number }>();
   private readonly parties = new Map<string, Party>();
@@ -369,6 +371,7 @@ export class RankedService {
         this.matched.set(s.account.id, { matchId: session.id, mode: a.mode, at });
       }
       this.log('info', 'ranked match made', { id: session.id, mode: a.mode });
+      this.onMatched?.(seats.map((s) => s.account.id), session.id, a.mode);
       return true;
     } catch (error) {
       if (error instanceof DomainError && error.code === 'already_in_match') {

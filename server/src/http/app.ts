@@ -120,6 +120,8 @@ export async function buildApp(services: Services): Promise<BuiltApp> {
     },
     ranked: { modes: ['singles', 'teams'], playTo: 21, cooldownMinutes: 10, season: services.seasons.current() },
     terms: { currentVersion: config.TERMS_VERSION, minAge: 18 },
+    /** Which phones can get push notifications, and the kinds a player can switch on or off. */
+    push: { ...services.push.enabled, categories: ['match', 'ranked', 'season'] },
     /** The public pages this server hosts (the app's Profile > Help links). */
     links: {
       privacy: `${config.PUBLIC_BASE_URL.replace(/\/+$/, '')}/privacy`,
