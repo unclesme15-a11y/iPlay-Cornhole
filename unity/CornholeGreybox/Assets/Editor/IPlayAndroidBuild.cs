@@ -10,7 +10,7 @@ using UnityEngine;
 ///   - Google's sign-in libraries (androidx.credentials and googleid) to unityLibrary/build.gradle
 ///   - invite links: iplaycornhole://join/CODE, and https://your-domain/join/CODE as a verified app link
 ///     (the server publishes /.well-known/assetlinks.json when ANDROID_PACKAGE and ANDROID_CERT_SHA256 are set)
-///   - the microphone permission for voice chat.
+///   - the microphone permission for voice chat, and the notification permission for push notifications.
 /// </summary>
 public sealed class IPlayAndroidBuild : IPostGenerateGradleAndroidProject
 {
@@ -52,10 +52,12 @@ public sealed class IPlayAndroidBuild : IPostGenerateGradleAndroidProject
         ns.AddNamespace("android", AndroidNs);
         var root = doc.DocumentElement;
 
-        if (root.SelectSingleNode("uses-permission[@android:name='android.permission.RECORD_AUDIO']", ns) == null)
+        // Voice chat needs the microphone; push notifications need permission to notify (Android 13+).
+        foreach (var permission in new[] { "android.permission.RECORD_AUDIO", "android.permission.POST_NOTIFICATIONS" })
         {
+            if (root.SelectSingleNode("uses-permission[@android:name='" + permission + "']", ns) != null) continue;
             var perm = doc.CreateElement("uses-permission");
-            perm.SetAttribute("name", AndroidNs, "android.permission.RECORD_AUDIO");
+            perm.SetAttribute("name", AndroidNs, permission);
             root.PrependChild(perm);
         }
 

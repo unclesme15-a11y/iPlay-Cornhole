@@ -62,6 +62,17 @@ namespace IPlay.Cornhole.Tests
         }
     }
 
+    /// <summary>A phone push system that answers the way it is told to.</summary>
+    public sealed class FakePushProvider : IPushProvider
+    {
+        public string Answer = "token-abc-123";
+        public int Asked;
+        public bool Supported = true;
+        public string Platform { get { return "ios"; } }
+        public bool IsSupported { get { return Supported; } }
+        public Task<string> RequestTokenAsync() { Asked++; return Task.FromResult(Answer); }
+    }
+
     /// <summary>A socket that plays back a script: messages, then a close.</summary>
     public sealed class FakeSocket : ISocket
     {
@@ -686,6 +697,63 @@ namespace IPlay.Cornhole.Tests
                 Ck.Eq(4, mine[0].Rank.Value);
                 Ck.Eq("Dre", mine[0].PartnerName);
                 Ck.False(mine[1].Rank.HasValue, "played but did not qualify");
+            });
+
+            // ---- push notifications
+            add("push: asks only after the first finished match, sends the token, re-sends at start-up, removes it at sign-out", () =>
+            {
+                var t = new FakeTransport();
+                t.On("POST /api/me/push", 200, "{\"registered\":true}");
+                t.On("DELETE /api/me/push", 200, "{\"removed\":true}");
+                var store = new MemoryStore();
+                var phone = new FakePushProvider();
+                var push = new PushRegistration(new ApiClient(t, "http://x", null), store, phone);
+                Ck.False(Ck.Run(push.OnSignedInAsync()), "never asks at start-up before the first match");
+                Ck.Eq(0, phone.Asked);
+                Ck.True(Ck.Run(push.OnMatchFinishedAsync()), "first finished match: asks and registers");
+                Ck.Eq(1, phone.Asked);
+                Ck.Eq("{\"token\":\"token-abc-123\",\"platform\":\"ios\"}", t.BodiesSeen[t.BodiesSeen.Count - 1]);
+                Ck.False(Ck.Run(push.OnMatchFinishedAsync()), "never asks twice");
+                Ck.Eq(1, phone.Asked);
+                phone.Answer = "token-new-456"; // the phone changed it
+                Ck.True(Ck.Run(push.OnSignedInAsync()), "start-up re-sends");
+                Ck.Eq("token-new-456", push.Token);
+                Ck.Run(push.SignOutAsync());
+                Ck.Eq("DELETE /api/me/push", t.Log[t.Log.Count - 1]);
+                Ck.Eq("{\"token\":\"token-new-456\"}", t.BodiesSeen[t.BodiesSeen.Count - 1]);
+                Ck.Null(push.Token);
+            });
+
+            add("push: a 'Don't Allow', an Editor build or a server error never breaks anything", () =>
+            {
+                var t = new FakeTransport();
+                t.On("POST /api/me/push", 500, "{\"error\":{\"code\":\"internal\",\"message\":\"x\"}}");
+                var said = new FakePushProvider { Answer = null };
+                var push = new PushRegistration(new ApiClient(t, "http://x", null), new MemoryStore(), said);
+                Ck.False(Ck.Run(push.OnMatchFinishedAsync()), "no");
+                Ck.Eq(0, t.Log.Count);
+                var editor = new PushRegistration(new ApiClient(t, "http://x", null), new MemoryStore(), new FakePushProvider { Supported = false });
+                Ck.False(Ck.Run(editor.OnMatchFinishedAsync()));
+                Ck.False(Ck.Run(new PushRegistration(new ApiClient(t, "http://x", null), new MemoryStore(), null).OnMatchFinishedAsync()), "no provider");
+                var failing = new PushRegistration(new ApiClient(t, "http://x", null), new MemoryStore(), new FakePushProvider());
+                Ck.False(Ck.Run(failing.OnMatchFinishedAsync()), "server error: quietly false");
+                Ck.Null(failing.Token);
+                Ck.Run(failing.SignOutAsync()); // nothing saved: nothing to remove
+            });
+
+            add("push: the three kinds, on unless switched off", () =>
+            {
+                var t = new FakeTransport();
+                t.On("GET /api/me/push-settings", 200, "{\"settings\":{\"match\":true,\"ranked\":false,\"season\":true}}");
+                t.On("PUT /api/me/push-settings", 200, "{\"settings\":{\"match\":false,\"ranked\":false,\"season\":true}}");
+                var push = new PushRegistration(new ApiClient(t, "http://x", null), new MemoryStore(), null);
+                var s = Ck.Run(push.SettingsAsync());
+                Ck.True(s["match"]);
+                Ck.False(s["ranked"]);
+                s = Ck.Run(push.SetAsync("match", false));
+                Ck.False(s["match"]);
+                Ck.Eq("{\"match\":false}", t.BodiesSeen[t.BodiesSeen.Count - 1]);
+                Ck.Eq(3, PushRegistration.Kinds.Length);
             });
 
             // ---- app error reports

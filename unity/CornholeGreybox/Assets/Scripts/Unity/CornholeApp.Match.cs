@@ -37,7 +37,7 @@ public sealed partial class CornholeApp
         model.ThrowResultReceived += OnThrowResult;
         model.Scored += (team, pts) => { if (presenter != null) presenter.OnScore(team, pts); };
         model.WindChanged += w => { if (presenter != null) presenter.OnWind(w); };
-        model.MatchEnded += (winner, reason) => { ads.MatchFinished(); if (presenter != null) presenter.OnMatchEnded(winner, reason); };
+        model.MatchEnded += (winner, reason) => { ads.MatchFinished(); _ = push.OnMatchFinishedAsync(); if (presenter != null) presenter.OnMatchEnded(winner, reason); };
         model.SeatForfeited += (seat, reason) => Say(
             reason == "idle"
                 ? (seat == model.YouSeat ? "You were away too long, so you forfeited." : "Your opponent stopped playing. You win!")

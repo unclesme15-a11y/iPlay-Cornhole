@@ -27,6 +27,7 @@ public static class AndroidBuildTest
         var bytes = File.ReadAllBytes(manifest);
         Expect(bytes[0] == (byte)'<', "manifest has no byte-order mark");
         Expect(Count(m, "android.permission.RECORD_AUDIO") == 1, "microphone permission added once");
+        Expect(Count(m, "android.permission.POST_NOTIFICATIONS") == 1, "notification permission added once");
         Expect(Count(m, "android:scheme=\"iplaycornhole\" android:host=\"join\"") == 1, "iplaycornhole://join link added once");
         Expect(Count(m, "android:autoVerify=\"true\"") == 1, "verified https app link added once");
         Expect(Count(m, "android:host=\"cornhole.example.com\" android:pathPrefix=\"/join/\"") == 1, "https link matches /join/ on the domain");

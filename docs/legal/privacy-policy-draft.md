@@ -21,6 +21,7 @@ iPlay Cornhole is for adults. **You must be 18 or older to play.** The game asks
 | **Login sessions:** a scrambled copy of your login token, when it was made and last used, whether your phone is iOS or Android, and the app version | Keeping you signed in; fixing problems | 90 days after last use, or until you sign out or delete your account |
 | **Reports and blocks:** who you blocked, and reports you send (who, the match, the reason, and an optional note up to 500 characters) | Keeping players safe | Until deleted by us. If you delete your account, the link to you as the reporter is removed |
 | **Bans:** the reason and the end date | Enforcing our rules | Until lifted, or until the account is deleted |
+| **Push notifications:** if you allow them, a delivery address for your phone from Apple or Google, and which kinds you switched off | To send the three kinds of notification you allowed | Until you sign out on that phone, delete the app, turn them off, or delete your account |
 | **Deletion requests from our website:** your player name, the contact you give us (usually an email), and anything else you write | To find and delete your account and tell you it is done | 90 days after we handle the request |
 | **Live match state** | Letting a match survive a server restart | Deleted when the match ends |
 | **Error reports from the app:** if something goes wrong in the app, the error text, where in the app it happened, and the app version and phone type (not who you are) | Fixing bugs | [30 days: the same as technical logs] |

@@ -388,7 +388,7 @@ public sealed partial class CornholeApp
         {
             UiKit.Text(new Rect(x, y, w, 60f), "This erases your account, rating and stats for good.", Theme.BodySize, TextAnchor.MiddleCenter, Theme.Hot);
             if (UiKit.Button(new Rect(x, y + 64f, w / 2f - 8f, 54f), "KEEP IT", !busy, false, Theme.BodySize)) deleteConfirm = false;
-            if (UiKit.Button(new Rect(x + w / 2f + 8f, y + 64f, w / 2f - 8f, 54f), "DELETE", !busy, false, Theme.BodySize)) _ = Do(async () => { await account.DeleteAccountAsync(); deleteConfirm = false; ranked.Reset(); introStarted = Time.unscaledTime - IntroSeconds; screen = Page.Intro; });
+            if (UiKit.Button(new Rect(x + w / 2f + 8f, y + 64f, w / 2f - 8f, 54f), "DELETE", !busy, false, Theme.BodySize)) _ = Do(async () => { await push.SignOutAsync(); await account.DeleteAccountAsync(); deleteConfirm = false; ranked.Reset(); introStarted = Time.unscaledTime - IntroSeconds; screen = Page.Intro; });
         }
         if (signOutConfirm)
         {
@@ -403,6 +403,7 @@ public sealed partial class CornholeApp
 
     private async Task SignOut()
     {
+        await push.SignOutAsync();
         await account.SignOutAsync();
         introStarted = Time.unscaledTime - IntroSeconds;
         screen = Page.Intro;
@@ -432,7 +433,39 @@ public sealed partial class CornholeApp
         settings.AimAssist = row("Aim helper in casual games", settings.AimAssist);
         settings.ReduceMotion = row("Softer lights (no flashing)", settings.ReduceMotion);
         settings.Tutorial = row("Tutorial tips", settings.Tutorial);
+        if (UiKit.Link(new Rect(x, y, w, 48f), "Notifications >", Theme.BodySize)) { pushSettings = null; Go(Page.Notifications); _ = Do(async () => pushSettings = await push.SettingsAsync()); }
+        y += 52f;
         UiKit.Text(new Rect(x, y, w, 60f), "Ranked never shows the aim helper.", Theme.SmallSize, TextAnchor.MiddleCenter, Theme.TextDim);
         if (UiKit.Back()) Go(Page.Menu);
+    }
+
+    // ---------------------------------------------------------------- notifications
+    private Dictionary<string, bool> pushSettings;
+
+    private void DrawNotifications()
+    {
+        UiKit.Title("NOTIFICATIONS", 24f);
+        var w = Mathf.Min(UiKit.W - 60f, 560f);
+        var x = (UiKit.W - w) / 2f;
+        var y = 110f;
+        if (pushSettings == null)
+        {
+            UiKit.Text(new Rect(x, y, w, 40f), "Loading...", Theme.BodySize, TextAnchor.MiddleCenter, Theme.TextDim);
+        }
+        else
+        {
+            foreach (var kind in PushRegistration.Kinds)
+            {
+                var on = pushSettings[kind];
+                var next = UiKit.Toggle(new Rect(x, y, w, 52f), PushRegistration.Describe(kind), on);
+                if (next != on && !busy) { var k = kind; pushSettings[k] = next; _ = Do(async () => pushSettings = await push.SetAsync(k, next)); }
+                y += 60f;
+            }
+            var note = push.Token == null
+                ? "Notifications are off on this phone. Turn them on in your phone's settings for iPlay Cornhole."
+                : "We only send these three, and never more than one of a kind a minute.";
+            UiKit.Text(new Rect(x, y + 8f, w, 70f), note, Theme.SmallSize, TextAnchor.UpperCenter, Theme.TextDim);
+        }
+        if (UiKit.Back()) Go(Page.Settings);
     }
 }

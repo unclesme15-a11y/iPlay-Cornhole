@@ -88,6 +88,16 @@ The server has never talked to the real Apple/Google servers (it was tested with
 ### 6. Invite links opening the app
 Friends' invite links look like `https://your-domain/join/ABCD2345`. To open the app directly, set `APPLE_TEAM_ID`, `IOS_BUNDLE_ID`, `ANDROID_PACKAGE` and `ANDROID_CERT_SHA256` in the server `.env` (the server then serves the files iPhones and Androids check). **The app side is done by the build scripts**: `IPlayIosBuild.cs` adds Associated Domains for the https domain in `baseUrl`, and `IPlayAndroidBuild.cs` adds the Android intent filters (the https link, verified, and `iplaycornhole://join/CODE`). The app reads the link through `Application.deepLinkActivated`.
 
+### 6b. Push notifications
+
+**Built.** Three kinds only, each with its own switch in Settings > Notifications: "my match is still on" (sent when a player leaves the app mid-match and is still away 5 seconds later), "ranked match found", and "season results". The app asks for permission **after the first finished match**, never at first launch; people say yes far more often once they know the game. The token is re-sent at every start and removed at sign-out.
+
+Example: Big Mike is in a casual match, gets a text and switches apps. Five seconds later his phone says "Your cornhole match is still on. Come back within 30 seconds or a bot takes your seat." He taps it and is back at the board.
+
+What you set up (sign-ups):
+- **iPhone:** in developer.apple.com > Keys, create a key with **Apple Push Notifications service**. Put its key id and the .p8 file's contents in the server's `.env` (`APNS_KEY_ID`, `APNS_PRIVATE_KEY`). The build script adds the Push Notifications capability. Development builds from Xcode use Apple's sandbox: set `APNS_SANDBOX=true` on a test server for those.
+- **Android:** make a Firebase project for the app, download `google-services.json` into `Assets/`, import the **Firebase Cloud Messaging** Unity SDK, and add `FIREBASE_MESSAGING` to the Android Scripting Define Symbols. On the server, put the Firebase service-account JSON in `FCM_SERVICE_ACCOUNT` (the file's contents or a path to it). Until then Android players simply get no notifications.
+
 ### 7. Keep the login safe
 **Done.** The login lives in the **iOS Keychain** or, on Android, encrypted with a key held in the **Android Keystore** (`SecureStore` in `NativePlatform.cs`). Logins saved by older test builds in PlayerPrefs are moved over the first time they are read. Deleting the app signs the player out, as people expect (iPhones keep Keychain items after an uninstall, so a fresh install clears them). Settings like sound stay in PlayerPrefs.
 
@@ -104,7 +114,7 @@ When you build:
 
 ## How it was checked
 
-- The brain: **59 tests that need nothing but mono**, and **11 more that drive a real server**: sign-in, the 18+ refusal, app error reports, the wind maths matching the server's physics to the hundredth of an inch, a whole ranked search between two "phones", a 2v2 duo party, voice tokens, blocking, leaderboards, and deleting an account. Run them with `unity/CornholeGreybox/Tools/CoreTests/run-core-tests.sh` (add `--live http://127.0.0.1:3000` for the real-server ones).
+- The brain: **63 tests that need nothing but mono**, and **13 more that drive a real server**: sign-in, the 18+ refusal, app error reports, seasons, push registration, the wind maths matching the server's physics to the hundredth of an inch, a whole ranked search between two "phones", a 2v2 duo party, voice tokens, blocking, leaderboards, and deleting an account. Run them with `unity/CornholeGreybox/Tools/CoreTests/run-core-tests.sh` (add `--live http://127.0.0.1:3000` for the real-server ones).
 - The plain stage (screens, touches, Vivox, ads): **compiled against Unity's real engine API** (reference assemblies, `Tools/UnityStubs/check-unity-layer.sh`) as the Editor, an iPhone build and an Android build, and against stand-ins for Vivox and AppLovin, whose packages could not be downloaded here. That found real mistakes (a name clash with Unity's own `Screen`). **It has never been run in Unity.** Expect small fixes on the first open.
 - The build scripts (`Assets/Editor`): compiled against Unity's real Editor API; the Android manifest and Gradle changes are **run** on a Unity 6-shaped project and checked (twice, to prove repeating a build is safe). The Xcode part is compiled against stand-ins for Unity's Xcode API.
 - The native plugins (`Tools/NativeChecks/check-native.sh`): the Android code compiles against the **real Android 14 framework** (Google's sign-in library is stubbed; its download host was blocked here); the iPhone code passes clang with ARC and all warnings on, against stand-in Apple headers. **Neither has run on a phone.** Sign-in and the Keychain/Keystore need the real-phone test in the checklist.

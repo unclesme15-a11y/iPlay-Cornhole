@@ -31,7 +31,7 @@ public sealed partial class CornholeApp
         {
             case StartupOutcome.NeedAdultGate: Go(Page.AdultGate); break;
             case StartupOutcome.AdultDenied: Go(Page.AdultDenied); break;
-            case StartupOutcome.Ready: Go(Page.Menu); break;
+            case StartupOutcome.Ready: Go(Page.Menu); _ = push.OnSignedInAsync(); break;
             case StartupOutcome.NeedTerms: Go(Page.Terms); break;
             case StartupOutcome.RejoinMatch: Go(Page.Rejoin); break;
             default: Go(Page.Outage); break;

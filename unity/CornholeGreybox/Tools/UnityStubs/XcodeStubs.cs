@@ -19,6 +19,7 @@ namespace UnityEditor.iOS.Xcode
     {
         public ProjectCapabilityManager(string pbxProjectPath, string entitlementFilePath, string targetName = null, string targetGuid = null) { }
         public void AddSignInWithApple() { }
+        public void AddPushNotifications(bool development) { }
         public void AddAssociatedDomains(string[] domains) { }
         public void WriteToFile() { }
     }

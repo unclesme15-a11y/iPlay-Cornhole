@@ -12,7 +12,7 @@ using IPlay.Cornhole;
 /// </summary>
 public sealed partial class CornholeApp : MonoBehaviour
 {
-    private enum Page { Intro, AdultGate, AdultDenied, Outage, Terms, Rejoin, Menu, Ranked, Searching, Party, Friends, Leaderboards, Profile, Settings, Match }
+    private enum Page { Intro, AdultGate, AdultDenied, Outage, Terms, Rejoin, Menu, Ranked, Searching, Party, Friends, Leaderboards, Profile, Settings, Notifications, Match }
 
     private const float IntroSeconds = 1.6f;
 
@@ -27,6 +27,7 @@ public sealed partial class CornholeApp : MonoBehaviour
     private CueSounds sounds;
     private IKeyValueStore store;
     private ErrorReporter errors;
+    private PushRegistration push;
     private float nextErrorFlush;
     private ThrowGuide Guide { get { return account.Guide; } }
 
@@ -65,6 +66,7 @@ public sealed partial class CornholeApp : MonoBehaviour
         account = new AccountSession(api, new SecureStore());
         // Exceptions that break a screen without crashing the app are sent to the server (and your alert webhook).
         errors = new ErrorReporter(api);
+        push = new PushRegistration(api, store, PushProviders.ForThisPhone());
         Application.logMessageReceived += OnLogMessage;
         RegisterIdentityProviders();
         ranked = new RankedFlow(api);
@@ -161,6 +163,7 @@ public sealed partial class CornholeApp : MonoBehaviour
             case Page.Leaderboards: DrawLeaderboards(); break;
             case Page.Profile: DrawProfile(); break;
             case Page.Settings: DrawSettings(); break;
+            case Page.Notifications: DrawNotifications(); break;
             case Page.Match: DrawMatch(); break;
         }
         if (Time.unscaledTime < toastUntil) UiKit.Toast(toast);
@@ -225,6 +228,8 @@ public sealed partial class CornholeApp : MonoBehaviour
         {
             case Page.Ranked: case Page.Friends: case Page.Leaderboards: case Page.Profile: case Page.Settings: case Page.Party:
                 Go(Page.Menu); break;
+            case Page.Notifications:
+                Go(Page.Settings); break;
             case Page.Searching:
                 _ = Do(async () => { await ranked.CancelAsync(); Go(Page.Ranked); });
                 break;

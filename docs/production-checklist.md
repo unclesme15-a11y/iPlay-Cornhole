@@ -20,6 +20,8 @@ Example of how little is left per item: for Google sign-in, you make two "OAuth 
 | **A domain** (for example `cornhole.iplaygames.com`) | An A record pointing at your Hetzner box | `.env`: `PUBLIC_BASE_URL`; app: `baseUrl` in `iplay-cornhole-server.json` |
 | **An email address** for players | | `.env`: `SUPPORT_EMAIL` |
 | **Hetzner Storage Box** (off-box backups) | Its address | `.env`: `BACKUP_RSYNC_TARGET`, `BACKUP_SSH_PORT=23` |
+| **Apple push key** (developer.apple.com > Keys, "Apple Push Notifications service") | The key id and the .p8 file | `.env`: `APNS_KEY_ID`, `APNS_PRIVATE_KEY` |
+| **Firebase** (Android push) | `google-services.json`, and a service-account JSON | `google-services.json` into `Assets/`, import the Firebase Messaging SDK, add `FIREBASE_MESSAGING` to Android Scripting Define Symbols; the service account in `.env` as `FCM_SERVICE_ACCOUNT` |
 | **Discord or Slack webhook** (alerts to your phone) | The webhook address | `.env`: `ALERT_WEBHOOK_URL` |
 | **UptimeRobot** (free) | Add a check on `https://your-domain/ready` | |
 
@@ -68,11 +70,11 @@ This needs your phones and Unity. Use two phones, ideally one iPhone and one And
 | Area | Checked how | Trust |
 |---|---|---|
 | Rules, physics, bots, wind, flick | Automated tests, including breaking each safeguard on purpose to prove the tests notice | High |
-| Accounts, ranked, ratings, leaderboards, voice signing, ads settings, public pages, deletion requests, alerts, app error reports | 685 automated tests on real Postgres (594 on the in-process engine), repeated runs | High |
+| Accounts, ranked, ratings, leaderboards, voice signing, ads settings, public pages, deletion requests, alerts, app error reports | 712 automated tests on real Postgres (616 on the in-process engine), repeated runs | High |
 | A restart or deploy during live matches | Tests, a real server stopped under 1,498 live matches, and a real Docker redeploy during 20 matches (none lost) | High |
 | **Capacity** | Load test: **1,500 matches at once used about 35% of one CPU core and 250 MB**, answers under 0.1 s (99%) | Good sign, not a guarantee; one server holds all live matches |
 | **The Hetzner deploy pack** | Run for real in Docker: first deploy, redeploy during live matches, Caddy (60 requests during a deploy, all answered) and nginx, backup, off-box copy, failure alert, restore, and `setup-host.sh` in a clean Debian. CI runs it on every change | High (your domain's certificate is the only untested step) |
-| The phone's brain (server calls, ranked flow, throw maths, error reports) | 59 offline tests + 11 that drive a real server with the real client code | High |
+| The phone's brain (server calls, ranked flow, throw maths, error reports, seasons, push) | 63 offline tests + 13 that drive a real server with the real client code | High |
 | **The Unity screens and touch input** | Compiled against Unity's **real** engine API as Editor, iPhone and Android builds; never run in Unity | **Medium: expect small fixes on first open** |
 | **Sign in with Apple/Google, Keychain/Keystore** (our own native code) | Android code compiled against the real Android 14 framework; iPhone code passes clang with ARC; build scripts compiled against Unity's real Editor API, and the Android manifest changes run and checked | **Medium until the first real-phone test** |
 | **Vivox and AppLovin calls** | Compiled against stand-ins only (their downloads were blocked here) | **Low: check on first open** |

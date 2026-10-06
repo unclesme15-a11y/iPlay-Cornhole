@@ -90,6 +90,16 @@ Other players' account ids come from `view.seats[].accountId`.
 - `throwing`: every number needed to draw the aim line, landing ring, hole marks and shot picker exactly as the server computes them (see `docs/throwing-controls.md`).
 - `links: { privacy, terms, support, deleteAccount }`: the public pages this server hosts (see **Public pages** below).
 
+## Push notifications
+
+| Call | What it does |
+|---|---|
+| `POST /api/me/push` `{ token, platform: "ios" \| "android" }` | Register this phone's push token (after the player allows notifications, and again at every start). A token belongs to one phone: if someone else signs in on it, it moves to them. An account keeps its 5 newest phones. |
+| `DELETE /api/me/push` `{ token }` | Remove it (on sign-out). |
+| `GET /api/me/push-settings` / `PUT /api/me/push-settings` `{ match?, ranked?, season? }` | Which kinds the player wants (all on by default). |
+
+`GET /api/meta` → `push: { ios, android, categories }` says which platforms the server can send to. Notification data: `{ type: "match" | "ranked", matchId }` or `{ type: "season", season }`.
+
 ## App error reports
 
 `POST /api/client-errors` with `{ "errors": [{ "message", "stack"?, "count" }] }` (1 to 20 errors; message up to 500 characters, stack up to 4,000). No sign-in needed, 10 a minute per address, answers `202 { received }`. The server logs them (with the `X-Client-Version` / `X-Client-Platform` headers, nothing else about the player) and posts one alert per 10 minutes. The app's `ErrorReporter` sends these by itself.

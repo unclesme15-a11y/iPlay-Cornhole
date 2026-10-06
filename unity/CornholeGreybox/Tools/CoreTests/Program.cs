@@ -151,6 +151,19 @@ public static class LiveSuite
             Ck.NotNull(Ck.Run(boards.MySeasonsAsync()), "my history (empty for a new player)");
         });
 
+        add("live: push: the phone's token registers, settings change, and sign-out removes it", () =>
+        {
+            var p = new Phone(url);
+            p.Start();
+            var push = new PushRegistration(p.Api, p.Store, new FakePushProvider { Answer = "live-push-token-" + Guid.NewGuid().ToString("N") });
+            Ck.True(Ck.Run(push.OnMatchFinishedAsync()), "registered with the real server");
+            Ck.True(Ck.Run(push.SettingsAsync())["season"], "on by default");
+            Ck.False(Ck.Run(push.SetAsync("season", false))["season"]);
+            Ck.False(Ck.Run(push.SettingsAsync())["season"], "kept");
+            Ck.Run(push.SignOutAsync());
+            Ck.Null(push.Token);
+        });
+
         add("live: the server takes the app's error reports, and /api/meta lists the public page addresses", () =>
         {
             var p = new Phone(url);

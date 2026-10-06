@@ -9,7 +9,7 @@ using UnityEngine;
 /// <summary>
 /// After Unity writes the Xcode project: adds what the iPhone plugin (Assets/Plugins/iOS/IPlayNative.mm) needs, so the
 /// Xcode project is ready to archive with no manual steps:
-///   - the Sign in with Apple capability, and Associated Domains for invite links (applinks:your-domain, when baseUrl is https)
+///   - the Sign in with Apple and Push Notifications capabilities, and Associated Domains for invite links (applinks:your-domain, when baseUrl is https)
 ///   - AuthenticationServices and Security frameworks, and ARC for the plugin file
 ///   - Info.plist: the microphone text, and "no non-exempt encryption" (the game only uses HTTPS), which answers
 ///     App Store Connect's export-compliance question for every upload.
@@ -37,6 +37,8 @@ public static class IPlayIosBuild
 
         var capabilities = new ProjectCapabilityManager(projectPath, "Unity-iPhone/iplaycornhole.entitlements", null, mainTarget);
         capabilities.AddSignInWithApple();
+        // Push notifications: development builds talk to Apple's sandbox, store builds to production (APNS_SANDBOX on the server).
+        capabilities.AddPushNotifications(EditorUserBuildSettings.development);
         var host = cfg.LinkHost;
         if (host != null) capabilities.AddAssociatedDomains(new[] { "applinks:" + host });
         else Debug.LogWarning("iPlay: baseUrl is not https, so invite links will open in the browser, not the app.");

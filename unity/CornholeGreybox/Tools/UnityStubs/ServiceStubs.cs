@@ -87,3 +87,35 @@ public class MaxSdk : MaxSdkBase
     public static void HideBanner(string id) { }
 }
 #endif
+
+// Unity Mobile Notifications (com.unity.mobile.notifications), iOS part: only what NativePush.cs uses.
+namespace Unity.Notifications.iOS
+{
+    [Flags] public enum AuthorizationOption { None = 0, Badge = 1, Sound = 2, Alert = 4 }
+    public class AuthorizationRequest : IDisposable
+    {
+        public AuthorizationRequest(AuthorizationOption authorizationOption, bool registerForRemoteNotifications) { }
+        public bool IsFinished { get { return true; } }
+        public bool Granted { get { return false; } }
+        public string Error { get { return null; } }
+        public string DeviceToken { get { return null; } }
+        public void Dispose() { }
+    }
+}
+
+// Firebase Unity SDK (FirebaseApp + Messaging): only what NativePush.cs uses.
+namespace Firebase
+{
+    public enum DependencyStatus { Available, UnavailableDisabled, UnavailableInvalid, UnavilableMissing, UnavailablePermission, UnavailableUpdaterequired, UnavailableUpdating, UnavailableOther }
+    public class FirebaseApp
+    {
+        public static Task<DependencyStatus> CheckAndFixDependenciesAsync() { return Task.FromResult(DependencyStatus.Available); }
+    }
+}
+namespace Firebase.Messaging
+{
+    public static class FirebaseMessaging
+    {
+        public static Task<string> GetTokenAsync() { return Task.FromResult(""); }
+    }
+}

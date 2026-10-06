@@ -32,7 +32,8 @@ ADS=""
 [ "${1:-}" = "ads" ] && ADS="APPLOVIN_MAX"
 # Once as the Editor sees it, once as an iPhone build and once as an Android build (the native sign-in and secure
 # storage code only exists in those).
-for PLATFORM in "" UNITY_IOS UNITY_ANDROID; do
+# UNITY_ANDROID;FIREBASE_MESSAGING: an Android build once the Firebase SDK is added (push notifications on Android).
+for PLATFORM in "" UNITY_IOS UNITY_ANDROID "UNITY_ANDROID FIREBASE_MESSAGING"; do
   DEFINES="$(echo "$ADS $PLATFORM" | xargs | tr ' ' ';')"
   mcs ${DEFINES:+-define:$DEFINES} -target:library -out:"$OUT/UnityLayer.dll" -warnaserror:0618 \
     -r:System.Core -r:System.Net.Http -r:System $FACADES "${REFS[@]}" \
