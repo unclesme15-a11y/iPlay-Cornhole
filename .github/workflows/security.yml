@@ -1,0 +1,33 @@
+name: security
+
+# Every Monday (and on demand): check every library the server uses, including test tools, against the public list of
+# known security problems. A new problem can appear in code that has not changed, so this runs on a schedule, not
+# only on pushes. If it fails, GitHub emails the repo owner; Dependabot usually has a fix PR open already.
+
+on:
+  schedule:
+    - cron: '23 6 * * 1'
+  workflow_dispatch:
+  pull_request:
+    paths: ['server/package.json', 'server/package-lock.json', '.github/workflows/security.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: libraries that ship to players (fails on moderate or worse)
+        run: npm audit --omit=dev --audit-level=moderate
+      - name: all libraries, including test tools (fails on high or worse)
+        run: npm audit --audit-level=high
+      - name: the lock file matches package.json (nothing slipped in)
+        run: npm ci --ignore-scripts --dry-run

@@ -1,0 +1,44 @@
+# Keeps outside code up to date automatically. GitHub opens a pull request when a library, a GitHub Action or a
+# Docker base image has a new version or a security fix; CI then tests it before anyone merges.
+# Security fixes come as soon as they are published; normal updates are batched once a week to keep the noise down.
+# (Dependabot reads this file from the default branch, so it starts working once this is on main.)
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /server
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      dev-tools:
+        dependency-type: development
+        update-types: [minor, patch]
+      runtime-minor:
+        dependency-type: production
+        update-types: [minor, patch]
+    labels: [dependencies]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    groups:
+      actions:
+        patterns: ['*']
+    labels: [dependencies]
+
+  - package-ecosystem: docker
+    directory: /server
+    schedule: { interval: weekly, day: monday }
+    ignore:
+      # Stay on the Node 22 LTS line; major Node upgrades are done on purpose, not by a bot.
+      - dependency-name: node
+        update-types: [version-update:semver-major]
+    labels: [dependencies]
+
+  - package-ecosystem: docker-compose
+    directory: /deploy
+    schedule: { interval: weekly, day: monday }
+    ignore:
+      # Postgres major versions need a dump and restore; never bump them automatically.
+      - dependency-name: postgres
+        update-types: [version-update:semver-major]
+    labels: [dependencies]
