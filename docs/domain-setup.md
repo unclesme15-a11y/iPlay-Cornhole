@@ -24,22 +24,31 @@ One address per job, so each game and tool can move to its own server later with
 2. Add your SSH key when asked (it is how you log in without a password).
 3. When it is created, copy its **IPv4 address**, for example `5.161.23.45`. That is the "house number".
 
-## 3. Point the addresses at the server (DNS records)
+## 3. Point the addresses at the server (DNS records, on Cloudflare)
 
-Log in where you bought the domain (GoDaddy, Namecheap, Cloudflare, Squarespace, Porkbun…) and find
-**DNS** / **Manage DNS** / **DNS records**. Add one record per address:
+The domain was bought on Cloudflare, so everything happens there (no "nameservers" to change).
 
-| Type | Name / Host | Value / Points to | TTL |
-|---|---|---|---|
-| A | `cornhole` | `5.161.23.45` | Automatic (or 300) |
-| A | `staging-cornhole` | `5.161.23.45` | Automatic |
+1. Log in at dash.cloudflare.com → click your domain → left menu **DNS** → **Records** → **Add record**.
+2. Fill in, then **Save**:
 
-(Same IP for both: staging runs on the same box.) The "Name" is just the part before your domain; the site adds
-`.iplay.games` itself. If your provider is **Cloudflare**, set the little cloud to **grey ("DNS only")** for now; orange
-can break the game's live connection until it is configured for WebSockets.
+| Type | Name | IPv4 address | Proxy status | TTL |
+|---|---|---|---|---|
+| A | `cornhole` | `5.161.23.45` (your server) | **DNS only** (grey cloud) | Auto |
+| A | `staging-cornhole` | `5.161.23.45` | **DNS only** (grey cloud) | Auto |
 
-Check it worked (can take 5 minutes to a few hours): open a terminal and run `ping cornhole.iplay.games`. It should show
-your server's IP.
+(Same IP for both: staging runs on the same box.) "Name" is only the part before your domain; Cloudflare adds the rest.
+
+**Why the grey cloud, not orange:** orange makes all traffic pass through Cloudflare first. Then the game server sees
+Cloudflare's address instead of each player's, so its "too many tries" limits would lump thousands of players together
+(and the https certificate step gets more complicated). Grey = Cloudflare only answers "where is this address?", and
+players connect straight to your server. That is the right setting for the game. Example: with orange, if 5 players
+on the same Cloudflare route used the deletion form, the 6th would be told "too many requests".
+
+Check it worked (usually 1–5 minutes on Cloudflare): open a terminal and run `ping cornhole.iplay.games`. It should
+show your server's IP.
+
+While you are in Cloudflare: **Domain Registration → Manage** → make sure **Auto-renew** is on (losing the domain would
+take the game offline).
 
 ## 4. Put the game on the server
 
@@ -68,17 +77,25 @@ add the staging address to the web server (`docs/hetzner-deploy.md` → "Staging
 - App Store Connect and Google Play: privacy policy URL `https://cornhole.iplay.games/privacy`, support URL
   `https://cornhole.iplay.games/support`, account deletion URL `https://cornhole.iplay.games/delete-account`.
 
-## 7. An email address on the domain (the stores ask for one)
+## 7. An email address on the domain (the stores ask for one) — Cloudflare Email Routing, free
 
-Apple and Google want a support email, and it looks far more trustworthy as `support@iplay.games` than a Gmail.
-Cheapest options: your registrar's free email forwarding (forwards `support@iplay.games` to your Gmail), Cloudflare
-Email Routing (free), or Google Workspace / Zoho if you want a real inbox. Each one tells you which **MX** and **TXT**
-records to add in the same DNS page as step 3. Then set `SUPPORT_EMAIL=support@iplay.games` in `deploy/.env`.
+Apple and Google want a support email, and `support@iplay.games` looks far more trustworthy than a Gmail.
+
+1. Cloudflare → your domain → left menu **Email** → **Email Routing** → **Get started / Enable**.
+2. It offers to add the email DNS records for you (MX and TXT) → **Add records and enable**.
+3. **Destination addresses** → add your Gmail → open the confirmation email Cloudflare sends and click verify.
+4. **Routing rules** → **Create address** → custom address `support` → action "Send to an email" → your Gmail → Save.
+5. Test: send an email to `support@iplay.games` from another account; it should land in your Gmail.
+
+Then set `SUPPORT_EMAIL=support@iplay.games` in `deploy/.env`. (This forwards mail **to** you. Replying from your
+Gmail is fine for support; if you later want replies to come *from* support@, add it in Gmail → Settings → Accounts →
+"Send mail as", or move to Google Workspace.)
 
 ## Checklist
 
 - [ ] Server created, IP copied
-- [ ] `cornhole` and `staging-cornhole` A records added, `ping` shows the IP
+- [ ] `cornhole` and `staging-cornhole` A records added on Cloudflare (grey cloud), `ping` shows the IP
+- [ ] Domain auto-renew on
 - [ ] Game deployed, `https://cornhole.<domain>/api/meta` loads with the padlock
 - [ ] `/privacy`, `/terms`, `/support`, `/delete-account` load
 - [ ] Staging deployed on `staging-cornhole.<domain>`
