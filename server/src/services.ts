@@ -16,7 +16,7 @@ import type { Timing } from './lobby/session.js';
 import { Alerts, type FetchLike } from './alerts.js';
 import { ApnsSender, FcmSender, readServiceAccount, type PushSender } from './push/senders.js';
 import { PushService, type PushPlatform } from './push/service.js';
-import { SeasonService } from './ranking/seasons.js';
+import { PRESEASON, SeasonService } from './ranking/seasons.js';
 import { MatchRegistry, type LogFn } from './store/registry.js';
 
 export interface Services {
@@ -101,6 +101,10 @@ export function createServices(db: Db, scheduler: Scheduler, config: AppConfig, 
   ranked.onMatched = (ids, matchId, mode) => push.rankedMatched(ids, matchId, mode);
   seasons.onSeasonClosed = (s) => {
     ratings.invalidate();
+    if (s.number === PRESEASON) {
+      alerts.send('season', 'Season 1 has started: the preseason is over and every ranked rating is back to 1200.');
+      return;
+    }
     alerts.send('season', `${s.name} ended: final standings saved and ratings soft-reset. The next season has started.`);
     push.seasonClosed(s.number, `Season ${s.number + 1}`).catch((error) => log('warn', 'season push failed', { error: String(error) }));
   };

@@ -122,7 +122,7 @@ const envSchema = z
 
     // ---- ranked seasons
     /** When season 1 starts (a date, UTC). */
-    SEASON_ONE_START: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'use YYYY-MM-DD').default('2026-10-01'),
+    SEASON_ONE_START: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'use YYYY-MM-DD').default('2027-01-01'),
     /** How long a season lasts, in months. */
     SEASON_LENGTH_MONTHS: z.coerce.number().int().refine((n) => [1, 2, 3, 4, 6, 12].includes(n), 'use 1, 2, 3, 4, 6 or 12').default(3),
     /** At a season reset, how much of each rating's distance from 1200 is kept (0 = everyone back to 1200, 1 = no reset). */

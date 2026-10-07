@@ -56,7 +56,7 @@ It installs the nightly backup (03:17), makes Docker start when the box boots, a
 
 ## Point your web server at it
 
-**Domain first:** make a DNS record (an "A record") for `cornhole.your-domain` pointing at the box's IP.
+**Domain first** (new to this? step-by-step in `docs/domain-setup.md`): make a DNS record (an "A record") for `cornhole.your-domain` pointing at the box's IP.
 
 **Caddy** (gets the https certificate for you): add the block from `caddy-snippet.Caddyfile` to your Caddyfile with your domain, then reload Caddy.
 

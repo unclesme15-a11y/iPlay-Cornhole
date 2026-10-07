@@ -70,7 +70,16 @@ Everything here is in `server/src/ranking/`. All of it is a first guess you can 
 
 ## Seasons
 
-Ranked play runs in **seasons of 3 months** (Season 1 starts 1 October 2026). When a season ends:
+Ranked play runs in **seasons of 3 months**. **Season 1 starts 1 January 2027** (midnight UTC, which is the evening of
+31 December in the US), then Season 2 on 1 April, Season 3 on 1 July, and so on.
+
+**Before that it is the Preseason.** Ranked matchmaking and the leaderboard work normally (the app shows
+"PRESEASON · SEASON 1 STARTS IN 86 DAYS"), so testers and early players can try them. But nothing from the preseason
+is kept: when Season 1 starts, **every rating goes back to exactly 1200**, games and wins go back to zero, and no
+preseason board is saved. Example: a friend who tested a lot in December and reached 1700 starts Season 1 at 1200,
+same as someone who downloads the game on 1 January. Nobody gets a head start from testing.
+
+When a season ends:
 
 1. **The final standings are saved for good.** Anyone can look back at last season's board, and every player keeps their own history ("Season 1: #12 in singles, #4 with Dre in teams").
 2. **Every rating gets a soft reset**: it moves halfway back to 1200. The season's games, wins, losses and streak start again from zero, so **everyone needs 10 games again** to appear on the new board.
@@ -79,7 +88,7 @@ Example: Keisha finishes Season 1 at 1640, Travis at 1080. Season 2 starts them 
 
 - A match that is still being played when the season ends counts for the new season.
 - If the server was off when a season ended, it catches up by itself the next time it starts, one season at a time.
-- Settings: `SEASON_ONE_START` (a date), `SEASON_LENGTH_MONTHS` (1, 2, 3, 4, 6 or 12; default 3), `SEASON_SOFT_RESET` (0 = everyone back to 1200, 1 = no reset; default 0.5). **Change them before Season 1 starts**, not in the middle of a season.
+- Settings: `SEASON_ONE_START` (a date), `SEASON_LENGTH_MONTHS` (1, 2, 3, 4, 6 or 12; default 3), `SEASON_SOFT_RESET` (0 = everyone back to 1200, 1 = no reset; default 0.5). **Change them before Season 1 starts**, not in the middle of a season. Moving `SEASON_ONE_START` during the preseason is safe (the preseason just gets longer or shorter).
 - When a season closes, the alert webhook gets a message.
 
 ## What to watch after launch

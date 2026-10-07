@@ -51,7 +51,7 @@ Everything has a safe default except the database in production.
 | `LEGAL_DIR` | `../docs/legal` | Where `/privacy` and `/terms` are read from (`privacy-policy.md`, `terms.md`; the `-draft.md` files until those exist). The Docker setup mounts `docs/legal` here. |
 | `APNS_KEY_ID`, `APNS_PRIVATE_KEY`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID`, `APNS_SANDBOX` | none (iPhone push off) | iPhone push notifications. Team and bundle id default to `APPLE_TEAM_ID` and `IOS_BUNDLE_ID`. `APNS_SANDBOX=true` only for development builds. |
 | `FCM_SERVICE_ACCOUNT` | none (Android push off) | Android push notifications: the Firebase service-account JSON, or a path to it. |
-| `SEASON_ONE_START`, `SEASON_LENGTH_MONTHS`, `SEASON_SOFT_RESET` | 2026-10-01, 3, 0.5 | Ranked seasons (`docs/ratings-explained.md`, "Seasons"). Set before Season 1 starts. |
+| `SEASON_ONE_START`, `SEASON_LENGTH_MONTHS`, `SEASON_SOFT_RESET` | 2027-01-01, 3, 0.5 | Ranked seasons (`docs/ratings-explained.md`, "Seasons"). Before the first date it is the preseason (full reset to 1200 when Season 1 starts). Set before Season 1 starts. |
 | `MATCH_HISTORY_DAYS` | 0 (forever) | Delete finished-match history older than this. Ratings and career stats are stored separately and stay. |
 
 An empty value (`FOO=` in an env file) counts as not set.

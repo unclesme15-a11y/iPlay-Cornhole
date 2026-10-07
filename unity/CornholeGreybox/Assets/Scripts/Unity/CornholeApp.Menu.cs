@@ -269,6 +269,8 @@ public sealed partial class CornholeApp
         if (s == null) return "";
         if (!s.Current) return s.Name.ToUpperInvariant() + "  ·  FINAL STANDINGS";
         var days = s.DaysLeft(DateTime.UtcNow.AddMilliseconds(account.ServerClockOffsetMs));
+        // Before season 1: ranked is open for practice and the board resets when season 1 starts.
+        if (s.Number == 0) return "PRESEASON  ·  SEASON 1 STARTS " + (days == 0 ? "IN UNDER A DAY" : "IN " + days + (days == 1 ? " DAY" : " DAYS"));
         return s.Name.ToUpperInvariant() + "  ·  " + (days == 0 ? "LAST DAY" : days + (days == 1 ? " DAY LEFT" : " DAYS LEFT"));
     }
 

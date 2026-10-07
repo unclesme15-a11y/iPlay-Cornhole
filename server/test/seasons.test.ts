@@ -9,8 +9,9 @@ const QUARTERS: SeasonSettings = { firstStart: new Date('2026-10-01T00:00:00Z'),
 const t = (iso: string) => Date.parse(iso);
 
 describe('season calendar', () => {
-  it('numbers seasons by quarters from the first start, and counts anything before it as season 1', () => {
-    expect(seasonNumberAt(QUARTERS, t('2026-01-01T00:00:00Z'))).toBe(1);
+  it('numbers seasons by quarters from the first start, and anything before it is the preseason (0)', () => {
+    expect(seasonNumberAt(QUARTERS, t('2026-01-01T00:00:00Z'))).toBe(0);
+    expect(seasonNumberAt(QUARTERS, t('2026-09-30T23:59:59Z'))).toBe(0);
     expect(seasonNumberAt(QUARTERS, t('2026-10-01T00:00:00Z'))).toBe(1);
     expect(seasonNumberAt(QUARTERS, t('2026-12-31T23:59:59Z'))).toBe(1);
     expect(seasonNumberAt(QUARTERS, t('2027-01-01T00:00:00Z'))).toBe(2);
@@ -169,6 +170,38 @@ describe.each(backends)('season rollover ($name)', (backend) => {
     expect((await db.query<{ number: number }>('SELECT number FROM seasons WHERE closed_at IS NOT NULL')).rows).toEqual([{ number: 1 }]);
     svc.stop();
   });
+
+  it('preseason: ranked counts until season 1 starts, then everyone goes back to exactly 1200 and nothing is kept', async () => {
+    const sched = new ManualScheduler(t('2026-08-15T00:00:00Z'));
+    const svc = new SeasonService(db, sched, QUARTERS);
+    expect(svc.current()).toMatchObject({ number: 0, name: 'Preseason', endsAt: '2026-10-01T00:00:00.000Z' });
+    expect(await svc.rollOver()).toEqual([]);
+    expect((await db.query<{ number: number }>('SELECT number FROM seasons')).rows).toEqual([{ number: 0 }]);
+    await account('tester');
+    await singles('tester', 1650, 30, t('2026-09-20T00:00:00Z'));
+    sched.advance(t('2026-10-01T00:00:00Z') - sched.now());
+    expect(await svc.rollOver()).toEqual([0]);
+    expect((await db.query("SELECT rating, peak, games, wins, losses, streak FROM singles_ratings WHERE account_id = 'tester'")).rows).toEqual([
+      { rating: 1200, peak: 1200, games: 0, wins: 0, losses: 0, streak: 0 },
+    ]);
+    expect((await db.query('SELECT 1 FROM season_results')).rows).toHaveLength(0);
+    expect(await svc.past()).toEqual([]);
+    expect(svc.current()).toMatchObject({ number: 1, name: 'Season 1', startsAt: '2026-10-01T00:00:00.000Z', endsAt: '2027-01-01T00:00:00.000Z' });
+    const open = await db.query<{ number: number; starts_at: Date }>('SELECT number, starts_at FROM seasons WHERE closed_at IS NULL');
+    expect(open.rows.map((r) => [r.number, new Date(r.starts_at).toISOString()])).toEqual([[1, '2026-10-01T00:00:00.000Z']]);
+  });
+
+  it('moving the season 1 date during the preseason moves the end of the preseason too', async () => {
+    const early = new SeasonService(db, new ManualScheduler(t('2026-08-15T00:00:00Z')), QUARTERS);
+    await early.rollOver(); // preseason recorded, ending 1 October
+    const sched = new ManualScheduler(t('2026-10-07T00:00:00Z'));
+    const moved = new SeasonService(db, sched, { ...QUARTERS, firstStart: new Date('2027-01-01T00:00:00Z') });
+    expect(await moved.rollOver()).toEqual([]); // 1 October has passed, but it is still preseason
+    expect((await db.query<{ ends_at: Date }>('SELECT ends_at FROM seasons WHERE number = 0')).rows.map((r) => new Date(r.ends_at).toISOString())).toEqual(['2027-01-01T00:00:00.000Z']);
+    sched.advance(t('2027-01-01T00:00:00Z') - sched.now());
+    expect(await moved.rollOver()).toEqual([0]);
+    expect((await db.query<{ ends_at: Date }>('SELECT ends_at FROM seasons WHERE number = 1')).rows.map((r) => new Date(r.ends_at).toISOString())).toEqual(['2027-04-01T00:00:00.000Z']);
+  });
 });
 
 describe('season API', () => {
@@ -183,8 +216,16 @@ describe('season API', () => {
     await env.closeAll();
   });
 
+  it('before 1 January 2027 (the default season 1 start) it is the preseason, with no past seasons', async () => {
+    const tt = await env.boot({ scheduler: new ManualScheduler(t('2026-12-20T00:00:00Z')) });
+    await tt.services.db.exec('TRUNCATE seasons, season_results CASCADE');
+    await tt.services.seasons.rollOver();
+    expect((await tt.call(null, 'GET', '/api/meta')).json().ranked.season).toMatchObject({ number: 0, name: 'Preseason', endsAt: '2027-01-01T00:00:00.000Z' });
+    expect((await tt.call(null, 'GET', '/api/seasons')).json().past).toEqual([]);
+  });
+
   it('serves the current season, past boards, my history, and the export', async () => {
-    const sched = new ManualScheduler(t('2026-12-20T00:00:00Z'));
+    const sched = new ManualScheduler(t('2027-03-20T00:00:00Z'));
     const tt = await env.boot({ scheduler: sched });
     await tt.services.db.exec('TRUNCATE seasons, season_results CASCADE');
     const g = await tt.guest('Season Champ');
@@ -192,11 +233,11 @@ describe('season API', () => {
     await tt.services.db.query('INSERT INTO singles_ratings (account_id, rating, peak, games, wins, losses, streak, last_played_at) VALUES ($1, 1500, 1500, 12, 9, 3, 2, $2)', [g.id, new Date(sched.now())]);
 
     let res = (await tt.call(g.token, 'GET', '/api/leaderboards/singles')).json();
-    expect(res.season).toMatchObject({ number: 1, name: 'Season 1', current: true, endsAt: '2027-01-01T00:00:00.000Z' });
+    expect(res.season).toMatchObject({ number: 1, name: 'Season 1', current: true, endsAt: '2027-04-01T00:00:00.000Z' });
     expect((await tt.call(null, 'GET', '/api/meta')).json().ranked.season.number).toBe(1);
     expect((await tt.call(g.token, 'GET', '/api/leaderboards/singles?season=1')).json().season.current).toBe(true); // asking for the current one = live board
 
-    sched.advance(t('2027-01-01T00:00:01Z') - sched.now());
+    sched.advance(t('2027-04-01T00:00:01Z') - sched.now());
     await tt.services.seasons.rollOver();
     const seasons = (await tt.call(null, 'GET', '/api/seasons')).json();
     expect(seasons.current.number).toBe(2);

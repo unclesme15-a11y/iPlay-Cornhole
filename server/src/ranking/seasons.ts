@@ -13,10 +13,14 @@ import type { RankedMode } from './ratings.js';
  *
  * Example: with the default 0.5, a 1600 player starts the next season at 1400 and a 1000 player at 1100.
  * Live ranked matches are not interrupted: a match that ends after the rollover counts for the new season.
+ *
+ * Before season 1 starts it is the "Preseason" (season 0): ranked works and has a board, so testers and early players can
+ * try it, but nothing from it is kept. When season 1 starts every rating goes back to exactly 1200 (a full reset, not
+ * the soft one), and no final board is saved. Moving SEASON_ONE_START while it is still preseason is safe.
  */
 
 export interface SeasonSettings {
-  /** When season 1 starts (UTC). Before this date it is still season 1. */
+  /** When season 1 starts (UTC). Before this date it is the preseason (season 0). */
   firstStart: Date;
   lengthMonths: number;
   /** How much of the distance from the starting rating is kept at a reset (0 = everyone back to 1200, 1 = no reset). */
@@ -60,9 +64,12 @@ export function seasonStart(s: SeasonSettings, n: number): Date {
   return addMonthsUtc(s.firstStart, (n - 1) * s.lengthMonths);
 }
 
-/** The season a moment falls in (season 1 for anything before the first start). */
+/** The preseason: before season 1 starts. */
+export const PRESEASON = 0;
+
+/** The season a moment falls in (0, the preseason, for anything before the first start). */
 export function seasonNumberAt(s: SeasonSettings, t: number): number {
-  if (t < s.firstStart.getTime()) return 1;
+  if (t < s.firstStart.getTime()) return PRESEASON;
   const d = new Date(t);
   let n = Math.floor(((d.getUTCFullYear() - s.firstStart.getUTCFullYear()) * 12 + d.getUTCMonth() - s.firstStart.getUTCMonth()) / s.lengthMonths) + 1;
   // the month arithmetic can be one off at the edges (day of month, time of day): settle it exactly
@@ -73,9 +80,12 @@ export function seasonNumberAt(s: SeasonSettings, t: number): number {
 
 export const softReset = (rating: number, keep: number): number => Math.round(START_RATING + (rating - START_RATING) * keep);
 
+export const seasonName = (n: number): string => (n === PRESEASON ? 'Preseason' : `Season ${n}`);
+
+/** The preseason's start is nominal (one season length before season 1); only its end matters. */
 const info = (n: number, startsAt: Date, endsAt: Date): SeasonInfo => ({
   number: n,
-  name: `Season ${n}`,
+  name: seasonName(n),
   startsAt: new Date(startsAt).toISOString(),
   endsAt: new Date(endsAt).toISOString(),
 });
@@ -105,6 +115,8 @@ export class SeasonService {
   async rollOver(): Promise<number[]> {
     const closed: number[] = [];
     const now = this.sched.now();
+    // Still preseason: keep its end on SEASON_ONE_START, in case that setting was moved.
+    await this.db.query('UPDATE seasons SET ends_at = $1 WHERE number = $2 AND closed_at IS NULL AND ends_at <> $1', [this.settings.firstStart, PRESEASON]);
     const latest = await this.db.query<{ number: number; ends_at: Date; closed_at: Date | null }>(
       'SELECT number, ends_at, closed_at FROM seasons ORDER BY number DESC LIMIT 1',
     );
@@ -141,11 +153,13 @@ export class SeasonService {
     const row = await tx.query<{ ends_at: Date; closed_at: Date | null }>('SELECT ends_at, closed_at FROM seasons WHERE number = $1 FOR UPDATE', [n]);
     if (!row.rows[0] || row.rows[0].closed_at) return false;
     const endsAt = new Date(row.rows[0].ends_at);
+    // The preseason keeps nothing: no final board, and everyone back to exactly the starting rating.
+    const preseason = n === PRESEASON;
     const params = [n, MIN_GAMES_FOR_BOARD, new Date(endsAt.getTime() - ACTIVE_WINDOW_MS), endsAt];
     const visible = (a: string) => `(${a}.show_on_leaderboards AND NOT (${a}.status = 'banned' AND (${a}.banned_until IS NULL OR ${a}.banned_until > $4)))`;
 
     // Everyone who played this season gets a row (for their own history); only those who qualified get a rank.
-    await tx.query(
+    if (!preseason) await tx.query(
       `WITH base AS (
          SELECT sr.account_id AS k, sr.account_id AS ma, a.display_name AS na, sr.rating, sr.peak, sr.games, sr.wins, sr.losses,
                 (sr.games >= $2 AND sr.last_played_at >= $3 AND ${visible('a')}) AS ok
@@ -157,7 +171,7 @@ export class SeasonService {
          FROM base`,
       params,
     );
-    await tx.query(
+    if (!preseason) await tx.query(
       `WITH base AS (
          SELECT d.duo_key AS k, d.member_a AS ma, a.display_name AS na, d.member_b AS mb, b.display_name AS nb,
                 d.rating, d.peak, d.games, d.wins, d.losses,
@@ -171,7 +185,7 @@ export class SeasonService {
       params,
     );
 
-    const keep = this.settings.keep;
+    const keep = preseason ? 0 : this.settings.keep;
     for (const table of ['singles_ratings', 'duo_ratings']) {
       await tx.query(
         `UPDATE ${table} SET rating = round(${START_RATING} + (rating - ${START_RATING}) * $1::numeric)::int,
@@ -192,7 +206,8 @@ export class SeasonService {
   /** Every finished season, newest first. */
   async past(): Promise<SeasonInfo[]> {
     const res = await this.db.query<{ number: number; starts_at: Date; ends_at: Date }>(
-      'SELECT number, starts_at, ends_at FROM seasons WHERE closed_at IS NOT NULL ORDER BY number DESC',
+      'SELECT number, starts_at, ends_at FROM seasons WHERE closed_at IS NOT NULL AND number <> $1 ORDER BY number DESC',
+      [PRESEASON],
     );
     return res.rows.map((r) => info(r.number, r.starts_at, r.ends_at));
   }
@@ -240,7 +255,7 @@ export class SeasonService {
     );
     return res.rows.map((r) => ({
       season: r.season,
-      name: `Season ${r.season}`,
+      name: seasonName(r.season),
       mode: r.mode,
       rank: r.rank,
       rating: r.rating,
