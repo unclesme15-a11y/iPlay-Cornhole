@@ -15,6 +15,7 @@ Related docs: `docs/visual-camera-plan.md` (angles and the bag hand-off), `docs/
 - Cornhole game work is on hold. This is a spec update only. No plates or clips are generated from it.
 - Face Scan desktop hero stills are **done**: `face-scan-hero-desktop-2560x1440.jpg` and `face-scan-hero-desktop-1920x1080.jpg` in the iPlay art folder, upscaled from a 1280-wide Imagine render.
 - A 2026-11-10 Face Scan test showed face morphing and a flickering beam on a locked-off still. Plates in this list keep faces small and far, and they contain no hands. The hand on screen is always the purchased Unity asset.
+- Shared Dice and Cornhole hand rig: **approved 2026-11-10, in progress.** Embedded Unity package in iPlay-StreetDice, planned path `unity/Packages/com.iplay.handrig`, branch `cursor/shared-iplay-hand-rig`. The PR link will be added when that PR opens.
 
 ## What Imagine generates
 
@@ -268,7 +269,7 @@ Imagine does not generate a hand for any of those shots, and it does not generat
 
 ### What Dice has today
 
-Street Dice already drives a throw with its own scripts. That rig is **Dice-specific**. It is not a shared iPlay package yet. Branch `cursor/dice-lineup-presentation-f9f3` in `unclesme15-a11y/iPlay-StreetDice`:
+Street Dice already drives a throw with its own scripts. Those files are still Dice-specific. The shared package below is approved and in progress on a separate branch. The scripts cited here are on branch `cursor/dice-lineup-presentation-f9f3` in `unclesme15-a11y/iPlay-StreetDice`:
 
 - `unity/StreetDiceGreybox/Assets/FirstPersonDiceHand.cs`
 - `StreetDiceHandPreviews.cs`
@@ -283,17 +284,17 @@ Street Dice already drives a throw with its own scripts. That rig is **Dice-spec
 
 Those Kling clips are Dice video references for catch, plant, tap, and wave. Cornhole does not remake them in Imagine. Cornhole plays the purchased Unity asset.
 
-### Proposed shared rig (not done)
+### Shared hand rig (approved 2026-11-10, in progress)
 
-**Awaiting Sme's approval.** Nothing here has been extracted.
+Sme approved the shared Dice and Cornhole hand rig on 2026-11-10. It is in progress.
 
-Build one iPlay hand rig, **owned by Street Dice** and **consumed by Cornhole**, on the purchased Unity hand asset.
+One iPlay hand rig, **owned by Street Dice** and **consumed by Cornhole** from the prototype Unity project, on the purchased Unity hand asset.
 
-- **Prop slot.** One socket on the hand. Dice puts the die in it. Cornhole puts the bag in it. Grip and release timing stay the same. After release, Cornhole hides the prop and `OnReplayFrame` flies the game bag. The die path in Dice is unchanged aside from reading the prop id.
+- **Prop slot.** One swappable socket on the hand. Dice puts the die in it. Cornhole puts the bag in it. Grip and release timing stay the same. After release, Cornhole hides the prop and `OnReplayFrame` flies the game bag. The die path in Dice is unchanged aside from reading the prop id.
 - **Skin and material.** One skin, the purchased asset's skin, shared by both games. The material slot is the one Dice already uses for the hand fade (`CatchSkin.cginc`, `CatchVideo.shader`). Cornhole does not author a second skin.
 - **Gesture set.** The same set Dice already drives: the throw motion captured and checked by `ThrowMotionCapture` and `ThrowMotionVerification`, plus catch, plant, tap, and wave. Cornhole maps its own input onto that motion through `OnAimChanged`: drag to aim, pull back for power, flick to release, lean left or right, and `handShake` for the long hold. It does not invent a second vocabulary. Same hands, same skin, same directional gestures.
-- **Where the shared code lives.** A Unity package the Dice repo owns, proposed path `unity/iPlayHandRig/` (package name `com.iplay.hand-rig`). StreetDiceGreybox and the prototype `unity/CornholeGreybox` both reference that package. The Dice scripts listed above are the ones that would move into it, with the hand driver taking a prop id instead of assuming a die. Cornhole's only new script is a thin `MatchPresenter` that binds the bag prop and forwards `OnAimChanged` and `OnThrowResult`. Do not copy the Dice scripts into Cornhole as a fork.
-- **Status of the extraction:** proposed. Not started. Blocked on Sme's approval and on the asset's real name and path.
+- **Where the shared code lives.** An embedded Unity package in `unclesme15-a11y/iPlay-StreetDice`, on branch `cursor/shared-iplay-hand-rig`. Planned path: `unity/Packages/com.iplay.handrig`. The PR link will be added here when that PR opens. Cornhole consumes the package from the prototype Unity project (`unity/CornholeGreybox` on `claude/cornhole-game-prototype-p9nt6j`). The Dice scripts listed above move into that package, with the hand driver taking a prop id instead of assuming a die. Cornhole's only new script is a thin `MatchPresenter` that binds the bag prop and forwards `OnAimChanged` and `OnThrowResult`. Do not copy the Dice scripts into Cornhole as a fork.
+- **Status:** approved 2026-11-10, in progress. The purchased asset's name and path are still open. See Needs Sme.
 
 ### Why the hand stays in Unity
 
@@ -474,7 +475,7 @@ Do not generate while game work is on hold. When Sme says to start, do it in thi
 1. Text-to-image stills for BG-GOLDEN, BG-OVERCAST, BG-DUSK, CAM-THROWER, CAM-FAR, CAM-NEIGHBOR, and CAM-PARTNER. Stop for plate approval before any video.
 2. First+last-frame loops from the approved stills. Dusk camera plates first.
 3. Image-to-video reactions from the approved CAM-THROWER still.
-4. Wire playback through `MatchPresenter` only after the plates exist. The shared hand package waits on the approval in Needs Sme.
+4. Wire playback through `MatchPresenter` only after the plates exist. Point the prototype Unity project at `unity/Packages/com.iplay.handrig` once branch `cursor/shared-iplay-hand-rig` is ready to consume. The purchased asset name and path are still open in Needs Sme.
 
 Review every take against that plate's acceptance lines. A failed take is discarded. Do not paint a hand out of a bad frame and keep it.
 
@@ -482,5 +483,4 @@ Review every take against that plate's acceptance lines. A failed take is discar
 
 - **Plate approvals.** The three lights, then each camera still, before any video. Dusk is the default camera grade until another light is chosen.
 - **Crowd casting direction.** The prompts follow the cookout crowd in `docs/visual-camera-plan.md`. That direction is still Sme's to confirm or change.
-- **Shared hand rig approval.** The Dice-owned package `unity/iPlayHandRig/` (`com.iplay.hand-rig`), with a prop slot for a die or a bag, is a proposal. It is not built.
-- **Purchased Unity hand asset (name/path: needs Sme).** The exact asset name and path are not in either repo from here. Also confirm that this asset is the one that plays the Dice gesture set (throw, catch, plant, tap, wave) Cornhole will reuse.
+- **Purchased Unity hand asset (name/path: needs Sme).** OPEN. The exact asset name and path are not in either repo from here. Also confirm that this asset is the one that plays the Dice gesture set (throw, catch, plant, tap, wave) Cornhole will reuse.
