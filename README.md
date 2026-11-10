@@ -1,12 +1,12 @@
 # iPlay Cornhole (Concept)
 
-Separate repo for the iPlay cornhole game. It shares the broader iPlay identity and style with iPlay Street Dice (first-person view, Kling video backgrounds, Unity overlays, server-authoritative results), but it's planned and built as its own game.
+Separate repo for the iPlay cornhole game. It shares the broader iPlay identity and style with iPlay Street Dice (first-person view, video backgrounds, Unity overlays, server-authoritative results), but it's planned and built as its own game.
 
 ## Core Direction
 
 - First-person view. The only body the player ever sees of themselves is their throwing hand holding the bag at the bottom of the screen.
-- Real-video background made with Kling, the same way Street Dice uses a Kling bodega plate.
-- Computer opponents are **video characters**: short Kling clips of a person getting ready, throwing, and reacting. No 3D character models.
+- Real-video background made with **Imagine (Grok Imagine, via SuperGrok)**, using the same plate-plus-Unity-overlay approach as Street Dice. Imagine generates the summertime park BBQ cookout plates (Thrower View, Far Board Cam, Neighbor Cut) in the neon-dark iPlay look.
+- Computer opponents are **video characters**: short Imagine clips of a person getting ready, throwing, and reacting. No 3D character models.
 - Unity is responsible for the bags, the boards' hit areas, scoring, the HUD, and audio. The video provides the people and the setting.
 - The server decides every result. The video and bag flight make it look good, but the backend holds the score.
 - After the local player releases the bag, the camera cuts to a close-up of the far board so the landing is easy to read.
@@ -23,4 +23,4 @@ Separate repo for the iPlay cornhole game. It shares the broader iPlay identity 
 - `docs/multiplayer-plan.md`: seats, 2v2 layout, mixing humans and video bots, throw input.
 - `docs/roadmap.md`: build order.
 - `docs/open-decisions.md`: calls the owner still needs to make.
-- `artifacts/kling/cornhole-prompts.md`: Kling plate and clip shot list with prompts.
+- `artifacts/kling/cornhole-prompts.md`: plate and clip shot list with prompts. The folder name is historical; the prompt text now applies to Imagine (the folder was not renamed).
