@@ -13,4 +13,8 @@
 
 ## Still Open
 
-- **Video AI:** Kling as the main tool, with a quick side-by-side test against Veo 3.1 and Seedance 2.0 using the same Plate 1 before generating the full clip set.
+- **Video AI:** **Imagine (Grok Imagine, via SuperGrok)** is the default candidate for all three plates (Thrower View, Far Board Cam, Neighbor Cut) and for later clips, in the neon-dark iPlay look on the summertime park BBQ cookout. An open question remains: whether to test more than one tool on a single plate before generating the full clip set. The earlier named-tool bake-off was dropped on 2026-11-10.
+
+**What the record already shows about Imagine:** image-to-video and first+last-frame loops work. A 2026-11-10 Face Scan test, however, showed face morphing and a flickering beam on a locked-off still. Plates without close-up faces therefore suit Imagine best. Anything that needs a perfectly stable face should be composited: keep the approved still's face locked, and animate only the overlay or the rest of the frame.
+
+On 2026-11-10, Cornhole was still on hold for game work. This document change is a spec update only. No plates or clips were generated as part of it.

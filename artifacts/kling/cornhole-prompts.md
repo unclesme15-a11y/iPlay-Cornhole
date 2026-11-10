@@ -1,19 +1,29 @@
-# Cornhole Kling Shot List And Prompts
+# Cornhole Plate And Clip Prompts
 
-Rule of thumb from Street Dice: **lock stills with text-to-image first, then make every video clip with image-to-video from that locked still.** That keeps the boards in the same place in every clip, so the Unity invisible boards stay lined up.
+This file still lives at `artifacts/kling/cornhole-prompts.md` so existing links stay valid. The folder was not renamed. The prompt text in this file now applies to **Imagine (Grok Imagine, via SuperGrok)**, which is the default tool for all three background plates (Thrower View, Far Board Cam, Neighbor Cut) and for later clip work.
+
+**Default tool:** Imagine. Sme chose it on 2026-11-10 because SuperGrok already includes it, so no extra video tool is required.
+
+**Open question (kept):** whether to test more than one tool on a single plate before locking the full set. Imagine remains the default candidate. The earlier named-tool bake-off was dropped.
+
+**What the record already shows about Imagine:** image-to-video and first+last-frame loops work. A 2026-11-10 Face Scan test, however, showed face morphing and a flickering beam on a locked-off still. Plates without close-up faces therefore suit Imagine best. Anything that needs a perfectly stable face should be composited: keep the approved still's face locked, and animate only the overlay or the rest of the frame.
+
+On 2026-11-10, Cornhole was still on hold for game work. This document change is a spec update only. No plates or clips were generated as part of it.
+
+Rule of thumb from Street Dice: **lock stills with text-to-image first, then make every video clip with image-to-video (or a first+last-frame loop) from that locked still.** That keeps the boards in the same place in every clip, so the Unity invisible boards stay lined up.
 
 ## 1. Plates (Stills, No Opponents)
 
 Scene: **big open park, summertime hood BBQ cookout, female-heavy crowd in the distance.** The crowd is background only and never stands in the lane.
 
-If Kling softens or refuses a prompt, keep the descriptions of the women's bodies to "curvy" and "thick-figured". Words about specific body parts get filtered more often.
+If Imagine softens or refuses a prompt, keep the descriptions of the women's bodies to "curvy" and "thick-figured". Words about specific body parts get filtered more often.
 
 ### Thrower View (Plate 1)
 
 Your own board has to be visible right in front of you in the lower part of the frame. Far-end players throw at it, and there's no camera cut for that board.
 
 ```text
-First-person point of view standing in a cornhole pitcher's box on flat trimmed grass, eye level about 5 feet, a regulation wooden cornhole board with a round hole on the ground directly in front of the viewer filling the lower left part of the frame, looking straight down a clear 27 foot lane at a matching far cornhole board, wide open green city park at a summertime hood BBQ cookout, bright afternoon sun, grills smoking, pop-up tents, folding tables and coolers in the background, a big relaxed crowd in the distance behind and to the sides of the lane, mostly curvy thick-figured adult Black women, with Latina and white women and some men mixed in, in summer cookout outfits, people talking in small groups and eating, a few little kids playing far off in the background, candid and natural, nobody posing, background slightly soft focus, no people between the boards, no logos, no text, realistic photo, natural lighting, 9:16 vertical
+First-person point of view standing in a cornhole pitcher's box on flat trimmed grass, eye level about 5 feet, a regulation wooden cornhole board with a round hole on the ground directly in front of the viewer filling the lower left part of the frame, looking straight down a clear 27 foot lane at a matching far cornhole board, wide open green city park at a summertime hood BBQ cookout, dusk going to night, dark premium neon-dark iPlay look, soft cyan and magenta neon rim light tracing the boards and the edges of the scene, string lights on the tents, grills smoking, pop-up tents, folding tables and coolers in the background, a big relaxed crowd in the distance behind and to the sides of the lane, mostly curvy thick-figured adult Black women, with Latina and white women and some men mixed in, in summer cookout outfits, people talking in small groups and eating, a few little kids playing far off in the background, candid and natural, nobody posing, background slightly soft focus, no people between the boards, no logos, no text, realistic photo, neon-dark iPlay grade, 9:16 vertical
 ```
 
 ### Far Board Cam (Plate 2)
@@ -21,18 +31,18 @@ First-person point of view standing in a cornhole pitcher's box on flat trimmed 
 Used only for bags thrown at the far board.
 
 ```text
-Low close-up camera angle beside a regulation wooden cornhole board with a round hole, same summertime park BBQ cookout on trimmed grass, board fills the lower half of the frame, clean empty board surface, cookout tents and a crowd of mostly curvy adult Black and Latina women soft and blurred in the background, people chatting in small groups, kids playing far off, no bags, no people on the board, no logos, no text, realistic photo, 9:16 vertical
+Low close-up camera angle beside a regulation wooden cornhole board with a round hole, same summertime park BBQ cookout on trimmed grass, dusk going to night, dark premium neon-dark iPlay look, soft neon rim light on the board edges, board fills the lower half of the frame, clean empty board surface, cookout tents and a crowd of mostly curvy adult Black and Latina women soft and blurred in the background, people chatting in small groups, kids playing far off, no bags, no people on the board, no logos, no text, realistic photo, neon-dark iPlay grade, 9:16 vertical
 ```
 
 ### Neighbor Cut (Plate 3)
 
 ```text
-Side angle from a cornhole pitcher's box looking across the near cornhole board at the opposite pitcher's box on the other side of it, empty box, flat trimmed grass, same summertime park BBQ cookout behind, crowd of mostly curvy adult women chatting in the soft background, no logos, no text, realistic photo, 9:16 vertical
+Side angle from a cornhole pitcher's box looking across the near cornhole board at the opposite pitcher's box on the other side of it, empty box, flat trimmed grass, same summertime park BBQ cookout behind, dusk going to night, dark premium neon-dark iPlay look, soft neon rim light, crowd of mostly curvy adult women chatting in the soft background, no logos, no text, realistic photo, neon-dark iPlay grade, 9:16 vertical
 ```
 
 ## 1b. Background Life Takes (Image-To-Video From Plate 1)
 
-Keep these prompts **short and loose**. Describe the vibe, add one or two small details, and let Kling fill in the rest. Long lists of actions make everything happen at once, and that looks staged.
+Keep these prompts **short and loose**. Describe the vibe, add one or two small details, and let Imagine fill in the rest. Long lists of actions make everything happen at once, and that looks staged.
 
 Always end with: **"camera completely locked off, boards and lane stay empty and unchanged, candid documentary feel, nobody looks at the camera"**.
 
@@ -63,13 +73,13 @@ Make one character's full set first (Keisha). Use the same character reference i
 ### Character Reference Portrait (Text-To-Image, One Per Character)
 
 ```text
-Full-body photo of <character description from characters.md>, standing on grass at a summertime park BBQ cookout, relaxed natural pose, holding a cornhole bag, plain clothing with no logos or text, bright afternoon sunlight, realistic photo, 9:16 vertical
+Full-body photo of <character description from characters.md>, standing on grass at a summertime park BBQ cookout, dusk going to night, neon-dark iPlay look, soft neon rim light, relaxed natural pose, holding a cornhole bag, plain clothing with no logos or text, realistic photo, 9:16 vertical
 ```
 
 Example (Keisha):
 
 ```text
-Full-body photo of a 34 year old curvy Black woman with long braids pulled up, wearing a bright yellow sundress, white sneakers and big hoop earrings, standing on grass at a summertime park BBQ cookout, relaxed confident pose, holding a cornhole bag, plain clothing with no logos or text, bright afternoon sunlight, realistic photo, 9:16 vertical
+Full-body photo of a 34 year old curvy Black woman with long braids pulled up, wearing a bright yellow sundress, white sneakers and big hoop earrings, standing on grass at a summertime park BBQ cookout, dusk going to night, neon-dark iPlay look, soft neon rim light, relaxed confident pose, holding a cornhole bag, plain clothing with no logos or text, realistic photo, 9:16 vertical
 ```
 
 | Clip | Length | Plate it starts from | Notes |
@@ -92,7 +102,7 @@ Key words to keep in every clip prompt: **"camera completely locked off"**, **"b
 
 ## Notes
 
-- Kling may change the board's position slightly between clips. Reject any clip where the board moves. Check by laying it over the locked still.
+- Imagine may change the board's position slightly between clips. Reject any clip where the board moves. Check by laying it over the locked still.
 - Delete the bag from the video right at release (or pick takes where the hand hides it). Unity always draws the flying bag.
 - Keep clothing plain, with no logos or team names.
-- Age range for every character is 30-50. Put the exact age in each prompt, or Kling tends to make people look younger.
+- Age range for every character is 30-50. Put the exact age in each prompt, or Imagine tends to make people look younger.

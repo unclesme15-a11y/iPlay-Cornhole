@@ -1,11 +1,13 @@
 # Roadmap
 
+On 2026-11-10, Cornhole was still on hold for game work. The Imagine tool change below is a spec update only.
+
 ## Phase 1: Rules And Look Lock
 
 - Approve the rules contract (`game-rules.md`) and settle what's left in `open-decisions.md`.
-- Generate and lock the **Thrower View** still in Kling (text-to-image first; don't spend on video yet).
-- Lock the matching Far Board Cam and Neighbor Cut stills from the same setting.
-- Side-by-side test: the same Plate 1 plus one background prompt in Kling, Veo 3.1 and Seedance 2.0. Pick per clip type.
+- Generate and lock the **Thrower View** still in **Imagine (Grok Imagine, via SuperGrok)** (text-to-image first; don't spend on video yet). Same neon-dark iPlay look, on the summertime park BBQ cookout.
+- Lock the matching Far Board Cam and Neighbor Cut stills from the same setting, also in Imagine. Imagine is the default candidate for all three plates.
+- Open question (kept): whether to test more than one tool on a single plate (Plate 1) before locking the full set. Imagine remains the default candidate.
 - Generate 3-4 random background life takes plus the cornhole nearby-reaction take, and an ambient audio bed with random one-shots.
 
 ## Phase 2: Scoring Backend
@@ -24,7 +26,7 @@
 
 ## Phase 4: Video Opponents
 
-- Generate one character's clip set (idle, step-up, throw, 3 reactions) with Kling image-to-video from the locked plate.
+- Generate one character's clip set (idle, step-up, throw, 3 reactions) with Imagine image-to-video (or a first+last-frame loop) from the locked plate. Composite any close-up face that won't stay stable.
 - Then the rest of the 8-character roster in `characters.md`.
 - Add the release-frame JSON and the Unity bag hand-off.
 

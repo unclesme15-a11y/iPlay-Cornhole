@@ -36,5 +36,5 @@ That's 7 clips x 8 characters = **56 character clips** for the first build, plus
 ## Keeping Each Character Consistent
 
 - Make one **reference portrait** per character first (text-to-image), and approve it.
-- Use that same reference image in every clip for that character (Kling's character/element reference), so the face, body, and outfit don't change between clips.
+- Use that same approved reference image in every Imagine clip for that character (image-to-video or first+last-frame from the locked still), so the face, body, and outfit don't change between clips. If a close-up face starts to morph, composite: keep the approved still's face locked, and animate only what has to move.
 - Build Keisha first, all 7 clips. If she looks right in the game, do the other 7.
