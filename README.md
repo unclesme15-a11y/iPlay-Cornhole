@@ -1,11 +1,11 @@
 # iPlay Cornhole
 
-Separate repo for the iPlay cornhole game. It shares the broader iPlay identity and style with iPlay Street Dice (first-person view, Kling video backgrounds, Unity overlays, server-authoritative results), but it's planned and built as its own game.
+Separate repo for the iPlay cornhole game. It shares the broader iPlay identity and style with iPlay Street Dice (first-person view, video backgrounds, Unity overlays, server-authoritative results), but it's planned and built as its own game.
 
 ## Core Direction
 
 - First-person view. The only body the player ever sees of themselves is their throwing hand holding the bag at the bottom of the screen.
-- Real-video background made with Kling. Computer opponents are **video characters**: short clips of a person getting ready, throwing, and reacting.
+- Real-video background made with **Imagine (Grok Imagine, via SuperGrok)**. Imagine generates the summertime park BBQ cookout plates (Thrower View, Far Board Cam, Neighbor Cut) in the neon-dark iPlay look. Computer opponents are **video characters**: short clips of a person getting ready, throwing, and reacting.
 - Unity draws the bags, the LED board lights, the HUD and the audio. The video provides the people and the setting.
 - **The server decides every result.** The phone only sends a swipe.
 - Regulation cornhole only: 1v1 and 2v2. Any seat can be a human or a video bot.
@@ -46,7 +46,7 @@ Separate repo for the iPlay cornhole game. It shares the broader iPlay identity 
 | **Alerts** to Discord/Slack (errors, restarts, reports, deletion requests) and **app error reports** | Done, tested |
 | **Sign in with Apple / Google** on the phone, login kept in the Keychain / Keystore, build scripts for iPhone and Android | Built and compiled; needs the first real-phone test |
 | **Unity client** (`unity/CornholeGreybox`): all the logic (server client, sign-in, 18+ gate, ranked, parties, leaderboards, voice, ads, throwing) + plain menus and a top-down board | Logic tested (59 offline + 11 against a real server); compiled against Unity's real API for Editor, iPhone and Android; native sign-in and secure storage built. The Unity screens have never been opened in Unity. See `docs/unity-client.md` |
-| Kling video plates and character clips | Not started (`artifacts/kling/cornhole-prompts.md`) |
+| Imagine video plates and character clips | Not started (`artifacts/kling/cornhole-prompts.md`; folder name is historical, prompts now apply to Imagine) |
 
 ## Repo Map
 
@@ -57,7 +57,7 @@ Separate repo for the iPlay cornhole game. It shares the broader iPlay identity 
 - `docs/api-contract.md`: **what the Unity client sends and receives.** `docs/operations.md`: **running, deploying and moderating the server.** `docs/data-and-privacy.md`: what is stored about people. `docs/game-rules.md`: rules contract. `docs/throwing-controls.md`: **how aiming, power, the flick and wind work.** `docs/ratings-explained.md`: the ranked numbers in plain words. `docs/led-board-and-bags.md`: the board, sound and bags. `docs/visual-camera-plan.md`, `docs/multiplayer-plan.md`, `docs/characters.md`, `docs/roadmap.md`, `docs/open-decisions.md`.
 - `docs/production-checklist.md`: **everything left that needs you** (sign-ups and keys, legal, putting it on your box, the visuals, the first real-phone test). `docs/moderation-routine.md`: handling reports. `docs/unity-client.md`: the phone app and how the art plugs in. `docs/visuals-todo.md`: the visuals still to make. `docs/store-listing.md`, `docs/legal/`: store answers and draft privacy policy and terms. `docs/hetzner-deploy.md`, `docs/ratings-explained.md`.
 - `unity/CornholeGreybox/`: the Unity client (logic tested; plain menus; art plugs in via `MatchPresenter`).
-- `artifacts/kling/cornhole-prompts.md`: Kling plate and clip shot list with prompts.
+- `artifacts/kling/cornhole-prompts.md`: plate and clip shot list with prompts. The folder name is historical; the prompt text now applies to Imagine (the folder was not renamed).
 
 ## Server
 

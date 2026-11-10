@@ -53,7 +53,7 @@ sudo ./setup-host.sh --firewall          # nightly backups, Docker on boot, fire
 
 ## D. The visuals
 
-`docs/visuals-todo.md` is the whole list: the Kling plates and clips (16:9, landscape), the video characters, the hand, bags, LED board, aim guide, menus, logo animation, app icon and splash, store screenshots and preview video, and a vector version of the iPlay mark for the bag print. The art plugs in through `MatchPresenter`, so none of it touches the game logic.
+`docs/visuals-todo.md` is the whole list: the Imagine plates and clips (16:9, landscape), the video characters, the hand, bags, LED board, aim guide, menus, logo animation, app icon and splash, store screenshots and preview video, and a vector version of the iPlay mark for the bag print. The art plugs in through `MatchPresenter`, so none of it touches the game logic.
 
 ## E. The first real-phone test
 
