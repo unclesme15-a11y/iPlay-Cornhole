@@ -13,6 +13,7 @@ Separate repo for the iPlay cornhole game. It shares the broader iPlay identity 
 - Regulation cornhole only: 1v1 and 2v2. Any seat can be a human or a video bot, so you can mix them freely.
 - A Match Setup screen before every game lets the host set the target score (default 21) and the other options.
 - First scene: a big open park at a summertime hood BBQ cookout.
+- The Imagine plate list for that cookout (background loops, camera plates, the Unity hand, reaction cuts) is `docs/imagine-video-plates.md`.
 - No wagers or money of any kind.
 
 ## Repo Map
@@ -23,4 +24,5 @@ Separate repo for the iPlay cornhole game. It shares the broader iPlay identity 
 - `docs/multiplayer-plan.md`: seats, 2v2 layout, mixing humans and video bots, throw input.
 - `docs/roadmap.md`: build order.
 - `docs/open-decisions.md`: calls the owner still needs to make.
+- `docs/imagine-video-plates.md`: Imagine video plate list (background, camera, hand, reaction). Hands are the purchased Unity hand, composited on top.
 - `artifacts/kling/cornhole-prompts.md`: Kling plate and clip shot list with prompts.
