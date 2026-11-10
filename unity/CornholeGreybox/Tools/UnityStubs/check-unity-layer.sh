@@ -35,9 +35,16 @@ ADS=""
 # UNITY_ANDROID;FIREBASE_MESSAGING: an Android build once the Firebase SDK is added (push notifications on Android).
 for PLATFORM in "" UNITY_IOS UNITY_ANDROID "UNITY_ANDROID FIREBASE_MESSAGING"; do
   DEFINES="$(echo "$ADS $PLATFORM" | xargs | tr ' ' ';')"
+  # SharedHandRigPresenter.cs needs the private com.iplay.handrig package (IPlay.HandRig).
+  # This stub compile does not have that package, so the presenter is left out. It was not compiled here.
+  UNITY_CS=()
+  for src in ../../Assets/Scripts/Unity/*.cs; do
+    [ "$(basename "$src")" = "SharedHandRigPresenter.cs" ] && continue
+    UNITY_CS+=("$src")
+  done
   mcs ${DEFINES:+-define:$DEFINES} -target:library -out:"$OUT/UnityLayer.dll" -warnaserror:0618 \
     -r:System.Core -r:System.Net.Http -r:System $FACADES "${REFS[@]}" \
-    ../../Assets/Scripts/Core/*.cs ../../Assets/Scripts/Unity/*.cs ServiceStubs.cs
+    ../../Assets/Scripts/Core/*.cs "${UNITY_CS[@]}" ServiceStubs.cs
   echo "Unity layer compiles against the real UnityEngine API (${PLATFORM:-Editor}${ADS:+, with ads})."
 done
 

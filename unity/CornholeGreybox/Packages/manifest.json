@@ -11,6 +11,7 @@
     }
   ],
   "dependencies": {
+    "com.iplay.handrig": "https://github.com/unclesme15-a11y/iPlay-StreetDice.git?path=/unity/Packages/com.iplay.handrig#89462fdcff569a2975c438828208199c531b7cb5",
     "com.unity.mobile.notifications": "2.4.0",
     "com.unity.modules.androidjni": "1.0.0",
     "com.unity.modules.animation": "1.0.0",
