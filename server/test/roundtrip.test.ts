@@ -547,27 +547,16 @@ describe('client-server round trip', () => {
     expect(view.phase).toBe('characters');
   });
 
-  // MatchModel.ApplyEvent ignores character_picked, and MatchSession.PickCharacterAsync throws
-  // away the view from POST /character. The pick screen (CornholeApp.Match.DrawCharacterPick)
-  // decides which names are taken by reading Seat.CharacterId, so neither phone can see the pick.
-  // The server side of this is the test above. Remove `.fails` once the client records the pick.
-  it.fails('a phone records a character pick on the seat the pick screen reads', async () => {
+  it('a phone records a character pick on the seat the pick screen reads', async () => {
     const table = await twoPlayer();
     const started = await table.t.call(table.hostAccount.token, 'POST', `/api/matches/${table.matchId}/start`, {}, CLIENT_HEADERS);
     expect(started.statusCode, started.body).toBe(200);
-    const before = table.guest.model.seq;
     expect(await table.host.pickCharacter('keisha')).toBe(true);
-    await table.guest.waitFor(() => table.guest.model.seq > before, 'character event');
-    expect(table.guest.model.seat('A1')?.characterId).toBe('keisha');
     expect(table.host.model.seat('A1')?.characterId).toBe('keisha');
+    await table.guest.waitFor(() => table.guest.model.seat('A1')?.characterId === 'keisha', 'guest sees the pick');
   });
 
-  // The event log strips flight and slide and sets framesOmitted. MatchModel still raises
-  // ThrowResultReceived for that event, and nothing in the client reads FramesOmitted, so the
-  // presenter starts a replay that has no samples. The contract says to show the new state and
-  // not replay the old animation. The reconnect test above checks the board; this one checks the
-  // notification. Remove `.fails` once an omitted throw does not start a replay.
-  it.fails('a throw whose animation frames were dropped does not start a replay', async () => {
+  it('a throw whose animation frames were dropped updates the board and does not start a replay', async () => {
     const table = await twoPlayer();
     await reachPlaying(table);
     const stayer = current(table);

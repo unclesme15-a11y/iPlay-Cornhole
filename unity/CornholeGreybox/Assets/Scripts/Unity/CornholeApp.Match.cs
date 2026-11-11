@@ -123,9 +123,10 @@ public sealed partial class CornholeApp
     }
 
     // ---------------------------------------------------------------- results of a throw
-    private void OnThrowResult(ThrowResult r)
-    {
-        replayResult = r;
+        private void OnThrowResult(ThrowResult r)
+        {
+            if (r == null || r.FramesOmitted) return; // the board is already up to date; there are no frames to play
+            replayResult = r;
         replayStart = Time.unscaledTime;
         replayLastMs = -1;
         banner = DescribeThrow(r);

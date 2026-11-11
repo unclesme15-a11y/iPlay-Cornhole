@@ -10,8 +10,7 @@ import type { Booted } from './app.js';
  * `ThrowReplay` (`unity/CornholeGreybox/Assets/Scripts/Core/`). A change that would make the phone
  * draw the wrong board, score, turn, or flight shows up here.
  *
- * It is a transcription of that client, including the gaps in it. It is not a second, stricter
- * implementation.
+ * It is a transcription of that client. It is not a second, stricter implementation.
  */
 
 export const CLIENT_HEADERS = { 'x-client-version': '0.1.0', 'x-client-platform': 'ios' };
@@ -324,7 +323,8 @@ export class ClientModel {
         this.turn = null;
         this.boardBeforeLastThrow = copyBoard(this.board);
         applyBoard(this.board, parsed);
-        this.presented.push(parsed);
+        // Missed throws keep the outcome. They do not raise ThrowResultReceived, so nothing replays them.
+        if (!parsed.framesOmitted) this.presented.push(parsed);
         break;
       }
       case 'throw_timeout':
@@ -363,11 +363,14 @@ export class ClientModel {
       case 'match_abandoned':
         this.winReason = 'abandoned';
         break;
-      case 'character_picked':
+      case 'character_picked': {
+        const picked = this.seat(str(data, 'seat') ?? '');
+        if (picked) picked.characterId = str(data, 'characterId');
+        break;
+      }
       case 'kicked':
       case 'seat_reclaimed':
       case 'resumed':
-        // MatchModel.ApplyEvent ignores these. character_picked is the one the pick screen needed.
         break;
       default:
         break;
@@ -679,11 +682,15 @@ export class Phone {
     return readPosted(res.statusCode, safeJson(res));
   }
 
-  /** `MatchSession.PickCharacterAsync`: the returned view is discarded, same as the phone. */
+  /** `MatchSession.PickCharacterAsync`: the view in the response is applied, so this phone updates before the socket event. */
   async pickCharacter(characterId: string): Promise<boolean> {
     const posted = await this.post(`/api/matches/${this.matchId}/character`, { characterId });
-    if (!posted.ok) this.lastError = posted.code;
-    return posted.ok;
+    if (!posted.ok || !posted.body) {
+      this.lastError = posted.code;
+      return false;
+    }
+    this.model.applyView(posted.body, this.accountId);
+    return true;
   }
 
   async pickColor(colorId: string): Promise<boolean> {

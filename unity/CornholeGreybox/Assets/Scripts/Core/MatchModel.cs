@@ -246,7 +246,9 @@ namespace IPlay.Cornhole
                     Turn = null;
                     BoardBeforeLastThrow = CopyBoard();
                     ApplyBoard(LastThrow);
-                    Raise(ThrowResultReceived, LastThrow);
+                    // A throw the phone missed keeps the outcome and drops the frames. Show the new
+                    // state. Do not start a replay: there is nothing to play back.
+                    if (!LastThrow.FramesOmitted) Raise(ThrowResultReceived, LastThrow);
                     break;
                 case "throw_timeout":
                     Turn = null;
@@ -300,9 +302,12 @@ namespace IPlay.Cornhole
                 case "seat_takeover":
                     if (SeatTakenOver != null) SeatTakenOver(J.Str(data, "seat"), J.Str(data, "reason"));
                     break;
+                case "character_picked":
+                    var picked = Seat(J.Str(data, "seat"));
+                    if (picked != null) picked.CharacterId = J.Str(data, "characterId");
+                    break;
                 case "resumed":
                 case "kicked":
-                case "character_picked":
                 case "seat_reclaimed":
                     break;
             }

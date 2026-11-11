@@ -38,6 +38,7 @@ namespace IPlay.Cornhole
         private readonly ISocketFactory sockets;
         private CancellationTokenSource cts;
         private Task runTask;
+        private string accountId;
 
         public readonly string Id;
         public readonly MatchModel Model = new MatchModel();
@@ -65,9 +66,20 @@ namespace IPlay.Cornhole
         public void Connect(string myAccountId)
         {
             if (runTask != null) return;
+            accountId = myAccountId;
             cts = new CancellationTokenSource();
             Socket = new MatchSocket(sockets, api, Model, Id);
             Socket.Fatal += code => { FatalCode = code; var h = Fatal; if (h != null) h(code); };
+            // A replayable throw raises ThrowResultReceived. A missed one (frames dropped) does not,
+            // but it still replaces LastThrow, and that is what ends the "throw in flight" lock.
+            string resolvedBag = null;
+            Model.Changed += () =>
+            {
+                var thrown = Model.LastThrow;
+                if (thrown == null || thrown.BagId == resolvedBag) return;
+                resolvedBag = thrown.BagId;
+                ThrowInFlight = false;
+            };
             Model.ThrowResultReceived += r => { ThrowInFlight = false; };
             Model.TurnStarted += t => { if (t.Seat == Model.YouSeat) Throw.Reset(); };
             runTask = Socket.RunAsync(myAccountId, cts.Token);
@@ -89,7 +101,19 @@ namespace IPlay.Cornhole
         }
 
         public Task<bool> StartAsync(bool fillOpenWithBots) { return Try(() => api.StartMatch(Id, fillOpenWithBots)); }
-        public Task<bool> PickCharacterAsync(string characterId) { return Try(() => api.PickCharacter(Id, characterId)); }
+
+        /// <summary>Pick a character and apply the view the server sends back, so this phone's pick screen updates even before the socket event.</summary>
+        public async Task<bool> PickCharacterAsync(string characterId)
+        {
+            LastError = null;
+            try
+            {
+                var view = await api.PickCharacter(Id, characterId);
+                Model.ApplyView(view, accountId ?? Model.YouId);
+                return true;
+            }
+            catch (ApiException e) { LastError = e.Code; return false; }
+        }
         public Task<bool> PickColorAsync(string colorId) { return Try(() => api.PickColor(Id, colorId)); }
         public Task<bool> RematchAsync(bool accept) { return Try(() => api.Rematch(Id, accept)); }
 
