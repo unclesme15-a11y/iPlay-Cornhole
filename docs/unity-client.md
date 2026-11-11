@@ -10,7 +10,7 @@ Think of the app as a stage with three layers:
 2. **The plain stage** (`Assets/Scripts/Unity`). Draws every screen with plain dark menus in the iPlay colors and reads the touches. It works, but it is deliberately plain.
 3. **The art** (yours, next). The video plates, the hand, the bags, the LED board, the crowd. They plug into the stage through one door, `MatchPresenter`, and never need to touch the brain.
 
-Example with your game: when the server says "Keisha's bag went in the hole", the brain turns that into a `ThrowResult` (where the bag flew, where it slid, that it dropped in at 1.4 seconds) and calls your presenter. Your art decides how a bag looks flying through the Kling plate. If you have no art yet, the plain top-down board shows it. Either way the result is the same, because **the server already decided it**.
+Example with your game: when the server says "Keisha's bag went in the hole", the brain turns that into a `ThrowResult` (where the bag flew, where it slid, that it dropped in at 1.4 seconds) and calls your presenter. Your art decides how a bag looks flying through the Imagine plate. If you have no art yet, the plain top-down board shows it. Either way the result is the same, because **the server already decided it**.
 
 ## Following Street Dice's look
 

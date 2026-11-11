@@ -6,7 +6,7 @@ Everything that isn't a picture, a video, or how something looks is built. This 
 
 The server decides every result and sends everything the art needs (`docs/unity-client.md`, "What you get from the server"). Art never decides a score. So the art can be swapped or redone without touching the game.
 
-## 1. The look of the world (Kling)
+## 1. The look of the world (Imagine)
 
 Follow `artifacts/kling/cornhole-prompts.md` and `docs/visual-camera-plan.md`.
 
@@ -19,7 +19,7 @@ Follow `artifacts/kling/cornhole-prompts.md` and `docs/visual-camera-plan.md`.
 | **Background life takes** (4 or so) | Random, natural crowd movement: talking, kids far off, people walking, only an occasional phone | Keep it random so it doesn't look fake |
 | **Nearby reaction** | The crowd's reaction to a cornhole | Plays when a bag drops in |
 | Ambient audio bed | Cookout sounds with random one-shots | |
-| Side-by-side test | Same Plate 1 in Kling, Veo 3.1 and Seedance 2.0 | Pick the tool per clip type |
+| Open question: more than one tool on one plate? | Optional test of another tool on the same Plate 1 | Imagine is the default candidate for all three plates |
 
 ## 2. Video opponents
 
@@ -56,5 +56,5 @@ Already made: the game-show ring-in (the two-bell ding was chosen), bag thud, gr
 
 - ~~Portrait or landscape.~~ **Decided: landscape.** Every plate, clip and menu is made 16:9.
 - ~~Which ring-in sound~~ **Decided: the two-bell ding.**
-- **Which video tool** per clip type after the side-by-side test.
+- **Whether to test more than one tool on one plate** before locking the full set. Imagine (Grok Imagine, via SuperGrok) is the default candidate for Thrower View, Far Board Cam, and Neighbor Cut.
 - **A vector version of the iPlay mark** for the final bag print.
