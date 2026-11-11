@@ -2,6 +2,11 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { DomainError } from '../core/errors.js';
 import { JwksKeySource, verifyRs256Jwt, type KeySource } from './jwt.js';
 
+/**
+ * Apple and Google only. Email is not a provider: this server never stores a password or an address.
+ * A future email check would verify the person elsewhere, then call `AccountService.signInWithIdentity`
+ * with `{ linkTo: guestId }` so the guest's iPlay id (and its scores) stay put.
+ */
 export type Provider = 'apple' | 'google';
 
 export interface VerifiedIdentity {

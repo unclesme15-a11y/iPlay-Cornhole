@@ -213,6 +213,8 @@ export interface MatchView {
     claimed: boolean;
     connected: boolean;
     accountId: string | null;
+    /** Same value as `accountId`. Named so clients can treat the seat as an iPlay ID. Null for bots. */
+    iplayId: string | null;
     characterId: string | null;
     controlledByBot: boolean;
   }>;
@@ -233,7 +235,7 @@ export interface MatchView {
   ranked: RankedMode | null;
   /** Ranked only, once the result is saved: how each player's rating moved (null until then). */
   ratings: { voided: boolean; you: RatingUpdate | null; players: RatingUpdate[] } | null;
-  you: { playerId: string; seat: SeatId; team: TeamId; host: boolean } | null;
+  you: { playerId: string; iplayId: string; seat: SeatId; team: TeamId; host: boolean } | null;
 }
 
 export interface Seated {
@@ -950,6 +952,7 @@ export class MatchSession {
         claimed: s.kind === 'bot' ? true : Boolean(s.playerId),
         connected: s.kind === 'bot' ? true : Boolean(player?.connected && !player.left),
         accountId: s.kind === 'human' ? s.playerId : null,
+        iplayId: s.kind === 'human' ? s.playerId : null,
         characterId: s.characterId,
         controlledByBot: s.kind === 'bot' || s.controlledByBot,
       };
@@ -1009,7 +1012,7 @@ export class MatchSession {
             players: this.ratingResult.updates,
           }
         : null,
-      you: player && !player.left ? { playerId: player.id, seat: player.seat, team: SEAT_TEAM[player.seat], host: player.host } : null,
+      you: player && !player.left ? { playerId: player.id, iplayId: player.id, seat: player.seat, team: SEAT_TEAM[player.seat], host: player.host } : null,
     };
   }
 

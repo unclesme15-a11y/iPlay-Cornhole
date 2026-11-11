@@ -32,6 +32,7 @@ describe.each(backends)('accounts and sessions ($name)', (backend) => {
     it('creates a guest with a friendly default name', async () => {
       const a = await accounts.createGuest();
       expect(a.displayName).toMatch(/^Player\d{4}$/);
+      expect(a.id).toMatch(/^ipl_[A-Za-z0-9_-]{22}$/);
       expect(a.isGuest).toBe(true);
       expect(a.status).toBe('active');
       expect((await accounts.get(a.id))?.displayName).toBe(a.displayName);

@@ -124,6 +124,8 @@ export function registerMeRoutes(app: FastifyInstance, services: Services, auth:
         createdAt: m.createdAt.toISOString(),
         startedAt: m.startedAt?.toISOString() ?? null,
         endedAt: m.endedAt.toISOString(),
+        // `iplayId` repeats `accountId` so a saved score names the guest (or upgraded) iPlay ID.
+        players: m.players.map((p) => ({ ...p, iplayId: p.accountId })),
       })),
       next: matches.length === q.limit ? matches[matches.length - 1]!.endedAt.toISOString() : null,
     };
