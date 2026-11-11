@@ -1,5 +1,7 @@
 # Game Rules Contract
 
+> **Hands:** All hands come from the shared Unity hand rig (`com.iplay.handrig`), composited over Imagine footage. Imagine never generates hands.
+
 Working title: **iPlay Cornhole**
 
 This file uses standard regulation cornhole (the version used by the major leagues, ACL/ACO style) as its base. Each rule is tagged:

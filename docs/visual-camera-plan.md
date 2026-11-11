@@ -1,5 +1,7 @@
 # Visual And Camera Plan
 
+> **Hands:** All hands come from the shared Unity hand rig (`com.iplay.handrig`), composited over Imagine footage. Imagine never generates hands.
+
 ## The Idea In One Line
 
 The people and the place are real video. The bags, the board hit areas, and the score are Unity. The server decides what counts.

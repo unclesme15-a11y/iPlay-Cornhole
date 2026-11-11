@@ -1,5 +1,7 @@
 # Decisions
 
+> **Hands:** All hands come from the shared Unity hand rig (`com.iplay.handrig`), composited over Imagine footage. Imagine never generates hands.
+
 ## Settled
 
 - **Layout:** regulation only. No Face-Off mode.
