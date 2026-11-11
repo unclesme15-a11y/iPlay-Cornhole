@@ -4,7 +4,7 @@
 
 ## Seats
 
-Every match has 4 seats in 2v2 (2 in 1v1). **Any seat can be a Human or a Video Bot.** The host fills seats on the Match Setup screen (see `game-rules.md`).
+Every match has 4 seats in 2v2 (2 in 1v1). **Any seat can be a Human or a Bot.** The host fills seats on the Match Setup screen (see `game-rules.md`).
 
 ```text
           FAR END
@@ -21,17 +21,24 @@ Every match has 4 seats in 2v2 (2 in 1v1). **Any seat can be a Human or a Video 
 
 ## How Humans And Bots Look The Same
 
-The trick that makes mixing easy: **every seat, human or bot, is shown as a video character.**
+The trick that makes mixing easy: **every seat, human or bot, is shown as a 3D iPlay character.** (Changed November 2026 from video characters; see `face-scan.md`.)
 
-- Video Bot: the server picks the throw and the bot's character clips play.
-- Human: the person swipes on their phone, the server works out the throw, and **the video character the human picked as their avatar** plays the same throw clip on everyone else's screen.
+- Bot: the server picks the throw and the bot's roster character plays the throw animation.
+- Human: the person swipes on their phone, the server works out the throw, and **the human's character** plays the same throw animation on everyone else's screen.
+  - Scanned player who said yes to sharing their face: their own iPlay character, with their face.
+  - Anyone else: the roster character they picked.
 - The only difference between a human and a bot is who decides the throw. The visuals don't change.
 
 That means you can put **any mix** in a match: you + bot partner vs 2 humans, 2 humans + 2 bots, all bots for practice, and so on.
 
-Characters are picked from the roster in `characters.md` (4 men and 4 women to start). Two players in the same match can't use the same character. Bots get whoever is left.
+Roster characters are listed in `characters.md` (4 men and 4 women to start). Two players in the same match can't use the same roster character. Bots get whoever is left. Scanned players never clash, because every scanned character is unique.
 
-If a human doesn't pick an avatar, show a mic/profile marker with a throwing-arm silhouette instead, like the human seats in Street Dice.
+## Sending Characters Between Phones
+
+- On joining, each phone sends its player's **finished character** with the seat: face picture on the standard head plus body/outfit/hair choices. Never face measurements.
+- The server relays it to the other phones in the match and **keeps nothing**. Phones drop other players' characters when the match ends.
+- Size target: under 300 KB per character, so a 2v2 match loads in a couple of seconds on mobile data. Send it during Match Setup and bag color pick, so nobody waits.
+- If a character fails to arrive, show that seat as a roster character rather than holding up the match.
 
 ## Throw Input (Server-Authoritative)
 
@@ -42,7 +49,7 @@ If a human doesn't pick an avatar, show a mic/profile marker with a throwing-arm
 
 The phone can't claim "I scored 3." It only sends the swipe.
 
-## Video Bot Skill
+## Bot Skill
 
 | Level | In hole | On board | Off / foul |
 |-------|---------|----------|------------|
@@ -57,8 +64,8 @@ Bots also use simple strategy: block the hole with a bag when they're ahead, and
 ## Voice
 
 - Team voice channel plus table voice channel (Vivox, reusing the Street Dice token signer).
-- Video bots get short "table talk" reaction clips instead of voice.
+- Bots get short recorded "table talk" lines with their reaction animations instead of voice.
 
 ## Disconnects
 
-- A human who drops gets 30 s to come back. Their seat is then taken over by a Video Bot at the same skill level until the game ends. Nothing is forfeited. There are no wagers in this game.
+- A human who drops gets 30 s to come back. Their seat is then taken over by a bot at the same skill level until the game ends. The bot keeps showing a **roster character**, not the departed player's face, because that player is no longer there to share it. Nothing is forfeited. There are no wagers in this game.

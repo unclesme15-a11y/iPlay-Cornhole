@@ -49,7 +49,7 @@ Before every match, the host sees one setup screen. Everything starts at the def
 | Option | Choices | Default |
 |--------|---------|---------|
 | Mode | 1v1 / 2v2 | 2v2 |
-| Seats | Each seat: Human (invite) or Video Bot | You + 3 bots |
+| Seats | Each seat: Human (invite) or Bot | You + 3 bots |
 | Bot skill | Rookie / Regular / Pro (per bot) | Regular |
 | Play to | 11 / 15 / 21 | **21** |
 | Bust rule | Off / On | Off |
@@ -61,7 +61,7 @@ Before every match, the host sees one setup screen. Everything starts at the def
 
 Whatever the host picks shows on everyone's screen before the coin toss, so all players know the rules for that game.
 
-After setup, each player picks a video character, then each team picks a bag color, first come first served. Two teams can never share a color (see `visual-camera-plan.md` → Bag Color Pick). Then the coin toss.
+After setup, each player confirms their character (their own scanned iPlay character, or a roster character; see `face-scan.md`), then each team picks a bag color, first come first served. Two teams can never share a color (see `visual-camera-plan.md` → Bag Color Pick). Then the coin toss.
 
 ## Fouls (Bag Removed, Scores 0)
 

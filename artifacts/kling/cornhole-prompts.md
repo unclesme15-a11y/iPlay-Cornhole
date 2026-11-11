@@ -58,7 +58,9 @@ Swap-in details for the other takes (pick one or two per take, never all):
 The few people standing closest to the far cornhole board react to a great shot, one claps, one says "ayy" and points, the rest of the cookout keeps going about their business, camera completely locked off, boards and lane stay empty and unchanged, candid documentary feel, 3 seconds
 ```
 
-## 2. Character Clip Set (Per Video Opponent)
+## 2. Character Clip Set (RETIRED November 2026)
+
+> **Do not generate these clips.** Players are now 3D iPlay characters drawn by Unity so the face scan can be used (see `docs/face-scan.md`). This section is kept only as a record and as a look reference for the 3D roster: the reference portrait prompts below may still be used to make **concept images** of each roster character for the 3D artists. Kling is now used for the plates, background life takes and the nearby reaction take only.
 
 Make one character's full set first (Keisha). Use the same character reference image for every clip. The full roster is in `docs/characters.md`.
 

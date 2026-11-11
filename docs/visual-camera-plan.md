@@ -4,13 +4,15 @@
 
 ## The Idea In One Line
 
-The people and the place are real video. The bags, the board hit areas, and the score are Unity. The server decides what counts.
+The place is real video. The players, the bags, the board hit areas, and the score are Unity. The server decides what counts.
 
-This is the same split as Street Dice. There, Kling makes the bodega and Unity owns the dice. Here, Kling makes the park cookout and the opponents, and Unity owns the bags.
+(Changed November 2026: players used to be Kling video clips. They are now 3D iPlay characters, so a player's scanned face can appear in the game. See `face-scan.md`.)
+
+This is close to the Street Dice split. There, Kling makes the bodega and Unity owns the dice. Here, Kling makes the park cookout and its far-off crowd, and Unity owns the players and the bags.
 
 ## Camera Setups (Plates)
 
-Every setup is a **locked Kling plate**: one approved still frame that every clip for that angle starts from. That way opponent clips cut together cleanly and the Unity boards stay lined up.
+Every setup is a **locked Kling plate**: one approved still frame of the empty scene, with the pitcher's boxes left clear. Unity places the 3D characters in those boxes and the Unity boards stay lined up.
 
 | # | Name | What you see | When it's used |
 |---|------|--------------|----------------|
@@ -20,22 +22,33 @@ Every setup is a **locked Kling plate**: one approved still frame that every cli
 
 Every plate has a matching **invisible Unity board**, meaning a collider plus a hole trigger, placed so it sits exactly on the video board. Bags hit the invisible board, but it looks like they hit the real one in the video.
 
-## Hand-Off Moment (Most Important Timing)
+## Hand-Off Moment (Simpler Now)
 
-Every opponent throw clip has a **release frame**. That's the moment the bag leaves their hand.
+Because Unity draws the characters, the bag never has to jump from a video into Unity.
 
-1. The clip plays: they step up, swing, release.
-2. At the release frame, the video bag has to be out of shot or hidden by the hand. Unity spawns its own bag at that exact spot on screen.
-3. From there the Unity bag flies along the path the server returned.
-4. The clip keeps running (follow-through), then switches to a **reaction clip** chosen by the result.
+1. The character plays `stepup` then `throw`.
+2. The throw animation has a **release event** at the moment the hand opens. The bag is attached to the hand bone until then.
+3. At the release event, the bag detaches and flies along the path the server returned.
+4. The animation finishes its follow-through, then plays a **reaction** chosen by the result.
 
-Each clip gets a small data file, for example:
+One throw animation still covers every outcome. The animation only shows the throw. Unity and the server decide whether it's a cornhole, a woody, or a miss. Tune the throw's arm speed a little to the server's power value so a soft lob doesn't look like a hard slide.
 
-```json
-{ "clip": "marcus_throw_02", "plate": "thrower_view", "releaseTime": 1.42, "releaseScreen": [0.61, 0.38], "throwHand": "right" }
-```
+## Characters On The Video
 
-This is why one throw clip can be reused for every outcome. The video only shows the throw. Unity and the server decide whether it's a cornhole, a woody, or a miss.
+- Place each character's feet on the plate's grass at the pitcher's box, using the same ground plane as the invisible boards.
+- Match the plate's light: sun direction, warm fill, and a soft contact shadow under the feet so nobody floats.
+- Apply the plate's colour grade to the characters.
+- Far-end characters are small on screen (about 27 ft away). The **Neighbor Cut** is the closest shot of a character, so judge the look there.
+
+## Moments That Show Faces
+
+At 27 ft a face is small, so build in a few moments where players actually see each other:
+
+- **Walk-up intro** before the coin toss: a short close shot of each player's character, with name and team colour.
+- **Neighbor Cut**: the player beside you is seen from the side, close enough to read their face.
+- **Cornhole celebration**: on a +3, a quick close cut of the thrower's character reacting, then back to Thrower View. Woodies and misses stay on the normal view.
+
+A player who did not share their face appears in all of these as their roster character.
 
 ## Local Player Throw Flow
 
@@ -49,8 +62,8 @@ Board cam is **on by default**. A **"Stay on me"** setting turns it off for play
 
 ## Opponent Throw Flow
 
-- **Far-end players (2v2 only, throwing at you):** stays on Thrower View the whole time. They step up and throw, and the bag flies toward you and lands on the board right in front of you. No camera cut. Then their reaction clip plays.
-- **Neighbor opponent (same end as you):** play the **Neighbor Cut** clip, then at release cut to **Far Board Cam** for the landing, same as your own throws.
+- **Far-end players (2v2 only, throwing at you):** stays on Thrower View the whole time. They step up and throw, and the bag flies toward you and lands on the board right in front of you. No camera cut. Then their reaction plays.
+- **Neighbor opponent (same end as you):** cut to the **Neighbor Cut** angle and play their throw, then at release cut to **Far Board Cam** for the landing, same as your own throws.
 
 ## Bag Visuals
 
@@ -67,7 +80,7 @@ Right after Match Setup, every team picks a bag color. **First come, first serve
 - When a team picks a color, it's locked for that match. It goes grey on everyone else's screen with the team's name on it ("Taken by Team A").
 - Two teams can never have the same color.
 - In 2v2, whichever partner taps first picks for the team, and the other partner sees it right away.
-- Video bot teams pick **last**, from whatever colors are left.
+- Bot teams pick **last**, from whatever colors are left.
 - 15-second timer. If a team doesn't pick in time, it gets a random free color.
 
 **Palette (12 colors, chosen so no two are easy to mix up on a wood board from 27 ft):**
@@ -99,7 +112,7 @@ Right after Match Setup, every team picks a bag color. **First come, first serve
 ```
 
 - Tutorial mode explains cancellation scoring live, using the actual inning's numbers.
-- Mic/profile rings on each seat for voice chat, the same pattern as Street Dice.
+- Mic rings on each seat's name tag for voice chat. The tag shows a small portrait of that player's character.
 
 ## Environment Look (Locked Direction)
 
