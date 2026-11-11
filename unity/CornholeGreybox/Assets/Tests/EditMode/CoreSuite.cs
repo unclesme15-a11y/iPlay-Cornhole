@@ -466,9 +466,22 @@ namespace IPlay.Cornhole.Tests
                 Ck.Eq(StartupOutcome.Ready, Ck.Run(s.StartAsync()));
                 Ck.Eq("NEWTOKEN", store.Get(AccountSession.TokenKey));
                 Ck.Eq("Uncle Me", s.Account.DisplayName);
+                Ck.Eq("a1", s.Account.Id);
+                Ck.Eq("a1", s.Account.IplayId); // older payloads omit iplayId; the account id is the guest identity
                 Ck.Near(1234, s.Account.SinglesRating, 0);
                 Ck.NotNull(s.Guide, "throwing guide loaded from the server");
                 Ck.True(t.BodiesSeen[t.Log.IndexOf("POST /api/auth/guest")].Contains("\"confirmAdult\":true"));
+            });
+            add("account: iplayId is the guest identity, and an older server that omits it still uses id", () =>
+            {
+                var plain = AccountState.FromMe(MiniJson.ParseObject(Canned.Me));
+                Ck.Eq("a1", plain.Id);
+                Ck.Eq("a1", plain.IplayId);
+                var named = MiniJson.ParseObject(Canned.Me.Replace("\"id\":\"a1\"", "\"id\":\"a1\",\"iplayId\":\"ipl_guest\""));
+                var guest = AccountState.FromMe(named);
+                Ck.Eq("a1", guest.Id);
+                Ck.Eq("ipl_guest", guest.IplayId);
+                Ck.True(guest.IsGuest);
             });
             add("start: a saved session is reused (no new sign-in), an expired one is replaced", () =>
             {

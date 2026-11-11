@@ -1,8 +1,18 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { DomainError } from '../core/errors.js';
 import type { Db, Queryable } from '../db/types.js';
 import { checkDisplayName, defaultGuestName } from './nameFilter.js';
 import type { VerifiedIdentity } from './providers.js';
+
+/**
+ * New accounts get an iPlay id: `ipl_` plus 16 random bytes. It is the account id, so every score,
+ * stat and match row already points at it. Older rows may still be UUIDs; both are valid.
+ * Email is not an identity provider (no password store, no email vendor). Apple and Google upgrade
+ * a guest through `signInWithIdentity({ linkTo })`, which keeps this id and therefore the history.
+ */
+export const IPLAY_ID_PATTERN = /^ipl_[A-Za-z0-9_-]{22}$/;
+
+export const newIplayId = (): string => `ipl_${randomBytes(16).toString('base64url')}`;
 
 export interface Account {
   id: string;
@@ -52,9 +62,13 @@ export const toAccount = (r: AccountRow): Account => ({
   showOnLeaderboards: r.show_on_leaderboards,
 });
 
-/** What other players and the client may see about someone. */
-export const publicAccount = (a: Account): { id: string; displayName: string; isGuest: boolean } => ({
+/**
+ * What other players and the client may see about someone.
+ * `iplayId` is the same string as `id` (additive: older clients keep reading `id`).
+ */
+export const publicAccount = (a: Account): { id: string; iplayId: string; displayName: string; isGuest: boolean } => ({
   id: a.id,
+  iplayId: a.id,
   displayName: a.displayName,
   isGuest: a.isGuest,
 });
@@ -134,7 +148,7 @@ export class AccountService {
   }
 
   private async insertAccount(q: Queryable, name: string, isGuest: boolean, nameChangedAt: Date | null, adultConfirmed: boolean): Promise<Account> {
-    const id = randomUUID();
+    const id = newIplayId();
     const now = new Date(this.now());
     const res = await q.query<AccountRow>(
       `INSERT INTO accounts (id, display_name, is_guest, display_name_changed_at, created_at, last_seen_at, adult_confirmed_at, terms_version)
@@ -179,9 +193,11 @@ export class AccountService {
   }
 
   /**
-   * Finds or creates the account for a verified Apple/Google identity.
+   * Finds or creates the account for a verified Apple or Google identity.
+   * This is the upgrade hook: a guest passed as `linkTo` keeps its iPlay id, so scores and match
+   * history stay on that id and the account stops being a guest. Email is not accepted here.
    * - Known identity: that account (even if you arrived holding a different guest account).
-   * - New identity + a guest to attach it to: the guest keeps its stats and stops being a guest.
+   * - New identity + a guest to attach it to: the guest keeps its id, stats and history.
    * - New identity, nobody to attach it to: a brand new account.
    */
   async signInWithIdentity(
@@ -328,6 +344,7 @@ export class AccountService {
       exportedAt: new Date(this.now()).toISOString(),
       account: {
         id: account.id,
+        iplayId: account.id,
         displayName: account.displayName,
         isGuest: account.isGuest,
         createdAt: account.createdAt,

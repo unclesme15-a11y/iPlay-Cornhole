@@ -25,6 +25,8 @@ namespace IPlay.Cornhole
     public sealed class AccountState
     {
         public string Id, DisplayName;
+        /// <summary>Stable iPlay ID for this player. Equals <see cref="Id"/> (the server stores them as one id). Falls back to <see cref="Id"/> if an older server omits the field.</summary>
+        public string IplayId;
         public bool IsGuest, AdultConfirmed, NeedsTermsAccept, ShowOnLeaderboards;
         public int CurrentTermsVersion;
         public string ActiveMatchId;
@@ -38,6 +40,7 @@ namespace IPlay.Cornhole
             return new AccountState
             {
                 Id = J.Str(a, "id"),
+                IplayId = J.Str(a, "iplayId", J.Str(a, "id")),
                 DisplayName = J.Str(a, "displayName"),
                 IsGuest = J.Bool(a, "isGuest"),
                 AdultConfirmed = J.Bool(a, "adultConfirmed"),

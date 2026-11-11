@@ -28,10 +28,12 @@ Everyone has an account. There are three ways to get one, and all return a **ses
 `POST /api/auth/guest` with `{ "confirmAdult": true, "displayName": "Uncle Me" }` (name optional; you get `Player4821` otherwise).
 
 ```json
-{ "token": "…43 chars…", "expiresAt": "2026-12-28T…Z", "account": { "id": "…", "displayName": "Uncle Me", "isGuest": true }, "created": true, "linked": false, "switched": false }
+{ "token": "…43 chars…", "expiresAt": "2026-12-28T…Z", "account": { "id": "ipl_…", "iplayId": "ipl_…", "displayName": "Uncle Me", "isGuest": true }, "created": true, "linked": false, "switched": false }
 ```
 
-A guest can play everything. **If they lose the token (new phone, reinstall), the guest account is gone**, so the app should nudge guests to add Apple or Google sign-in.
+`id` and `iplayId` are the same string. New accounts use an iPlay id (`ipl_` plus 22 characters). Older accounts may still have a UUID in both fields. Clients keep reading `id`; `iplayId` is additive. That id is what match scores, stats and history are stored under. The session token is what survives a reconnect (including a server restart): send the same `Authorization` bearer, or the same `bearer` on the match socket `hello`, and you are the same guest.
+
+A guest can play everything. **If they lose the token (new phone, reinstall), the guest account is gone**, so the app should nudge guests to add Apple or Google sign-in. There is no email sign-in. Upgrading is the existing Apple or Google call while the guest token is still sent: the iPlay id does not change, so scores stay. The hook is `AccountService.signInWithIdentity` with `linkTo` set to that guest. Email would use the same hook once a verifier exists; it is not configured.
 
 ### Apple and Google
 
@@ -62,7 +64,7 @@ The server stores only Apple's/Google's id for the person. **It never reads or s
 | `POST /api/me/confirm-adult` | For an older account made before adults-only: confirms 18+. |
 | `DELETE /api/me` | **Erases the account** (required by the app stores). Pulls you out of any match, deletes sign-in links, sessions, stats and blocks. Old match history stays for the other players, with your name replaced by "Deleted player". |
 | `GET /api/me/export` | Everything held about the person, as JSON. |
-| `GET /api/me/matches?limit=20&before=<iso date>` | Match history, newest first. Pass the returned `next` as `before` for the next page. |
+| `GET /api/me/matches?limit=20&before=<iso date>` | Match history, newest first. Pass the returned `next` as `before` for the next page. Each player in a match has `accountId` and `iplayId` (the same string, or both null for a bot or a deleted player). Scores on that row belong to that iPlay id. |
 
 `stats` is `{ games, wins, losses, leaves, throws, holes, boards, fouls }`. Leaving a match early adds a `leave` and no win or loss. An abandoned match changes nobody's stats.
 
@@ -214,7 +216,7 @@ When a match finishes, `view.rematch` opens: `{ deadlineAt, votes: { "<accountId
 
 ```
 id, protocol, seq, createdAt, rematchOf, phase, config,
-seats[]: { id, team, startEnd, kind: "human"|"bot", botLevel, name, claimed, connected, accountId, characterId, controlledByBot }
+seats[]: { id, team, startEnd, kind: "human"|"bot", botLevel, name, claimed, connected, accountId, iplayId, characterId, controlledByBot }
 colors: { A?: colorId, B?: colorId }
 deadlineAt, scores: { A, B }, inning, firstTeam
 turn: null | { seat, team, bagId, controlledBy: "human"|"bot", deadlineAt, fromEnd, targetEnd, throwNumber, bagsLeft: {A,B} }
@@ -222,7 +224,7 @@ board[]: { id, team, status: "board"|"hole", x, y }   // bags on the target boar
 history[]: one entry per finished inning
 winner, winReason: "score"|"skunk"|"forfeit"|"abandoned"|null
 rematch: null | { deadlineAt, votes, matchId, cancelled }
-you: null | { playerId, seat, team, host }        // playerId is your account id
+you: null | { playerId, iplayId, seat, team, host }  // playerId and iplayId are your account id
 ```
 
 `turn` is `null` in the short pause between throws. `fromEnd` is which end the bags are thrown **from** this inning (0 near, 1 far) and `targetEnd` is the board they land on. Ends alternate every inning.
