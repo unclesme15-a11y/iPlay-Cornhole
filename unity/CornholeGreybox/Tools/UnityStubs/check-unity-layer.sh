@@ -13,12 +13,25 @@ PKG=unityengine.modules
 VER=2021.3.33
 mkdir -p "$OUT" "$CACHE"
 
+# UnityEngine.Modules is a Unix-made nupkg whose entries are mode 000. Info-ZIP restores
+# that mode, so the DLLs exist but cannot be read, and mcs reports CS0009 ("does not contain
+# valid metadata") for each of them. The bytes are valid assemblies. Make them readable after
+# unzip, and re-extract if an older cache left the marker unreadable. The Editor package is
+# extracted the same way (it is a Windows-made nupkg, so unzip already leaves it readable).
+fetch_nupkg() {
+  local pkg="$1" ver="$2" marker="$3" label="$4"
+  local dest="$CACHE/$pkg.$ver"
+  if [ ! -r "$marker" ]; then
+    echo "Downloading $label ($pkg $ver) from NuGet..."
+    curl -fsSL -o "$CACHE/$pkg.$ver.nupkg" "https://api.nuget.org/v3-flatcontainer/$pkg/$ver/$pkg.$ver.nupkg"
+    rm -rf "$dest"
+    unzip -qo "$CACHE/$pkg.$ver.nupkg" -d "$dest"
+    chmod -R u+rwX "$dest"
+  fi
+}
+
 REFDIR="$CACHE/$PKG.$VER/lib/net45"
-if [ ! -f "$REFDIR/UnityEngine.CoreModule.dll" ]; then
-  echo "Downloading Unity's engine reference assemblies ($PKG $VER) from NuGet..."
-  curl -fsSL -o "$CACHE/$PKG.$VER.nupkg" "https://api.nuget.org/v3-flatcontainer/$PKG/$VER/$PKG.$VER.nupkg"
-  unzip -qo "$CACHE/$PKG.$VER.nupkg" -d "$CACHE/$PKG.$VER"
-fi
+fetch_nupkg "$PKG" "$VER" "$REFDIR/UnityEngine.CoreModule.dll" "Unity's engine reference assemblies"
 
 FACADES=""
 for d in /usr/lib/mono/4.5/Facades /usr/lib/mono/4.7.2-api/Facades /Library/Frameworks/Mono.framework/Versions/Current/lib/mono/4.5/Facades; do
@@ -46,11 +59,7 @@ done
 EDPKG=unity3d.sdk
 EDVER=2021.1.14.1
 EDDIR="$CACHE/$EDPKG.$EDVER/lib"
-if [ ! -f "$EDDIR/UnityEditor.dll" ]; then
-  echo "Downloading Unity's Editor reference assembly ($EDPKG $EDVER) from NuGet..."
-  curl -fsSL -o "$CACHE/$EDPKG.$EDVER.nupkg" "https://api.nuget.org/v3-flatcontainer/$EDPKG/$EDVER/$EDPKG.$EDVER.nupkg"
-  unzip -qo "$CACHE/$EDPKG.$EDVER.nupkg" -d "$CACHE/$EDPKG.$EDVER"
-fi
+fetch_nupkg "$EDPKG" "$EDVER" "$EDDIR/UnityEditor.dll" "Unity's Editor reference assembly"
 for PLATFORM in "" UNITY_IOS; do
   mcs ${PLATFORM:+-define:$PLATFORM} -target:library -out:"$OUT/UnityEditorScripts.dll" \
     -r:System.Core -r:System.Xml $FACADES "${REFS[@]}" -r:"$EDDIR/UnityEditor.dll" \

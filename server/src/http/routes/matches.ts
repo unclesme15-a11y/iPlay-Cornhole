@@ -11,7 +11,9 @@ import type { Auth } from '../context.js';
 
 const seatId = z.enum(['A1', 'B1', 'A2', 'B2']);
 const botLevel = z.enum(['rookie', 'regular', 'pro']);
-const seatPlanSchema = z.record(seatId, z.object({ kind: z.enum(['human', 'bot']), level: botLevel.optional() }).strict());
+// Zod 4's z.record(enum, ...) requires every enum key. Seat plans are partial (only the
+// seats the host fills in), which is what z.record did in Zod 3. partialRecord keeps that.
+const seatPlanSchema = z.partialRecord(seatId, z.object({ kind: z.enum(['human', 'bot']), level: botLevel.optional() }).strict());
 
 const createBody = z.object({ config: z.unknown().optional(), seats: seatPlanSchema.optional() }).strict();
 const joinBody = z.object({ seat: seatId.optional() }).strict();
