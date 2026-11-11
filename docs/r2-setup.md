@@ -6,27 +6,28 @@ Cloudflare R2 holds all heavy media for Cornhole: character stills, contact shee
 
 ## Prerequisites
 
-1. **Enable R2** in the Cloudflare dashboard: https://dash.cloudflare.com/?to=/:account/r2 — one-time toggle, free tier.
+1. **R2 enabled** in the Cloudflare dashboard: https://dash.cloudflare.com/?to=/:account/r2 — one-time toggle, free tier. DONE.
 2. Account: Omgbell49@gmail.com's Account (ID: f7c79fd26254c700b9d583585f2cde16).
 3. Zone: **iplay.wtf** (ID: f341f31deeccdd7c17f3b6e960886408), active, full setup.
 
 ## Bucket
 
-- **Name:** `iplay-cornhole-media`
-- **Location hint:** `enam` (Eastern North America — closest to players)
+- **Name:** `iplay-media`
+- **Location:** Automatic (jurisdiction auto)
 - **Storage class:** Standard
-- **CORS:** Allow GET/HEAD from `https://iplay.wtf`, `https://www.iplay.wtf`, and local dev origins (`http://localhost:*`). Expose `Content-Type` and `ETag`.
+- **CORS:** Allow GET/HEAD from all origins (`*`). Expose `Content-Length` and `ETag`. Max age 86400. APPLIED.
+- **Lifecycle:** Rule `drafts-90d` — prefix `drafts/`, expire after 90 days. Added manually in dashboard Settings > Object Lifecycle Rules. No abort-multipart or infrequent-access transitions (abort is default 7 days; IA would add Class A ops on every read).
 
 ## Custom Domain
 
-- **media.iplay.wtf** → bucket `iplay-cornhole-media`
-- Attached via R2 custom domain settings using zone ID above.
+- **media.iplay.wtf** → bucket `iplay-media`
+- Attached via R2 custom domain settings using zone ID above. CONFIRMED LIVE.
 - All client-facing URLs use this domain. Never raw `r2.dev` URLs in shipped builds.
 
 ## Bucket Layout
 
 ```
-iplay-cornhole-media/
+iplay-media/
 ├── characters/
 │   ├── stills/          # Rooftop plates, idle sheets (Nia, Owen, Jace, Marisol)
 │   ├── concepts/        # Imagine concept images for 3D builds
@@ -37,6 +38,7 @@ iplay-cornhole-media/
 │   └── neighbor-cut/
 ├── reactions/           # 3-second nearby reaction takes
 ├── cards-archive/       # Migrated failed-AI cards material (reference only)
+├── drafts/              # WIP uploads, auto-deleted after 90 days
 └── manifest.json        # File inventory: path, size, character, status
 ```
 
@@ -81,8 +83,9 @@ iplay-cornhole-media/
 
 ## Open Items
 
-- [ ] Flip R2 enable toggle in dashboard
-- [ ] Create bucket + CORS + custom domain (API or dashboard)
+- [x] Flip R2 enable toggle in dashboard
+- [x] Create bucket + CORS + custom domain
+- [x] Add 90-day drafts lifecycle rule
 - [ ] Upload first batch (Marisol)
 - [ ] Write manifest.json generator script
 - [x] Rename Kling references → Imagine across repo docs
