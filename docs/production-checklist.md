@@ -74,7 +74,7 @@ This needs your phones and Unity. Use two phones, ideally one iPhone and one And
 | A restart or deploy during live matches | Tests, a real server stopped under 1,498 live matches, and a real Docker redeploy during 20 matches (none lost) | High |
 | **Capacity** | Load test: **1,500 matches at once used about 35% of one CPU core and 250 MB**, answers under 0.1 s (99%) | Good sign, not a guarantee; one server holds all live matches |
 | **The Hetzner deploy pack** | Run for real in Docker: first deploy, redeploy during live matches, Caddy (60 requests during a deploy, all answered) and nginx, backup, off-box copy, failure alert, restore, and `setup-host.sh` in a clean Debian. CI runs it on every change | High (your domain's certificate is the only untested step) |
-| The phone's brain (server calls, ranked flow, throw maths, error reports, seasons, push) | 63 offline tests + 13 that drive a real server with the real client code | High |
+| The phone's brain (server calls, ranked flow, throw maths, error reports, seasons, push) | 68 offline tests + 13 that drive a real server with the real client code | High |
 | **The Unity screens and touch input** | Compiled against Unity's **real** engine API as Editor, iPhone and Android builds; never run in Unity | **Medium: expect small fixes on first open** |
 | **Sign in with Apple/Google, Keychain/Keystore** (our own native code) | Android code compiled against the real Android 14 framework; iPhone code passes clang with ARC; build scripts compiled against Unity's real Editor API, and the Android manifest changes run and checked | **Medium until the first real-phone test** |
 | **Vivox and AppLovin calls** | Compiled against stand-ins only (their downloads were blocked here) | **Low: check on first open** |

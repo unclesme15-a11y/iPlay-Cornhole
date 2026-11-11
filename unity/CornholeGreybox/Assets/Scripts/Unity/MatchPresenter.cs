@@ -24,6 +24,13 @@ public abstract class MatchPresenter : MonoBehaviour
     /// <summary>Called every frame while a throw replays. Position the thrown bag (and any bags it moves).</summary>
     public virtual void OnReplayFrame(ThrowResult result, ReplayFrame frame) { }
 
+    /// <summary>
+    /// When true, the match screen holds the replay clock on the release sample until this returns false.
+    /// The top-down board leaves it false. A hand release holds it so the flight, the map and the cues
+    /// all start when the bag leaves the hand, not when the server answer arrives.
+    /// </summary>
+    public virtual bool HoldReplayClock { get { return false; } }
+
     /// <summary>A sound/light cue is due (a cornhole: the ring-in sound and the board's LED flash; a thud; a foul).</summary>
     public virtual void OnCue(Cue cue, bool reduceMotion) { }
 

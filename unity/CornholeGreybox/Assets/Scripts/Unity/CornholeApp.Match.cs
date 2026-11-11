@@ -19,6 +19,8 @@ public sealed partial class CornholeApp
     private ThrowResult replayResult;
     private float replayStart;
     private double replayLastMs;
+    // True while a hand presenter is still holding the bag, so the clock restarts at the release.
+    private bool replayHeld;
     private string banner;
     private float bannerUntil;
     private SeatInfo reportTarget;
@@ -46,6 +48,7 @@ public sealed partial class CornholeApp
         match.Fatal += OnMatchFatal;
         voiceStarted = false;
         replayResult = null;
+        replayHeld = false;
         banner = null;
         leaveConfirm = false;
         reportTarget = null;
@@ -72,6 +75,7 @@ public sealed partial class CornholeApp
             match = null;
         }
         replayResult = null;
+        replayHeld = false;
         if (backToMenu)
         {
             Go(Page.Menu);
@@ -131,6 +135,8 @@ public sealed partial class CornholeApp
         banner = DescribeThrow(r);
         bannerUntil = Time.unscaledTime + 4f + (float)(r.DurationMs / 1000.0);
         if (presenter != null) presenter.OnThrowResult(r, match.Model.BoardBeforeLastThrow);
+        // The presenter starts its swing in OnThrowResult. Hold the clock only after that.
+        replayHeld = presenter != null && presenter.HoldReplayClock;
     }
 
     private string DescribeThrow(ThrowResult r)
@@ -160,10 +166,33 @@ public sealed partial class CornholeApp
         }
     }
 
+    /// <summary>Milliseconds since the visual release. Zero while a hand presenter is still holding the bag.</summary>
+    private double ReplayMilliseconds()
+    {
+        if (replayResult == null) return 0;
+        if (presenter != null && presenter.HoldReplayClock) return 0;
+        var ms = (Time.unscaledTime - replayStart) * 1000.0;
+        return ms < 0 ? 0 : ms;
+    }
+
     private void UpdateReplay()
     {
         if (replayResult == null) return;
-        var ms = (Time.unscaledTime - replayStart) * 1000.0;
+        if (presenter != null && presenter.HoldReplayClock)
+        {
+            // Keep t = 0, and remember that the clock has to restart when the bag leaves the hand.
+            replayHeld = true;
+            replayStart = Time.unscaledTime;
+            replayLastMs = -1;
+            return;
+        }
+        if (replayHeld)
+        {
+            replayHeld = false;
+            replayStart = Time.unscaledTime;
+            replayLastMs = -1;
+        }
+        var ms = ReplayMilliseconds();
         foreach (var cue in ThrowReplay.CuesBetween(replayResult, replayLastMs, ms))
         {
             sounds.PlayCue(cue);
@@ -171,7 +200,7 @@ public sealed partial class CornholeApp
         }
         if (presenter != null) presenter.OnReplayFrame(replayResult, ThrowReplay.At(replayResult, ms, match.Model.BoardBeforeLastThrow));
         replayLastMs = ms;
-        if (ms > replayResult.DurationMs + 200) { replayResult = null; }
+        if (ms > replayResult.DurationMs + 200) { replayResult = null; replayHeld = false; }
     }
 
     // ---------------------------------------------------------------- throw input
@@ -490,7 +519,7 @@ public sealed partial class CornholeApp
         UiKit.Fill(new Rect(hole.x - 9f, hole.y - 9f, 18f, 18f), Theme.Backdrop);
         UiKit.Edge(new Rect(hole.x - 9f, hole.y - 9f, 18f, 18f), Theme.Cyan, 1f);
 
-        var frame = replayResult != null ? ThrowReplay.At(replayResult, (Time.unscaledTime - replayStart) * 1000.0, m.BoardBeforeLastThrow) : null;
+        var frame = replayResult != null ? ThrowReplay.At(replayResult, ReplayMilliseconds(), m.BoardBeforeLastThrow) : null;
         var bags = new Dictionary<string, Point2>();
         var teams = new Dictionary<string, string>();
         foreach (var kv in m.Board) { teams[kv.Key] = kv.Value.Team; if (kv.Value.HasPosition && kv.Value.Status == "board") bags[kv.Key] = new Point2(kv.Value.X, kv.Value.Y); }
