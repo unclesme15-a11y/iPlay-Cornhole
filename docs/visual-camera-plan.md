@@ -8,11 +8,11 @@ The place is real video. The players, the bags, the board hit areas, and the sco
 
 (Changed November 2026: players used to be Kling video clips. They are now 3D iPlay characters, so a player's scanned face can appear in the game. See `face-scan.md`.)
 
-This is close to the Street Dice split. There, Kling makes the bodega and Unity owns the dice. Here, Kling makes the park cookout and its far-off crowd, and Unity owns the players and the bags.
+This is close to the Street Dice split. There, Kling makes the bodega and Unity owns the dice. Here, Imagine makes the park cookout and its far-off crowd, and Unity owns the players and the bags.
 
 ## Camera Setups (Plates)
 
-Every setup is a **locked Kling plate**: one approved still frame of the empty scene, with the pitcher's boxes left clear. Unity places the 3D characters in those boxes and the Unity boards stay lined up.
+Every setup is a **locked Imagine plate**: one approved still frame of the empty scene, with the pitcher's boxes left clear. Unity places the 3D characters in those boxes and the Unity boards stay lined up.
 
 | # | Name | What you see | When it's used |
 |---|------|--------------|----------------|
@@ -136,7 +136,7 @@ The background should look like a real cookout that happens to be going on while
 - Now and then **one person** glances at their phone, takes a quick selfie, or holds it up for a second. That's it. Phones are seasoning, not the meal.
 
 **Rules that keep it from looking fake:**
-- **No checklist prompts.** Listing every action makes Kling put all of them front and center at once, and that's what makes it look staged (probably what went wrong with the Codex prompts). Describe the vibe, mention one or two small details, and let the model fill in the rest.
+- **No checklist prompts.** Listing every action makes Imagine put all of them front and center at once, and that's what makes it look staged (probably what went wrong with the Codex prompts). Describe the vibe, mention one or two small details, and let the model fill in the rest.
 - **At most one or two phones** in any shot. Some shots have none.
 - **Nobody stares into the camera** or poses.
 - **Not everybody watches the game.** Most people are into their own conversations. Only the few people closest to the lane even look over.

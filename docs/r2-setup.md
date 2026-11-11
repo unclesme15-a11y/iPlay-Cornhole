@@ -63,7 +63,7 @@ iplay-cornhole-media/
 
 **Stay in repo (text only):**
 - `docs/characters.md`, `docs/multiplayer-plan.md`, `docs/visual-camera-plan.md`
-- `artifacts/kling/cornhole-prompts.md` (rename references from Kling to Imagine)
+- `artifacts/imagine/cornhole-prompts.md`
 - This file: `docs/r2-setup.md`
 
 **Migration order:**
@@ -85,5 +85,5 @@ iplay-cornhole-media/
 - [ ] Create bucket + CORS + custom domain (API or dashboard)
 - [ ] Upload first batch (Marisol)
 - [ ] Write manifest.json generator script
-- [ ] Rename Kling references → Imagine across repo docs
+- [x] Rename Kling references → Imagine across repo docs
 - [ ] Sosa: wire Unity client to media.iplay.wtf URLs with AssetBundle caching
