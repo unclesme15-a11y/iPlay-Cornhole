@@ -1100,6 +1100,188 @@ namespace IPlay.Cornhole.Tests
                 Ck.Near(4, end.Bag.X, 0);
             });
 
+            // ---- bag flight after the hand lets go
+            // The rig releases ~0.48s after the throw result. A replay frame at that clock time is already
+            // down the lane, so the flight is read on a clock that starts at the release pose.
+            Func<ThrowResult> flightThrow = () =>
+            {
+                var deck = BoardDeck.HeightAt(36);
+                var r = new ThrowResult { BagId = "A1-1", Status = "board", FlightMs = 1000, DurationMs = 1600, Landing = new Point2(0, 36) };
+                r.Flight.Add(new FlightSample { T = 0, X = 28, Y = -324, Z = 40 });
+                r.Flight.Add(new FlightSample { T = 1000, X = 0, Y = 36, Z = deck });
+                var sit = new SlideFrame { T = 0 }; sit.Bags["A1-1"] = new Point2(0, 36);
+                var slide = new SlideFrame { T = 200 }; slide.Bags["A1-1"] = new Point2(0, 40);
+                r.Slide.Add(sit); r.Slide.Add(slide);
+                r.Resting["A1-1"] = new Point2(0, 40);
+                return r;
+            };
+            Action<BagFlightVisual> aimLane = v => v.SetAxes(new FlightVec(1, 0, 0), new FlightVec(0, 1, 0), new FlightVec(0, 0, 1));
+            var hand = new FlightVec(0.2, 1.1, -0.4);
+            var loft = new FlightVec(0, 0.4, 0.916515138991168); // unit, lofted down the lane
+
+            add("bag flight: the deck is 3.5 in at the front and 12 in at the back; a slide draws on it and a miss stays on the grass", () =>
+            {
+                Ck.Near(3.5, BoardDeck.HeightAt(0), 1e-9);
+                Ck.Near(12, BoardDeck.HeightAt(48), 1e-9);
+                Ck.Near(9.875, BoardDeck.HeightAt(36), 1e-9);
+                var r = flightThrow();
+                var airborne = ThrowReplay.At(r, 500, null);
+                Ck.Eq("flight", airborne.Phase);
+                Ck.Near(airborne.Height, BoardDeck.DrawHeight(airborne, r), 1e-9, "flight keeps the server height");
+                var sliding = ThrowReplay.At(r, 1200, null);
+                Ck.Eq("slide", sliding.Phase);
+                Ck.Near(0, sliding.Height, 1e-9, "the replay itself reports 0 on the deck");
+                Ck.Near(BoardDeck.HeightAt(40), BoardDeck.DrawHeight(sliding, r), 1e-9, "a 3D bag sits on the deck");
+                var miss = new ThrowResult { BagId = "A1-1", Status = "ground", FlightMs = 800, DurationMs = 800, Landing = new Point2(40, -8) };
+                var off = new ReplayFrame { Phase = "rest", Bag = new Point2(40, -8), Height = 0 };
+                Ck.Near(0, BoardDeck.DrawHeight(off, miss), 0, "grass stays at height 0");
+            });
+
+            add("bag flight: release starts on the hand and follows the server arc, not the replay frame that is already 0.48s down the lane", () =>
+            {
+                var r = flightThrow();
+                var v = new BagFlightVisual();
+                aimLane(v);
+                v.BeginServerThrow(r, null);
+                // The phone would already be feeding frames at the throw-result clock. That must not move the bag yet.
+                var early = ThrowReplay.At(r, 480, null);
+                v.NoteReplayFrame(r, early, 0.48);
+                var held = v.Sample(0.48);
+                Ck.False(held.Drive, "the bag stays in the grip until the hand lets go");
+
+                v.Release(hand, loft, 9, 0.48);
+                var at = v.Sample(0.48);
+                Ck.True(at.Drive && at.Visible);
+                Ck.Eq("flight", at.Phase);
+                Ck.Near(hand.X, at.Position.X, 1e-9, "no pop off the release pose");
+                Ck.Near(hand.Y, at.Position.Y, 1e-9);
+                Ck.Near(hand.Z, at.Position.Z, 1e-9);
+                Ck.True(v.HasLane);
+                var origin = v.Lane.ToWorld(28, -324, 40);
+                Ck.Near(hand.X, origin.X, 1e-9, "server time 0 is the hand");
+                Ck.Near(hand.Y, origin.Y, 1e-9);
+                Ck.Near(hand.Z, origin.Z, 1e-9);
+
+                // 0.48s of server flight is meters down the lane. Drawing that frame raw is the pop we refuse.
+                var ahead = v.Lane.ToWorld(early.Bag.X, early.Bag.Y, early.Height);
+                Ck.True(FlightVec.Distance(at.Position, ahead) > 2.0, "the release pose is not the 480ms frame");
+
+                var mid = v.Sample(0.48 + 0.5);
+                FlightVec auth;
+                Ck.True(v.TryAuthority(0.48 + 0.5, out auth));
+                Ck.Near(auth.X, mid.Position.X, 1e-6, "halfway is the server sample, not a smeared catch-up");
+                Ck.Near(auth.Y, mid.Position.Y, 1e-6);
+                Ck.Near(auth.Z, mid.Position.Z, 1e-6);
+                var along = FlightVec.Dot(mid.Position - hand, new FlightVec(0, 0, 1));
+                Ck.True(along > 3.0, "the bag travels down the lane");
+                Ck.Near((14 - 28) * BagFlightVisual.MetersPerInch, mid.Position.X - hand.X, 1e-6, "lateral offset follows the sample");
+            });
+
+            add("bag flight: after the landing the bag stays on the deck, and it hides in the hole only once it has arrived", () =>
+            {
+                var r = flightThrow();
+                r.HoleEvents.Add(new HoleEvent { BagId = "A1-1", Cause = "slide", TMs = 1400 });
+                var v = new BagFlightVisual();
+                aimLane(v);
+                v.BeginServerThrow(r, null);
+                v.Release(hand, loft, 9, 0.48);
+
+                var landed = v.Sample(0.48 + 1.0);
+                Ck.Eq("slide", landed.Phase);
+                Ck.True(landed.Visible);
+                var deck = v.Lane.ToWorld(0, 36, BoardDeck.HeightAt(36));
+                Ck.Near(deck.X, landed.Position.X, 1e-6, "on the deck, not dropped to the grass");
+                Ck.Near(deck.Y, landed.Position.Y, 1e-6);
+                Ck.Near(deck.Z, landed.Position.Z, 1e-6);
+                Ck.True(v.HasLanded(0.48 + 1.0));
+
+                var sliding = v.Sample(0.48 + 1.2);
+                Ck.True(sliding.Visible, "still on the board before the hole");
+                var gone = v.Sample(0.48 + 1.4);
+                Ck.False(gone.Visible, "the same bag hides when the server says it is in the hole");
+                Ck.Eq("slide", gone.Phase);
+
+                var direct = flightThrow();
+                direct.Status = "hole";
+                direct.DurationMs = 1000;
+                direct.Slide.Clear();
+                direct.Resting.Clear();
+                direct.HoleEvents.Add(new HoleEvent { BagId = "A1-1", Cause = "direct", TMs = 1000 });
+                var airmail = new BagFlightVisual();
+                aimLane(airmail);
+                airmail.BeginServerThrow(direct, null);
+                airmail.Release(hand, loft, 9, 0.48);
+                Ck.True(airmail.Sample(0.48 + 0.5).Visible, "in the air on the way to the hole");
+                Ck.False(airmail.Sample(0.48 + 1.0).Visible, "hides as it arrives, not while it is still in the hand");
+            });
+
+            add("bag flight: with no server path the bag arcs from the release, and a late replay joins that pose without a pop", () =>
+            {
+                var v = new BagFlightVisual();
+                aimLane(v);
+                v.Release(hand, new FlightVec(0, 0, 1), 8, 0.48);
+                var early = v.Sample(0.48);
+                Ck.Eq(BagFlightMode.LocalArc, early.Mode);
+                Ck.Near(hand.Y, early.Position.Y, 1e-9);
+                var dt = 0.1;
+                var flown = v.Sample(0.48 + dt);
+                var expectedY = hand.Y - 0.5 * BagFlightVisual.FallbackGravity * dt * dt;
+                Ck.Near(hand.X, flown.Position.X, 1e-9);
+                Ck.Near(expectedY, flown.Position.Y, 1e-9, "gravity only, along up");
+                Ck.Near(hand.Z + 8 * dt, flown.Position.Z, 1e-9, "release speed along the lane");
+                Ck.Eq("local", flown.Phase);
+
+                // Still one pose: the step over a millisecond is a continuation, not a teleport.
+                var nudge = v.Sample(0.48 + dt + 0.001);
+                Ck.True(FlightVec.Distance(flown.Position, nudge.Position) < 0.05, "no pop along the fallback");
+
+                var r = flightThrow();
+                var joinAge = 0.48 + dt;
+                v.NoteReplayFrame(r, ThrowReplay.At(r, dt * 1000.0, null), joinAge);
+                var joined = v.Sample(joinAge);
+                Ck.Eq(BagFlightMode.Replay, joined.Mode);
+                Ck.Near(flown.Position.X, joined.Position.X, 1e-6, "the join keeps the pose the arc already reached");
+                Ck.Near(flown.Position.Y, joined.Position.Y, 1e-6);
+                Ck.Near(flown.Position.Z, joined.Position.Z, 1e-6);
+                var landed = v.Sample(0.48 + 1.0);
+                FlightVec auth;
+                Ck.True(v.TryAuthority(0.48 + 1.0, out auth));
+                Ck.Near(auth.X, landed.Position.X, 1e-6, "the ease ends on the server landing");
+                Ck.Near(auth.Y, landed.Position.Y, 1e-6);
+                Ck.Near(auth.Z, landed.Position.Z, 1e-6);
+
+                var omitted = new ThrowResult { BagId = "A1-1", FramesOmitted = true, FlightMs = 800, DurationMs = 800, Landing = new Point2(1, 30) };
+                var local = new BagFlightVisual();
+                aimLane(local);
+                local.BeginServerThrow(omitted, null);
+                local.Release(hand, new FlightVec(0, 0, 1), 8, 0.2);
+                local.NoteReplayFrame(omitted, ThrowReplay.At(omitted, 100, null), 0.3);
+                var still = local.Sample(0.3);
+                Ck.Eq(BagFlightMode.LocalArc, still.Mode, "omitted frames do not snap the bag to the landing");
+                Ck.True(FlightVec.Distance(still.Position, hand) < 2.0);
+            });
+
+            add("bag flight: speed is the scalar, a grounded fallback stays put, and the next throw gives the bag back to the hand", () =>
+            {
+                var v = new BagFlightVisual();
+                aimLane(v);
+                // A direction that is not a unit vector must not multiply the speed.
+                v.Release(new FlightVec(0, 1.2, 0), new FlightVec(0, 0, 5), 8, 0);
+                var step = v.Sample(0.1);
+                Ck.Near(0.8, step.Position.Z, 1e-9, "8 m/s, not 40");
+                Ck.True(v.Sample(5).Phase == "rest", "the fallback settles on the ground");
+                var rested = v.Sample(5);
+                var later = v.Sample(6);
+                Ck.Near(rested.Position.Y, later.Position.Y, 1e-9, "it does not fall through the floor");
+                Ck.Near(0, rested.Position.Y, 1e-6);
+
+                var r = flightThrow();
+                v.BeginServerThrow(r, null);
+                var back = v.Sample(0);
+                Ck.False(back.Drive, "a new throw puts the prop back in the hand");
+                Ck.Eq(BagFlightMode.InHand, back.Mode);
+            });
+
             add("settings: remembered on the phone with sensible defaults", () =>
             {
                 var store = new MemoryStore();
