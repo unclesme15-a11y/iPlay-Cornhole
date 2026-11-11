@@ -1,5 +1,7 @@
 # Roadmap
 
+> **Hands:** All hands come from the shared Unity hand rig (`com.iplay.handrig`), composited over Imagine footage. Imagine never generates hands.
+
 ## Phase 1: Rules And Look Lock
 
 - Approve the rules contract (`game-rules.md`) and settle what's left in `open-decisions.md`.

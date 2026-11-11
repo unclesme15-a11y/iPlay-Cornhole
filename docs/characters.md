@@ -1,5 +1,7 @@
 # Video Characters (First Build)
 
+> **Hands:** All hands come from the shared Unity hand rig (`com.iplay.handrig`), composited over Imagine footage. Imagine never generates hands.
+
 8 characters to start: **4 men and 4 women, ages 30-50**, all dressed for a hot summer cookout. Every character is available both as a video bot and as a human player's avatar.
 
 The names are placeholders and can be changed.

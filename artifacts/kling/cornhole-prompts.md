@@ -1,5 +1,7 @@
 # Cornhole Kling Shot List And Prompts
 
+> **Hands:** All hands come from the shared Unity hand rig (`com.iplay.handrig`), composited over Imagine footage. Imagine never generates hands.
+
 Rule of thumb from Street Dice: **lock stills with text-to-image first, then make every video clip with image-to-video from that locked still.** That keeps the boards in the same place in every clip, so the Unity invisible boards stay lined up.
 
 ## 1. Plates (Stills, No Opponents)

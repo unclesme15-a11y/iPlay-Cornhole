@@ -1,5 +1,7 @@
 # Multiplayer Plan
 
+> **Hands:** All hands come from the shared Unity hand rig (`com.iplay.handrig`), composited over Imagine footage. Imagine never generates hands.
+
 ## Seats
 
 Every match has 4 seats in 2v2 (2 in 1v1). **Any seat can be a Human or a Video Bot.** The host fills seats on the Match Setup screen (see `game-rules.md`).
