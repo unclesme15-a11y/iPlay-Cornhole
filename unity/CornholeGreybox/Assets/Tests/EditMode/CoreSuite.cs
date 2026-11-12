@@ -885,6 +885,26 @@ namespace IPlay.Cornhole.Tests
                 Ck.Eq("A:score", ended);
                 Ck.False(m.NeedsRefresh, "no gaps");
             });
+            add("match: character_picked is written onto the seat the pick screen reads", () =>
+            {
+                var m = new MatchModel();
+                m.ApplyView(MiniJson.ParseObject(view), "a1");
+                m.ApplyEvent(MiniJson.ParseObject(@"{""seq"":11,""type"":""character_picked"",""data"":{""seat"":""A1"",""characterId"":""keisha"",""auto"":false}}"));
+                Ck.Eq("keisha", m.Seat("A1").CharacterId);
+            });
+            add("match: a throw with no animation frames updates the board and does not start a replay", () =>
+            {
+                var m = new MatchModel();
+                m.ApplyView(MiniJson.ParseObject(view), "a1");
+                var replays = 0;
+                m.ThrowResultReceived += t => replays++;
+                m.ApplyEvent(MiniJson.ParseObject(@"{""seq"":11,""type"":""throw_result"",""data"":{""seat"":""A1"",""team"":""A"",""bagId"":""A1-3"",""status"":""board"",""framesOmitted"":true,""landing"":{""x"":1,""y"":30},""resting"":{""A1-3"":{""x"":1.5,""y"":36}},""updates"":{},""flightMs"":600,""durationMs"":600}}"));
+                Ck.Eq(0, replays);
+                Ck.True(m.LastThrow.FramesOmitted);
+                Ck.Eq(0, m.LastThrow.Flight.Count);
+                Ck.Null(m.Turn, "the turn still closes");
+                Ck.Near(36, m.Board["A1-3"].Y, 0);
+            });
             add("match: a gap in event numbers asks for a fresh view; a view clears it", () =>
             {
                 var m = new MatchModel();
