@@ -1,0 +1,21 @@
+{
+  "name": "IPlay.Cornhole",
+  "rootNamespace": "",
+  "references": [
+    "IPlay.Cornhole.Core",
+    "IPlay.HandRig",
+    "Unity.Notifications.iOS",
+    "Unity.Services.Authentication",
+    "Unity.Services.Core",
+    "Unity.Services.Vivox"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
