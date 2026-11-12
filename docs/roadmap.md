@@ -9,6 +9,7 @@
 - Lock the matching Far Board Cam and Neighbor Cut stills from the same setting.
 - Side-by-side test: the same Plate 1 plus one background prompt in Kling, Veo 3.1 and Seedance 2.0. Pick per clip type.
 - Generate 3-4 random background life takes plus the cornhole nearby-reaction take, and an ambient audio bed with random one-shots.
+- Plate list, spec only while game work is on hold: `docs/imagine-video-plates.md` (background, camera, hand, reaction). Imagine is the tool for that list. Kling, Veo, and Seedance are not used for it.
 
 ## Phase 2: Scoring Backend
 
